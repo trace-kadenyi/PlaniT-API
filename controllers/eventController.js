@@ -1,7 +1,6 @@
-
 const Event = require("../models/EventSchema");
 
-
+// create event
 const createEvent = async (req, res) => {
   try {
     const event = new Event(req.body);
@@ -12,6 +11,7 @@ const createEvent = async (req, res) => {
   }
 };
 
+// get all events
 const getAllEvents = async (req, res) => {
   try {
     const events = await Event.find().sort({ createdAt: -1 });
@@ -21,3 +21,7 @@ const getAllEvents = async (req, res) => {
   }
 };
 
+module.exports = {
+  createEvent,
+  getAllEvents,
+};
