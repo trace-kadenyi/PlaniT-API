@@ -15,6 +15,10 @@ const createEvent = async (req, res) => {
 const getAllEvents = async (req, res) => {
   try {
     const events = await Event.find().sort({ createdAt: -1 });
+
+    if (events.length === 0) {
+      return res.status(404).json({ message: "No events." });
+    }
     res.json(events);
   } catch (err) {
     res.status(500).json({ message: err.message });
