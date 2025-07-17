@@ -1,5 +1,12 @@
 const express = require("express");
 const app = express();
+
+// mongoose/mongodb
+const mongoose = require("mongoose");
+
+// dotenv
+require("dotenv").config();
+
 // port
 const PORT = process.env.PORT || 4000;
 
@@ -8,6 +15,9 @@ const path = require("path");
 
 // import routes
 const root = require("./routes/root");
+
+// connect to MongoDB
+mongoose.connect(process.env.DATABASE_URI);
 
 require("dotenv").config();
 app.use(express.json());
@@ -18,6 +28,10 @@ app.use(express.static(path.join(__dirname, "public")));
 // use routes
 app.use("/", root);
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// start server
+mongoose.connection.once("open", () => {
+  console.log("connected to MongoDB");
+  app.listen(PORT, () => {
+    console.log(`server listening on port ${PORT}`);
+  });
 });
