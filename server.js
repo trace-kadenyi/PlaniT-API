@@ -1,5 +1,6 @@
 const express = require("express");
 const app = express();
+const cors = require("cors");
 
 // mongoose/mongodb
 const mongoose = require("mongoose");
@@ -23,6 +24,9 @@ mongoose.connect(process.env.DATABASE_URI);
 
 require("dotenv").config();
 app.use(express.json());
+
+// cors
+app.use(cors())
 
 // middleware to handle static files
 app.use(express.static(path.join(__dirname, "public")));
