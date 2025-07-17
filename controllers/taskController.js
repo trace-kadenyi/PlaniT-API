@@ -25,6 +25,18 @@ const createTask = async (req, res) => {
   }
 };
 
+// Update a task
+const updateTask = async (req, res) => {
+  try {
+    const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+    res.json(updatedTask);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
 
 
 
