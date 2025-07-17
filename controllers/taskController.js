@@ -7,7 +7,15 @@ const getAllTasks = async (req, res) => {
     if (req.query.eventId) {
       filter.eventId = req.query.eventId;
     }
+
     const tasks = await Task.find(filter).sort({ createdAt: -1 });
+
+    if (tasks.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No tasks created for this event." });
+    }
+
     res.json(tasks);
   } catch (err) {
     res.status(500).json({ message: err.message });
