@@ -33,7 +33,21 @@ const updateTask = async (req, res) => {
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
     });
+
     res.json(updatedTask);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// Get a single task by ID
+const getTaskById = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+    res.json(task);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
@@ -53,5 +67,6 @@ module.exports = {
   getAllTasks,
   createTask,
   updateTask,
+  getTaskById,
   deleteTask,
 };
