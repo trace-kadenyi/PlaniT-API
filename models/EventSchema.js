@@ -8,6 +8,18 @@ const eventSchema = new mongoose.Schema(
     },
     description: String,
     date: Date,
+    location: {
+      venue: String,
+      address: String,
+      city: String,
+      country: String,
+    },
+    status: {
+      type: String,
+      enum: ["Planning", "In Progress", "Completed", "Cancelled"],
+      default: "Planning",
+    },
+    type: String, // e.g., "Wedding", "Corporate", etc. (helps with filtering)
   },
   { timestamps: true }
 );
