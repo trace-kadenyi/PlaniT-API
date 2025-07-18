@@ -1,4 +1,5 @@
 const Event = require("../models/EventSchema");
+const Task = require("../models/TaskSchema");
 
 // Create a new event
 const createEvent = async (req, res) => {
@@ -63,7 +64,7 @@ const deleteEvent = async (req, res) => {
     // Cascade delete: remove tasks tied to this event
     await Task.deleteMany({ eventId: req.params.id });
 
-    res.json({ message: "Event and associated tasks deleted" });
+    res.json({ message: "Event deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
