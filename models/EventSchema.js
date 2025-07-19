@@ -4,25 +4,41 @@ const eventSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: true,
+      required: [true, "Event name is required."],
     },
     description: {
       type: String,
       maxlength: 300,
+      required: [true, "Description is required."],
     },
-    date: Date,
+    date: {
+      type: Date,
+      required: [true, "Date is required."],
+    },
     location: {
-      venue: String,
+      venue: {
+        type: String,
+        required: [true, "Venue is required."],
+      },
       address: String,
-      city: String,
-      country: String,
+      city: {
+        type: String,
+        required: [true, "City is required."],
+      },
+      country: {
+        type: String,
+        required: [true, "Country is required."],
+      },
     },
     status: {
       type: String,
       enum: ["Planning", "In Progress", "Completed", "Cancelled"],
       default: "Planning",
     },
-    type: String, // e.g., "Wedding", "Corporate", etc. (helps with filtering)
+    type: {
+      type: String,
+      required: [true, "Type of Event is required."],
+    },
   },
   { timestamps: true }
 );
