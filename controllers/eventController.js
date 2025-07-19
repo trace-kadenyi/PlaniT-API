@@ -17,7 +17,16 @@ const createEvent = async (req, res) => {
     const savedEvent = await event.save();
     res.status(201).json(savedEvent);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    // Handle Mongoose validation errors
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map((e) => e.message);
+      return res.status(400).json({ message: messages.join(", ") });
+    }
+
+    // General error fallback
+    res.status(400).json({
+      message: err.message || "Something went wrong while creating the event.",
+    });
   }
 };
 
