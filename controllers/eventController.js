@@ -2,17 +2,27 @@ const Event = require("../models/EventSchema");
 const Task = require("../models/TaskSchema");
 
 const maxChars = 300;
+const maxNameChars = 70;
 
 // Create a new event
 const createEvent = async (req, res) => {
   try {
-    // restrict description word limit
+    // name word limit
+    const eventName = req.body.name || "";
+    if (eventName.length > maxNameChars) {
+      return res.status(400).json({
+        message: `Event name cannot exceed ${maxNameChars} characters.`,
+      });
+    }
+
+    // description word limit
     const description = req.body.description || "";
     if (description.length > maxChars) {
       return res
         .status(400)
         .json({ message: `Description cannot exceed ${maxChars} characters.` });
     }
+
     const event = new Event(req.body);
     const savedEvent = await event.save();
     res.status(201).json(savedEvent);
@@ -56,6 +66,13 @@ const getEventById = async (req, res) => {
 // Update an event
 const updateEvent = async (req, res) => {
   try {
+    // name word limit
+    const eventName = req.body.name || "";
+    if (eventName.length > maxNameChars) {
+      return res.status(400).json({
+        message: `Event name cannot exceed ${maxNameChars} characters.`,
+      });
+    }
     // restrict description word limit
     const description = req.body.description || "";
 
