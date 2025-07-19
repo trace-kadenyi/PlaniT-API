@@ -6,7 +6,10 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    description: String,
+    description: {
+      type: String,
+      maxlength: 300,
+    },
     date: Date,
     location: {
       venue: String,
