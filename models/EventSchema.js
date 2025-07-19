@@ -4,30 +4,30 @@ const eventSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "Event name is required."],
+      required: [true, "Event name is required"],
     },
     description: {
       type: String,
       maxlength: 300,
-      required: [true, "Description is required."],
+      required: [true, "Description is required"],
     },
     date: {
       type: Date,
-      required: [true, "Date is required."],
+      required: [true, "Date is required"],
     },
     location: {
       venue: {
         type: String,
-        required: [true, "Venue is required."],
+        required: [true, "Venue is required"],
       },
       address: String,
       city: {
         type: String,
-        required: [true, "City is required."],
+        required: [true, "City is required"],
       },
       country: {
         type: String,
-        required: [true, "Country is required."],
+        required: [true, "Country is required"],
       },
     },
     status: {
@@ -37,7 +37,7 @@ const eventSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      required: [true, "Type of Event is required."],
+      required: [true, "Type of Event is required"],
     },
   },
   { timestamps: true }
