@@ -1,5 +1,7 @@
 const Task = require("../models/TaskSchema");
 
+const maxChars = 150;
+const maxNameChars = 50;
 // Get all tasks
 const getAllTasks = async (req, res) => {
   try {
@@ -19,6 +21,21 @@ const getAllTasks = async (req, res) => {
 // Create a new task
 const createTask = async (req, res) => {
   try {
+    // name word limit
+    const taskName = req.body.name || "";
+    if (taskName.length > maxNameChars) {
+      return res.status(400).json({
+        message: `Task name cannot exceed ${maxNameChars} characters.`,
+      });
+    }
+
+    // description word limit
+    const description = req.body.description || "";
+    if (description.length > maxChars) {
+      return res
+        .status(400)
+        .json({ message: `Description cannot exceed ${maxChars} characters.` });
+    }
     const task = new Task(req.body);
     await task.save();
     res.status(201).json(task);
@@ -30,6 +47,21 @@ const createTask = async (req, res) => {
 // Update a task
 const updateTask = async (req, res) => {
   try {
+    // name word limit
+    const taskName = req.body.name || "";
+    if (taskName.length > maxNameChars) {
+      return res.status(400).json({
+        message: `Task name cannot exceed ${maxNameChars} characters.`,
+      });
+    }
+
+    // description word limit
+    const description = req.body.description || "";
+    if (description.length > maxChars) {
+      return res
+        .status(400)
+        .json({ message: `Description cannot exceed ${maxChars} characters.` });
+    }
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
     });
