@@ -4,18 +4,27 @@ const taskSchema = new mongoose.Schema(
   {
     title: {
       type: String,
+      maxlength: [50, "Task name must be 50 characters or fewer"],
       required: true,
     },
-    description: String,
+    description: {
+      type: String,
+      maxlength: [150, "Description must be 150 characters or fewer"],
+      required: [true, "Description is required"],
+    },
     eventId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Event",
       required: true,
     },
     assignedTo: {
-      type: String, // you can change this to a User ObjectId if you add user support
+      type: String,
+      default: "Unassigned",
     },
-    deadline: Date,
+    deadline: {
+      type: Date,
+      required: [true, "Date is required"],
+    },
     priority: {
       type: String,
       enum: ["Low", "Medium", "High"],
