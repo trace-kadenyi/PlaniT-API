@@ -104,7 +104,7 @@ const updateEvent = async (req, res) => {
 
     // General error fallback
     res.status(400).json({
-      message: err.message || "Something went wrong while creating the event.",
+      message: err.message || "Something went wrong while updating the event.",
     });
   }
 };
