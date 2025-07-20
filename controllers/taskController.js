@@ -40,7 +40,16 @@ const createTask = async (req, res) => {
     await task.save();
     res.status(201).json(task);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    // Handle Mongoose validation errors
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map((e) => e.message);
+      return res.status(400).json({ message: messages.join(", ") });
+    }
+
+    // General error fallback
+    res.status(400).json({
+      message: err.message || "Something went wrong while creating the task.",
+    });
   }
 };
 
@@ -84,7 +93,16 @@ const getTaskById = async (req, res) => {
     }
     res.json(task);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    // Handle Mongoose validation errors
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map((e) => e.message);
+      return res.status(400).json({ message: messages.join(", ") });
+    }
+
+    // General error fallback
+    res.status(400).json({
+      message: err.message || "Something went wrong while updating the task.",
+    });
   }
 };
 
