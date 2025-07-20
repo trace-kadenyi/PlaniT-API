@@ -96,7 +96,16 @@ const updateEvent = async (req, res) => {
     }
     res.json(updatedEvent);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    // Handle Mongoose validation errors
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map((e) => e.message);
+      return res.status(400).json({ message: messages.join(", ") });
+    }
+
+    // General error fallback
+    res.status(400).json({
+      message: err.message || "Something went wrong while creating the event.",
+    });
   }
 };
 
