@@ -4,36 +4,56 @@ const Task = require("../models/TaskSchema");
 const maxChars = 300;
 const maxNameChars = 70;
 
+// Date normalization middleware
+const normalizeEventDate = (date) => {
+  if (!date) return null;
+  const d = new Date(date);
+  return new Date(
+    Date.UTC(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      d.getUTCDate(),
+      d.getUTCHours(),
+      d.getUTCMinutes()
+    )
+  );
+};
+
 // Create a new event
 const createEvent = async (req, res) => {
   try {
-    // name word limit
-    const eventName = req.body.name || "";
+    // Normalize the date before creating
+    const eventData = {
+      ...req.body,
+      date: normalizeEventDate(req.body.date),
+    };
+
+    // name word limit (keep existing)
+    const eventName = eventData.name || "";
     if (eventName.length > maxNameChars) {
       return res.status(400).json({
         message: `Event name cannot exceed ${maxNameChars} characters.`,
       });
     }
 
-    // description word limit
-    const description = req.body.description || "";
+    // description word limit (keep existing)
+    const description = eventData.description || "";
     if (description.length > maxChars) {
       return res
         .status(400)
         .json({ message: `Description cannot exceed ${maxChars} characters.` });
     }
 
-    const event = new Event(req.body);
+    const event = new Event(eventData); // Use normalized data
     const savedEvent = await event.save();
     res.status(201).json(savedEvent);
   } catch (err) {
-    // Handle Mongoose validation errors
+    // Keep existing error handling
     if (err.name === "ValidationError") {
       const messages = Object.values(err.errors).map((e) => e.message);
       return res.status(400).json({ message: messages.join(", ") });
     }
 
-    // General error fallback
     res.status(400).json({
       message: err.message || "Something went wrong while creating the event.",
     });
@@ -43,8 +63,17 @@ const createEvent = async (req, res) => {
 // Get all events
 const getAllEvents = async (req, res) => {
   try {
-    const events = await Event.find().sort({ createdAt: -1 });
-    res.json(events);
+    const events = await Event.find().sort({ createdAt: -1 }).lean();
+
+    // Format all dates consistently
+    const formattedEvents = events.map((event) => ({
+      ...event,
+      date: event.date?.toISOString(),
+      createdAt: event.createdAt?.toISOString(),
+      updatedAt: event.updatedAt?.toISOString(),
+    }));
+
+    res.json(formattedEvents);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -53,11 +82,20 @@ const getAllEvents = async (req, res) => {
 // Get event by ID
 const getEventById = async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id);
+    const event = await Event.findById(req.params.id).lean();
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
     }
-    res.json(event);
+
+    // Convert dates to ISO strings consistently
+    const responseData = {
+      ...event,
+      date: event.date?.toISOString(),
+      createdAt: event.createdAt?.toISOString(),
+      updatedAt: event.updatedAt?.toISOString(),
+    };
+
+    res.json(responseData);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -66,16 +104,21 @@ const getEventById = async (req, res) => {
 // Update an event
 const updateEvent = async (req, res) => {
   try {
-    // name word limit
-    const eventName = req.body.name || "";
+    // Normalize the date if provided
+    const updateData = req.body.date
+      ? { ...req.body, date: normalizeEventDate(req.body.date) }
+      : req.body;
+
+    // name word limit (keep existing)
+    const eventName = updateData.name || "";
     if (eventName.length > maxNameChars) {
       return res.status(400).json({
         message: `Event name cannot exceed ${maxNameChars} characters.`,
       });
     }
-    // restrict description word limit
-    const description = req.body.description || "";
 
+    // description word limit (keep existing)
+    const description = updateData.description || "";
     if (description.length > maxChars) {
       return res
         .status(400)
@@ -84,7 +127,7 @@ const updateEvent = async (req, res) => {
 
     const updatedEvent = await Event.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData, // Use normalized data
       {
         new: true,
         runValidators: true,
@@ -96,13 +139,12 @@ const updateEvent = async (req, res) => {
     }
     res.json(updatedEvent);
   } catch (err) {
-    // Handle Mongoose validation errors
+    // Keep existing error handling
     if (err.name === "ValidationError") {
       const messages = Object.values(err.errors).map((e) => e.message);
       return res.status(400).json({ message: messages.join(", ") });
     }
 
-    // General error fallback
     res.status(400).json({
       message: err.message || "Something went wrong while updating the event.",
     });
