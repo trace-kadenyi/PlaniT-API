@@ -15,6 +15,8 @@ const eventSchema = new mongoose.Schema(
     date: {
       type: Date,
       required: [true, "Date is required"],
+      index: true,
+      get: (date) => date?.toISOString(), // Ensure consistent ISO format
     },
     location: {
       venue: {
@@ -41,7 +43,12 @@ const eventSchema = new mongoose.Schema(
       required: [true, "Type of Event is required"],
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    // Enable getters when converting to JSON
+    toJSON: { getters: true },
+    toObject: { getters: true },
+  }
 );
 
 module.exports = mongoose.model("Event", eventSchema);
