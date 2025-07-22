@@ -13,9 +13,19 @@ const getAllTasks = async (req, res) => {
 
     const tasks = await Task.find(filter)
       .sort({ createdAt: -1 })
-      .populate("eventId", "name date"); // populate only name and date from Event
+      .populate({
+        path: "eventId",
+        select: "name date", // Only get name and date
+        options: { retainNullValues: true }, // Keep null if eventId is null
+      });
 
-    res.json(tasks);
+    // Transform tasks to include eventName at top level
+    const tasksWithEventName = tasks.map((task) => ({
+      ...task.toObject(),
+      eventName: task.eventId?.name || "Unassigned", // Add eventName field
+    }));
+
+    res.json(tasksWithEventName);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
