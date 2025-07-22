@@ -26,7 +26,7 @@ const createEvent = async (req, res) => {
     const eventDate = normalizeEventDate(req.body.date);
 
     // Check if event date is in the past
-    if (eventDate < new Date()) {
+    if (eventDate !== null && eventDate < new Date()) {
       return res.status(400).json({
         message: "Event date cannot be in the past",
       });
@@ -117,7 +117,7 @@ const updateEvent = async (req, res) => {
     if (req.body.date) {
       eventDate = normalizeEventDate(req.body.date);
       // Check if event date is in the past
-      if (eventDate < new Date()) {
+      if (eventDate !== null && eventDate < new Date()) {
         return res.status(400).json({
           message: "Event date cannot be in the past",
         });
