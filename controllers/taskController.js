@@ -11,13 +11,16 @@ const getAllTasks = async (req, res) => {
       filter.eventId = req.query.eventId;
     }
 
-    const tasks = await Task.find(filter).sort({ createdAt: -1 });
+    const tasks = await Task.find(filter)
+      .sort({ createdAt: -1 })
+      .populate('eventId', 'name date'); // populate only name and date from Event
 
     res.json(tasks);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 // Create a new task
 const createTask = async (req, res) => {
