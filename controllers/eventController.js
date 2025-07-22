@@ -23,9 +23,18 @@ const normalizeEventDate = (date) => {
 const createEvent = async (req, res) => {
   try {
     // Normalize the date before creating
+    const eventDate = normalizeEventDate(req.body.date);
+    
+    // Check if event date is in the past
+    if (eventDate < new Date()) {
+      return res.status(400).json({
+        message: "Event date cannot be in the past",
+      });
+    }
+
     const eventData = {
       ...req.body,
-      date: normalizeEventDate(req.body.date),
+      date: eventDate,
     };
 
     // name word limit (keep existing)
@@ -59,7 +68,6 @@ const createEvent = async (req, res) => {
     });
   }
 };
-
 // Get all events
 const getAllEvents = async (req, res) => {
   try {
