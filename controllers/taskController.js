@@ -22,7 +22,7 @@ const getAllTasks = async (req, res) => {
 const createTask = async (req, res) => {
   try {
     // name word limit
-    const taskName = req.body.name || "";
+    const taskName = req.body.title || "";
     if (taskName.length > maxNameChars) {
       return res.status(400).json({
         message: `Task name cannot exceed ${maxNameChars} characters.`,
@@ -36,6 +36,20 @@ const createTask = async (req, res) => {
         .status(400)
         .json({ message: `Description cannot exceed ${maxChars} characters.` });
     }
+
+    // Check if task deadline is after event's date
+    const event = await Event.findById(req.body.eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Associated event not found" });
+    }
+
+    const taskDeadline = new Date(req.body.deadline);
+    if (taskDeadline > event.date) {
+      return res.status(400).json({
+        message: "Task deadline cannot be after the event date",
+      });
+    }
+
     const task = new Task(req.body);
     await task.save();
     res.status(201).json(task);
