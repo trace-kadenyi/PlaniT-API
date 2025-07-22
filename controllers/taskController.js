@@ -51,8 +51,6 @@ const createTask = async (req, res) => {
     taskDeadline.setHours(0, 0, 0, 0);
     eventDate.setHours(0, 0, 0, 0);
 
-
-
     if (taskDeadline > eventDate) {
       return res.status(400).json({
         message: "Task deadline cannot be after the event date",
@@ -123,10 +121,31 @@ const updateTask = async (req, res) => {
         return res.status(404).json({ message: "Associated event not found" });
       }
 
+      // Convert dates to consistent format for comparison
       const newDeadline = new Date(req.body.deadline);
-      if (newDeadline > event.date) {
+      const eventDate = new Date(event.date);
+
+      // Clear time components for date-only comparison if needed
+      newDeadline.setHours(0, 0, 0, 0);
+      eventDate.setHours(0, 0, 0, 0);
+
+      if (newDeadline > eventDate) {
         return res.status(400).json({
           message: "Task deadline cannot be after the event date",
+          validation: {
+            field: "deadline",
+            message: "Task deadline must be before the event date",
+          },
+        });
+      }
+
+      if (newDeadline < new Date()) {
+        return res.status(400).json({
+          message: "Task deadline cannot be in the past",
+          validation: {
+            field: "deadline",
+            message: "Task deadline must be a date in the future",
+          },
         });
       }
     }
