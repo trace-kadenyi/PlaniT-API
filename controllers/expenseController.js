@@ -1,5 +1,5 @@
-const Expense = require("../models/Expense");
-const Budget = require("../models/Budget");
+const Expense = require("../models/ExpenseSchema");
+const Budget = require("../models/BudgetSchema");
 
 // Create new expense
 const createExpense = async (req, res) => {
