@@ -1,5 +1,7 @@
 const Expense = require("../models/ExpenseSchema");
 const Budget = require("../models/BudgetSchema");
+const mongoose = require("mongoose");
+
 
 // Create new expense
 const createExpense = async (req, res) => {
@@ -12,7 +14,7 @@ const createExpense = async (req, res) => {
 
     // Calculate remaining budget
     const expenses = await Expense.aggregate([
-      { $match: { eventId: new mongoose.Types.ObjectId(req.body.eventId) } },
+      { $match: { eventId: new mongoose.Types.ObjectId(String(req.body.eventId)) } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
     const totalExpenses = expenses[0]?.total || 0;
@@ -105,7 +107,7 @@ const deleteExpense = async (req, res) => {
 const getExpensesSummary = async (req, res) => {
   try {
     const summary = await Expense.aggregate([
-      { $match: { eventId: new mongoose.Types.ObjectId(req.params.eventId) } },
+      { $match: { eventId: new mongoose.Types.ObjectId(String(req.params.eventId)) } },
       {
         $group: {
           _id: "$category",
