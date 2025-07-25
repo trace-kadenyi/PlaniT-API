@@ -1,6 +1,5 @@
 const Budget = require("../models/Budget");
 const Expense = require("../models/Expense");
-const mongoose = require("mongoose");
 
 // Get budget by event ID
 const getBudgetByEventId = async (req, res) => {
@@ -34,7 +33,6 @@ const updateBudget = async (req, res) => {
       return res.status(404).json({ message: "Budget not found" });
     }
 
-    // If updating totalBudget, validate against existing expenses
     if (req.body.totalBudget !== undefined) {
       const expenses = await Expense.aggregate([
         {
@@ -51,7 +49,8 @@ const updateBudget = async (req, res) => {
       }
     }
 
-    Object.assign(budget, req.body);
+    const { totalBudget, notes } = req.body;
+    Object.assign(budget, { totalBudget, notes });
     await budget.save();
     res.json(budget);
   } catch (err) {
