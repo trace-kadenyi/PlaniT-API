@@ -2,7 +2,6 @@ const Expense = require("../models/ExpenseSchema");
 const Budget = require("../models/BudgetSchema");
 const mongoose = require("mongoose");
 
-
 // Create new expense
 const createExpense = async (req, res) => {
   try {
@@ -14,7 +13,11 @@ const createExpense = async (req, res) => {
 
     // Calculate remaining budget
     const expenses = await Expense.aggregate([
-      { $match: { eventId: new mongoose.Types.ObjectId(String(req.body.eventId)) } },
+      {
+        $match: {
+          eventId: new mongoose.Types.ObjectId(String(req.body.eventId)),
+        },
+      },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
     const totalExpenses = expenses[0]?.total || 0;
@@ -29,7 +32,25 @@ const createExpense = async (req, res) => {
 
     const expense = new Expense(req.body);
     await expense.save();
-    res.status(201).json(expense);
+    // Get updated balance
+    const updatedExpenses = await Expense.aggregate([
+      {
+        $match: {
+          eventId: new mongoose.Types.ObjectId(String(req.body.eventId)),
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const newRemaining = budget.totalBudget - (updatedExpenses[0]?.total || 0);
+
+    res.status(201).json({
+      expense,
+      budgetStatus: {
+        totalBudget: budget.totalBudget,
+        totalExpenses: updatedExpenses[0]?.total || 0,
+        remainingBudget: newRemaining,
+      },
+    });
   } catch (err) {
     if (err.name === "ValidationError") {
       return res.status(400).json({
@@ -107,7 +128,11 @@ const deleteExpense = async (req, res) => {
 const getExpensesSummary = async (req, res) => {
   try {
     const summary = await Expense.aggregate([
-      { $match: { eventId: new mongoose.Types.ObjectId(String(req.params.eventId)) } },
+      {
+        $match: {
+          eventId: new mongoose.Types.ObjectId(String(req.params.eventId)),
+        },
+      },
       {
         $group: {
           _id: "$category",
