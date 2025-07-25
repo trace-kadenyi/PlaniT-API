@@ -45,6 +45,18 @@ const getExpensesByEventId = async (req, res) => {
   }
 };
 
+// Get expense by ID
+const getExpenseById = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id);
+    if (!expense) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
+    res.json(expense);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
 
 
