@@ -1,3 +1,5 @@
+const mongoose = require("mongoose");
+
 const Event = require("../models/EventSchema");
 const Task = require("../models/TaskSchema");
 const Budget = require("../models/BudgetSchema")
@@ -112,7 +114,7 @@ const getEventById = async (req, res) => {
     // Get budget and expense totals
     const budget = await Budget.findOne({ eventId: req.params.id }).lean();
     const expenses = await Expense.aggregate([
-      { $match: { eventId: new mongoose.Types.ObjectId(req.params.id) } },
+      { $match: { eventId: new mongoose.Types.ObjectId(String(req.params.id)) } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
 
