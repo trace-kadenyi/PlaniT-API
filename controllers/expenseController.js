@@ -114,4 +114,11 @@ const getExpensesSummary = async (req, res) => {
   }
 };
 
-
+module.exports = {
+  createExpense,
+  getExpensesByEventId,
+  getExpenseById,
+  updateExpense,
+  deleteExpense,
+  getExpensesSummary,
+};
