@@ -6,9 +6,9 @@ const {
 } = require("../controllers/budgetControllers");
 
 // Get budget by event ID
-router.get("events/:eventId", getBudgetByEventId);
+router.get("/:eventId", getBudgetByEventId);
 
 // Update event by ID
-router.put("events/:eventId", updateBudget);
+router.put("/:eventId", updateBudget);
 
 module.exports = router;
