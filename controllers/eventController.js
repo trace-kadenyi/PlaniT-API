@@ -197,10 +197,14 @@ const deleteEvent = async (req, res) => {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Cascade delete: remove tasks tied to this event
-    await Task.deleteMany({ eventId: req.params.id });
+    // Cascade delete all related documents
+    await Promise.all([
+      Task.deleteMany({ eventId: req.params.id }),
+      Budget.deleteOne({ eventId: req.params.id }),
+      Expense.deleteMany({ eventId: req.params.id }),
+    ]);
 
-    res.json({ message: "Event deleted" });
+    res.json({ message: "Event and all related data deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
