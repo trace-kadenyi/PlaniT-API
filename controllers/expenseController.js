@@ -58,7 +58,28 @@ const getExpenseById = async (req, res) => {
   }
 };
 
-
+// Update expense
+const updateExpense = async (req, res) => {
+  try {
+    const expense = await Expense.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    if (!expense) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
+    res.json(expense);
+  } catch (err) {
+    if (err.name === "ValidationError") {
+      return res.status(400).json({
+        message: Object.values(err.errors)
+          .map((e) => e.message)
+          .join(", "),
+      });
+    }
+    res.status(500).json({ message: err.message });
+  }
+};
 
 
 
