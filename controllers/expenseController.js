@@ -1,6 +1,5 @@
 const Expense = require("../models/Expense");
 const Budget = require("../models/Budget");
-const mongoose = require("mongoose");
 
 // Create new expense
 const createExpense = async (req, res) => {
@@ -11,10 +10,18 @@ const createExpense = async (req, res) => {
       return res.status(404).json({ message: "Event budget not found" });
     }
 
-    // Optionally check budget constraints
-    if (req.body.amount > budget.totalBudget) {
+    // Calculate remaining budget
+    const expenses = await Expense.aggregate([
+      { $match: { eventId: new mongoose.Types.ObjectId(req.body.eventId) } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    const totalExpenses = expenses[0]?.total || 0;
+    const remainingBudget = budget.totalBudget - totalExpenses;
+
+    // Validate against remaining budget (NEW CODE)
+    if (req.body.amount > remainingBudget) {
       return res.status(400).json({
-        message: "Expense amount exceeds total budget",
+        message: `Expense exceeds remaining budget ($${remainingBudget} available)`,
       });
     }
 
