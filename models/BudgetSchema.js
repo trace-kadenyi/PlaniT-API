@@ -23,7 +23,4 @@ const budgetSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-budgetSchema.index({ eventId: 1 });
-
 module.exports = mongoose.model("Budget", budgetSchema);
