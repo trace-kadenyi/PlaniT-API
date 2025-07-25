@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 
+const Event = require("../models/EventSchema");
 const Budget = require("../models/BudgetSchema");
 const Expense = require("../models/ExpenseSchema");
 const { getBudgetStatus } = require("../utils/budgetHelpers");
@@ -8,17 +9,17 @@ const { getBudgetStatus } = require("../utils/budgetHelpers");
 const createExpense = async (req, res) => {
   try {
     const budgetStatus = await getBudgetStatus(req.body.eventId);
-    
+
     // Enhanced validation
     if (budgetStatus.totalBudget === 0) {
       return res.status(404).json({ message: "Event budget not found" });
     }
-    
+
     if (req.body.amount > budgetStatus.remainingBudget) {
       return res.status(400).json({
         message: `Expense exceeds remaining budget ($${budgetStatus.remainingBudget} available)`,
         remainingBudget: budgetStatus.remainingBudget,
-        attemptedAmount: req.body.amount
+        attemptedAmount: req.body.amount,
       });
     }
 
@@ -76,21 +77,36 @@ const getExpenseById = async (req, res) => {
 // Update expense
 const updateExpense = async (req, res) => {
   try {
-    const expense = await Expense.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
-    if (!expense) {
+    const existingExpense = await Expense.findById(req.params.id);
+    if (!existingExpense) {
       return res.status(404).json({ message: "Expense not found" });
     }
 
-    const budgetStatus = await getBudgetStatus(expense.eventId);
-    if (budgetStatus.totalBudget === 0) {
-      return res.status(404).json({ message: "Event budget not found" });
+    const budgetStatus = await getBudgetStatus(existingExpense.eventId);
+
+    // Calculate potential new total if this update is applied
+    const potentialAmount = req.body.amount || existingExpense.amount;
+    const otherExpensesTotal =
+      budgetStatus.totalExpenses - existingExpense.amount;
+    const potentialRemaining =
+      budgetStatus.totalBudget - (otherExpensesTotal + potentialAmount);
+
+    if (potentialRemaining < 0) {
+      return res.status(400).json({
+        message: `Update would exceed budget by $${-potentialRemaining}. Please work within the available budget or increase it.`,
+        maxAllowed: budgetStatus.totalBudget - otherExpensesTotal,
+      });
     }
+
+    const updatedExpense = await Expense.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
     res.json({
-      expense,
-      budgetStatus: await getBudgetStatus(expense.eventId), // ✅ Cleaner
+      expense: updatedExpense,
+      budgetStatus: await getBudgetStatus(existingExpense.eventId),
     });
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -107,17 +123,60 @@ const updateExpense = async (req, res) => {
 // Delete expense
 const deleteExpense = async (req, res) => {
   try {
-    const expense = await Expense.findByIdAndDelete(req.params.id);
+    const expense = await Expense.findById(req.params.id);
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
 
+    // Get associated event
+    const event = await Event.findById(expense.eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Associated event not found" });
+    }
+
+    // Check if event is completed
+    if (event.status === "Completed") {
+      return res.status(400).json({
+        message: "Cannot delete expenses for completed events",
+        resolution: "Please reopen the event if changes are needed",
+      });
+    }
+
+    // Budget validation
+    const budgetStatus = await getBudgetStatus(expense.eventId);
+    if (!budgetStatus) {
+      return res.status(404).json({ message: "Associated budget not found" });
+    }
+
+    // Payment status check
+    if (expense.paymentStatus === "paid") {
+      return res.status(400).json({
+        message: "Paid expenses cannot be deleted",
+        actionRequired: "Create a compensating expense instead",
+        contact: "accounting@example.com",
+      });
+    }
+
+    // Final deletion
+    await Expense.findByIdAndDelete(req.params.id);
+
     res.json({
       message: "Expense deleted successfully",
-      budgetStatus: await getBudgetStatus(expense.eventId), // ✅ Consistent
+      budgetStatus: await getBudgetStatus(expense.eventId),
+      deletedExpense: {
+        amount: expense.amount,
+        category: expense.category,
+        description: expense.description,
+        date: expense.createdAt,
+      },
+      newRemaining: (await getBudgetStatus(expense.eventId)).remainingBudget,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({
+      message: "Failed to delete expense",
+      systemMessage: err.message,
+      errorCode: "EXPENSE_DELETION_FAILED",
+    });
   }
 };
 
