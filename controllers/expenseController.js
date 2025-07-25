@@ -66,10 +66,21 @@ const createExpense = async (req, res) => {
 // Get all expenses for an event
 const getExpensesByEventId = async (req, res) => {
   try {
-    const expenses = await Expense.find({ eventId: req.params.eventId }).sort({
-      createdAt: -1,
+    const [expenses, budget] = await Promise.all([
+      Expense.find({ eventId: req.params.eventId }).sort({ createdAt: -1 }),
+      Budget.findOne({ eventId: req.params.eventId }),
+    ]);
+
+    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+    res.json({
+      expenses,
+      budgetStatus: {
+        totalBudget: budget.totalBudget,
+        totalExpenses,
+        remainingBudget: budget.totalBudget - totalExpenses,
+      },
     });
-    res.json(expenses);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
