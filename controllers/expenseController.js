@@ -1,55 +1,33 @@
-const Expense = require("../models/ExpenseSchema");
-const Budget = require("../models/BudgetSchema");
 const mongoose = require("mongoose");
+
+const Budget = require("../models/BudgetSchema");
+const Expense = require("../models/ExpenseSchema");
+const { getBudgetStatus } = require("../utils/budgetHelpers");
 
 // Create new expense
 const createExpense = async (req, res) => {
   try {
-    // Verify event exists (through budget)
-    const budget = await Budget.findOne({ eventId: req.body.eventId });
-    if (!budget) {
+    const budgetStatus = await getBudgetStatus(req.body.eventId);
+    
+    // Enhanced validation
+    if (budgetStatus.totalBudget === 0) {
       return res.status(404).json({ message: "Event budget not found" });
     }
-
-    // Calculate remaining budget
-    const expenses = await Expense.aggregate([
-      {
-        $match: {
-          eventId: new mongoose.Types.ObjectId(String(req.body.eventId)),
-        },
-      },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
-    const totalExpenses = expenses[0]?.total || 0;
-    const remainingBudget = budget.totalBudget - totalExpenses;
-
-    // Validate against remaining budget (NEW CODE)
-    if (req.body.amount > remainingBudget) {
+    
+    if (req.body.amount > budgetStatus.remainingBudget) {
       return res.status(400).json({
-        message: `Expense exceeds remaining budget ($${remainingBudget} available)`,
+        message: `Expense exceeds remaining budget ($${budgetStatus.remainingBudget} available)`,
+        remainingBudget: budgetStatus.remainingBudget,
+        attemptedAmount: req.body.amount
       });
     }
 
     const expense = new Expense(req.body);
     await expense.save();
-    // Get updated balance
-    const updatedExpenses = await Expense.aggregate([
-      {
-        $match: {
-          eventId: new mongoose.Types.ObjectId(String(req.body.eventId)),
-        },
-      },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
-    const newRemaining = budget.totalBudget - (updatedExpenses[0]?.total || 0);
 
     res.status(201).json({
       expense,
-      budgetStatus: {
-        totalBudget: budget.totalBudget,
-        totalExpenses: updatedExpenses[0]?.total || 0,
-        remainingBudget: newRemaining,
-      },
+      budgetStatus: await getBudgetStatus(req.body.eventId),
     });
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -66,21 +44,17 @@ const createExpense = async (req, res) => {
 // Get all expenses for an event
 const getExpensesByEventId = async (req, res) => {
   try {
-    const [expenses, budget] = await Promise.all([
-      Expense.find({ eventId: req.params.eventId }).sort({ createdAt: -1 }),
-      Budget.findOne({ eventId: req.params.eventId }),
-    ]);
-
-    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-
-    res.json({
-      expenses,
-      budgetStatus: {
-        totalBudget: budget.totalBudget,
-        totalExpenses,
-        remainingBudget: budget.totalBudget - totalExpenses,
-      },
+    const expenses = await Expense.find({ eventId: req.params.eventId }).sort({
+      createdAt: -1,
     });
+
+    const budgetStatus = await getBudgetStatus(req.params.eventId);
+
+    if (budgetStatus.totalBudget === 0) {
+      return res.status(404).json({ message: "Event budget not found" });
+    }
+
+    res.json({ expenses, budgetStatus });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -109,20 +83,14 @@ const updateExpense = async (req, res) => {
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
-    // Calculate new balance
-    const budget = await Budget.findOne({ eventId: expense.eventId });
-    const expenses = await Expense.aggregate([
-      { $match: { eventId: expense.eventId } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
 
+    const budgetStatus = await getBudgetStatus(expense.eventId);
+    if (budgetStatus.totalBudget === 0) {
+      return res.status(404).json({ message: "Event budget not found" });
+    }
     res.json({
       expense,
-      budgetStatus: {
-        totalBudget: budget.totalBudget,
-        totalExpenses: expenses[0]?.total || 0,
-        remainingBudget: budget.totalBudget - (expenses[0]?.total || 0),
-      },
+      budgetStatus: await getBudgetStatus(expense.eventId), // ✅ Cleaner
     });
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -143,21 +111,10 @@ const deleteExpense = async (req, res) => {
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
-    // Get new balance
-    const budget = await Budget.findOne({ eventId: expense.eventId });
-    const remainingExpenses = await Expense.aggregate([
-      { $match: { eventId: expense.eventId } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
 
     res.json({
       message: "Expense deleted successfully",
-      budgetStatus: {
-        totalBudget: budget.totalBudget,
-        totalExpenses: remainingExpenses[0]?.total || 0,
-        remainingBudget:
-          budget.totalBudget - (remainingExpenses[0]?.total || 0),
-      },
+      budgetStatus: await getBudgetStatus(expense.eventId), // ✅ Consistent
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -167,34 +124,25 @@ const deleteExpense = async (req, res) => {
 // Get expenses summary by category
 const getExpensesSummary = async (req, res) => {
   try {
-    const [summary, budget] = await Promise.all([
-      Expense.aggregate([
-        {
-          $match: {
-            eventId: new mongoose.Types.ObjectId(String(req.params.eventId)),
-          },
+    const summary = await Expense.aggregate([
+      {
+        $match: {
+          eventId: new mongoose.Types.ObjectId(String(req.params.eventId)),
         },
-        {
-          $group: {
-            _id: "$category",
-            total: { $sum: "$amount" },
-            count: { $sum: 1 },
-          },
+      },
+      {
+        $group: {
+          _id: "$category",
+          total: { $sum: "$amount" },
+          count: { $sum: 1 },
         },
-        { $sort: { total: -1 } },
-      ]),
-      Budget.findOne({ eventId: req.params.eventId }),
+      },
+      { $sort: { total: -1 } },
     ]);
-
-    const totalSpent = summary.reduce((sum, cat) => sum + cat.total, 0);
 
     res.json({
       categories: summary,
-      budgetStatus: {
-        totalBudget: budget.totalBudget,
-        totalExpenses: totalSpent,
-        remainingBudget: budget.totalBudget - totalSpent,
-      },
+      budgetStatus: await getBudgetStatus(req.params.eventId),
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
