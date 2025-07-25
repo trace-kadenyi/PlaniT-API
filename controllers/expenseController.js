@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 
 const Event = require("../models/EventSchema");
-const Budget = require("../models/BudgetSchema");
 const Expense = require("../models/ExpenseSchema");
 const { getBudgetStatus } = require("../utils/budgetHelpers");
 
