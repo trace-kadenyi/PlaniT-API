@@ -9,7 +9,7 @@ const {  createExpense,
 
 
   router.post('/', createExpense);
-router.get('/:eventId/expenses', getExpensesByEventId);
+router.get('/event/:eventId', getExpensesByEventId);
 router.get('/:id', getExpenseById);
 router.put('/:id', updateExpense);
 router.delete('/:id', deleteExpense);
