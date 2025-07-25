@@ -132,7 +132,22 @@ const deleteExpense = async (req, res) => {
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
-    res.json({ message: "Expense deleted successfully" });
+    // Get new balance
+    const budget = await Budget.findOne({ eventId: expense.eventId });
+    const remainingExpenses = await Expense.aggregate([
+      { $match: { eventId: expense.eventId } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
+    res.json({
+      message: "Expense deleted successfully",
+      budgetStatus: {
+        totalBudget: budget.totalBudget,
+        totalExpenses: remainingExpenses[0]?.total || 0,
+        remainingBudget:
+          budget.totalBudget - (remainingExpenses[0]?.total || 0),
+      },
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
