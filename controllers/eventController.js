@@ -105,9 +105,17 @@ const getEventById = async (req, res) => {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Convert dates to ISO strings consistently
+    // Get budget and expense totals
+    const budget = await Budget.findOne({ eventId: req.params.id }).lean();
+    const expenses = await Expense.aggregate([
+      { $match: { eventId: mongoose.Types.ObjectId(req.params.id) } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
     const responseData = {
       ...event,
+      budget: budget || null,
+      totalExpenses: expenses[0]?.total || 0,
       date: event.date?.toISOString(),
       createdAt: event.createdAt?.toISOString(),
       updatedAt: event.updatedAt?.toISOString(),
