@@ -33,7 +33,17 @@ const createExpense = async (req, res) => {
   }
 };
 
-
+// Get all expenses for an event
+const getExpensesByEventId = async (req, res) => {
+  try {
+    const expenses = await Expense.find({ eventId: req.params.eventId }).sort({
+      createdAt: -1,
+    });
+    res.json(expenses);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
 
 
