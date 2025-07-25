@@ -1,4 +1,3 @@
-// models/Expense.js
 const mongoose = require("mongoose");
 
 const expenseSchema = new mongoose.Schema(
