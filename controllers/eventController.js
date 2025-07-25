@@ -1,6 +1,7 @@
 const Event = require("../models/EventSchema");
 const Task = require("../models/TaskSchema");
-const Budget = require("../models/BudgetSchema");
+const Budget = require("../models/BudgetSchema")
+const Expense = require("../models/ExpenseSchema");
 
 const maxChars = 300;
 const maxNameChars = 70;
@@ -65,7 +66,10 @@ const createEvent = async (req, res) => {
     });
     await budget.save();
 
-    res.status(201).json(savedEvent);
+    res.status(201).json({
+      event: savedEvent,
+      budgetId: budget._id,
+    });
   } catch (err) {
     // Keep existing error handling
     if (err.name === "ValidationError") {
@@ -108,7 +112,7 @@ const getEventById = async (req, res) => {
     // Get budget and expense totals
     const budget = await Budget.findOne({ eventId: req.params.id }).lean();
     const expenses = await Expense.aggregate([
-      { $match: { eventId: mongoose.Types.ObjectId(req.params.id) } },
+      { $match: { eventId: new mongoose.Types.ObjectId(req.params.id) } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
 
