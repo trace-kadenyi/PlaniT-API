@@ -167,22 +167,35 @@ const deleteExpense = async (req, res) => {
 // Get expenses summary by category
 const getExpensesSummary = async (req, res) => {
   try {
-    const summary = await Expense.aggregate([
-      {
-        $match: {
-          eventId: new mongoose.Types.ObjectId(String(req.params.eventId)),
+    const [summary, budget] = await Promise.all([
+      Expense.aggregate([
+        {
+          $match: {
+            eventId: new mongoose.Types.ObjectId(String(req.params.eventId)),
+          },
         },
-      },
-      {
-        $group: {
-          _id: "$category",
-          total: { $sum: "$amount" },
-          count: { $sum: 1 },
+        {
+          $group: {
+            _id: "$category",
+            total: { $sum: "$amount" },
+            count: { $sum: 1 },
+          },
         },
-      },
-      { $sort: { total: -1 } },
+        { $sort: { total: -1 } },
+      ]),
+      Budget.findOne({ eventId: req.params.eventId }),
     ]);
-    res.json(summary);
+
+    const totalSpent = summary.reduce((sum, cat) => sum + cat.total, 0);
+
+    res.json({
+      categories: summary,
+      budgetStatus: {
+        totalBudget: budget.totalBudget,
+        totalExpenses: totalSpent,
+        remainingBudget: budget.totalBudget - totalSpent,
+      },
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
