@@ -98,7 +98,21 @@ const updateExpense = async (req, res) => {
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
-    res.json(expense);
+    // Calculate new balance
+    const budget = await Budget.findOne({ eventId: expense.eventId });
+    const expenses = await Expense.aggregate([
+      { $match: { eventId: expense.eventId } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
+    res.json({
+      expense,
+      budgetStatus: {
+        totalBudget: budget.totalBudget,
+        totalExpenses: expenses[0]?.total || 0,
+        remainingBudget: budget.totalBudget - (expenses[0]?.total || 0),
+      },
+    });
   } catch (err) {
     if (err.name === "ValidationError") {
       return res.status(400).json({
