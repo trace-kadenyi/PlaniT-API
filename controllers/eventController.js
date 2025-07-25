@@ -1,5 +1,6 @@
 const Event = require("../models/EventSchema");
 const Task = require("../models/TaskSchema");
+const Budget = require("../models/BudgetSchema");
 
 const maxChars = 300;
 const maxNameChars = 70;
@@ -55,6 +56,15 @@ const createEvent = async (req, res) => {
 
     const event = new Event(eventData); // Use normalized data
     const savedEvent = await event.save();
+
+    // Create associated budget
+    const budget = new Budget({
+      eventId: savedEvent._id,
+      totalBudget: req.body.initialBudget || 0,
+      notes: req.body.budgetNotes || "",
+    });
+    await budget.save();
+
     res.status(201).json(savedEvent);
   } catch (err) {
     // Keep existing error handling
