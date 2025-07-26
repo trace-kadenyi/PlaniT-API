@@ -1,5 +1,9 @@
+const mongoose = require("mongoose");
+
 const Event = require("../models/EventSchema");
 const Task = require("../models/TaskSchema");
+const Budget = require("../models/BudgetSchema")
+const Expense = require("../models/ExpenseSchema");
 
 const maxChars = 300;
 const maxNameChars = 70;
@@ -55,7 +59,19 @@ const createEvent = async (req, res) => {
 
     const event = new Event(eventData); // Use normalized data
     const savedEvent = await event.save();
-    res.status(201).json(savedEvent);
+
+    // Create associated budget
+    const budget = new Budget({
+      eventId: savedEvent._id,
+      totalBudget: req.body.initialBudget || 0,
+      notes: req.body.budgetNotes || "",
+    });
+    await budget.save();
+
+    res.status(201).json({
+      event: savedEvent,
+      budgetId: budget._id,
+    });
   } catch (err) {
     // Keep existing error handling
     if (err.name === "ValidationError") {
@@ -95,9 +111,17 @@ const getEventById = async (req, res) => {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Convert dates to ISO strings consistently
+    // Get budget and expense totals
+    const budget = await Budget.findOne({ eventId: req.params.id }).lean();
+    const expenses = await Expense.aggregate([
+      { $match: { eventId: new mongoose.Types.ObjectId(String(req.params.id)) } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
     const responseData = {
       ...event,
+      budget: budget || null,
+      totalExpenses: expenses[0]?.total || 0,
       date: event.date?.toISOString(),
       createdAt: event.createdAt?.toISOString(),
       updatedAt: event.updatedAt?.toISOString(),
@@ -179,10 +203,14 @@ const deleteEvent = async (req, res) => {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Cascade delete: remove tasks tied to this event
-    await Task.deleteMany({ eventId: req.params.id });
+    // Cascade delete all related documents
+    await Promise.all([
+      Task.deleteMany({ eventId: req.params.id }),
+      Budget.deleteOne({ eventId: req.params.id }),
+      Expense.deleteMany({ eventId: req.params.id }),
+    ]);
 
-    res.json({ message: "Event deleted" });
+    res.json({ message: "Event and all related data deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

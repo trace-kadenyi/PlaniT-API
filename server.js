@@ -18,6 +18,9 @@ const path = require("path");
 const root = require("./routes/root");
 const taskRoutes = require("./routes/taskRoutes");
 const eventRoutes = require("./routes/eventRoutes");
+const budgetRoutes = require("./routes/budgetRoutes")
+const expenseRoutes = require("./routes/expenseRoutes")
+
 
 // connect to MongoDB
 mongoose.connect(process.env.DATABASE_URI);
@@ -35,6 +38,9 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/", root);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/events", eventRoutes);
+app.use("/api/budget", budgetRoutes)
+app.use("/api/expenses", expenseRoutes)
+
 
 // start server
 mongoose.connection.once("open", () => {
