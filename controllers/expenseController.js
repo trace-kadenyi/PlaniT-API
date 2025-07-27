@@ -44,7 +44,11 @@ const createExpense = async (req, res) => {
 
     if (req.body.amount > budgetStatus.remainingBudget) {
       return res.status(400).json({
-        message: `Expense exceeds remaining budget ($${budgetStatus.remainingBudget} available)`,
+        message: `Expense exceeds remaining budget ($${budgetStatus.remainingBudget.toFixed(
+          2
+        )} available). Top up your overall budget with $${(
+          req.body.amount - budgetStatus.remainingBudget
+        ).toFixed(2)} to add this expense.`,
         remainingBudget: budgetStatus.remainingBudget,
         attemptedAmount: req.body.amount,
       });
