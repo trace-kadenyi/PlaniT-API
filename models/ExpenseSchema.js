@@ -16,7 +16,7 @@ const expenseSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      maxlength: [200, "Description too long"],
+      maxlength: [150, "Description too long"],
     },
     category: {
       type: String,
@@ -46,7 +46,7 @@ const expenseSchema = new mongoose.Schema(
     notes: {
       type: String,
       trim: true,
-      maxlength: 300,
+      maxlength: 200,
     },
     receiptUrl: {
       type: String,
