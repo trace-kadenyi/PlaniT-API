@@ -208,7 +208,7 @@ const deleteExpense = async (req, res) => {
     // Payment status check
     if (expense.paymentStatus === "paid") {
       return res.status(400).json({
-        message: "Paid expenses cannot be deleted",
+        message: "Paid expenses cannot be deleted.",
         actionRequired: "Create a compensating expense instead",
         contact: "accounting@example.com",
       });
