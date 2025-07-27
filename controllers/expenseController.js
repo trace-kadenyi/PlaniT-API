@@ -129,7 +129,27 @@ const updateExpense = async (req, res) => {
       });
     }
 
-   
+    // Check description length if provided in update
+    if (req.body.description && req.body.description.length > MAX_DESCRIPTION) {
+      return res.status(400).json({
+        error: "ValidationError",
+        message: `Description cannot exceed ${MAX_DESCRIPTION} characters`,
+        field: "description",
+        maxLength: MAX_DESCRIPTION,
+        currentLength: req.body.description.length,
+      });
+    }
+
+    // Check notes length if provided in update
+    if (req.body.notes && req.body.notes.length > MAX_NOTES) {
+      return res.status(400).json({
+        error: "ValidationError",
+        message: `Notes cannot exceed ${MAX_NOTES} characters`,
+        field: "notes",
+        maxLength: MAX_NOTES,
+        currentLength: req.body.notes.length,
+      });
+    }
 
     const updatedExpense = await Expense.findByIdAndUpdate(
       req.params.id,
