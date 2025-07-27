@@ -92,7 +92,9 @@ const updateExpense = async (req, res) => {
 
     if (potentialRemaining < 0) {
       return res.status(400).json({
-        message: `Update would exceed budget by $${-potentialRemaining}. Please work within the available budget or increase it.`,
+        message: `Update would exceed budget by $${-potentialRemaining.toFixed(
+          2
+        )}. Please work within the available budget or increase it.`,
         maxAllowed: budgetStatus.totalBudget - otherExpensesTotal,
       });
     }
