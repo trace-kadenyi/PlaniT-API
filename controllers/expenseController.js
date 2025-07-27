@@ -4,6 +4,9 @@ const Event = require("../models/EventSchema");
 const Expense = require("../models/ExpenseSchema");
 const { getBudgetStatus } = require("../utils/budgetHelpers");
 
+const MAX_DESCRIPTION = 150;
+const MAX_NOTES = 200;
+
 // Create new expense
 const createExpense = async (req, res) => {
   try {
@@ -11,7 +14,32 @@ const createExpense = async (req, res) => {
 
     // Enhanced validation
     if (budgetStatus.totalBudget === 0) {
-      return res.status(404).json({ message: "Event budget not found" });
+      return res.status(404).json({
+        error: "BudgetNotFound",
+        message: "Event budget not found",
+      });
+    }
+
+    // Check description length if provided
+    if (req.body.description && req.body.description.length > MAX_DESCRIPTION) {
+      return res.status(400).json({
+        error: "ValidationError",
+        message: `Expense description cannot exceed ${MAX_DESCRIPTION} characters`,
+        field: "description",
+        maxLength: MAX_DESCRIPTION,
+        currentLength: req.body.description.length,
+      });
+    }
+
+    // Check notes length if provided
+    if (req.body.notes && req.body.notes.length > MAX_NOTES) {
+      return res.status(400).json({
+        error: "ValidationError",
+        message: `Expense notes cannot exceed ${MAX_NOTES} characters`,
+        field: "notes",
+        maxLength: MAX_NOTES,
+        currentLength: req.body.notes.length,
+      });
     }
 
     if (req.body.amount > budgetStatus.remainingBudget) {
@@ -78,9 +106,11 @@ const updateExpense = async (req, res) => {
   try {
     const existingExpense = await Expense.findById(req.params.id);
     if (!existingExpense) {
-      return res.status(404).json({ message: "Expense not found" });
+      return res.status(404).json({
+        error: "NotFound",
+        message: "Expense not found",
+      });
     }
-
     const budgetStatus = await getBudgetStatus(existingExpense.eventId);
 
     // Calculate potential new total if this update is applied
@@ -98,6 +128,8 @@ const updateExpense = async (req, res) => {
         maxAllowed: budgetStatus.totalBudget - otherExpensesTotal,
       });
     }
+
+   
 
     const updatedExpense = await Expense.findByIdAndUpdate(
       req.params.id,
