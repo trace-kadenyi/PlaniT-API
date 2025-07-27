@@ -157,18 +157,20 @@ const deleteExpense = async (req, res) => {
     }
 
     // Final deletion
-    await Expense.findByIdAndDelete(req.params.id);
+    const deletedExpense = await Expense.findByIdAndDelete(req.params.id);
+    const updatedBudgetStatus = await getBudgetStatus(expense.eventId);
 
     res.json({
       message: "Expense deleted successfully",
-      budgetStatus: await getBudgetStatus(expense.eventId),
+      budgetStatus: updatedBudgetStatus,
       deletedExpense: {
-        amount: expense.amount,
-        category: expense.category,
-        description: expense.description,
-        date: expense.createdAt,
+        _id: deletedExpense._id,
+        amount: deletedExpense.amount,
+        category: deletedExpense.category,
+        description: deletedExpense.description,
+        date: deletedExpense.createdAt,
       },
-      newRemaining: (await getBudgetStatus(expense.eventId)).remainingBudget,
+      newRemaining: updatedBudgetStatus.remainingBudget,
     });
   } catch (err) {
     res.status(500).json({
