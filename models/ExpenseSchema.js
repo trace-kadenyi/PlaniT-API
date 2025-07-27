@@ -9,18 +9,18 @@ const expenseSchema = new mongoose.Schema(
     },
     amount: {
       type: Number,
-      required: true,
+      required: [true, "Amount is required"],
       min: 0,
     },
     description: {
       type: String,
-      required: true,
+      required: [true, "Description is required"],
       trim: true,
       maxlength: [150, "Description too long"],
     },
     category: {
       type: String,
-      required: true,
+      required: [true, "Category is required"],
       enum: [
         "venue",
         "catering",
