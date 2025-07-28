@@ -4,6 +4,9 @@ const Event = require("../models/EventSchema");
 const Expense = require("../models/ExpenseSchema");
 const { getBudgetStatus } = require("../utils/budgetHelpers");
 
+const MAX_DESCRIPTION = 150;
+const MAX_NOTES = 200;
+
 // Create new expense
 const createExpense = async (req, res) => {
   try {
@@ -11,12 +14,41 @@ const createExpense = async (req, res) => {
 
     // Enhanced validation
     if (budgetStatus.totalBudget === 0) {
-      return res.status(404).json({ message: "Event budget not found" });
+      return res.status(404).json({
+        error: "BudgetNotFound",
+        message: "Event budget not found",
+      });
+    }
+
+    // Check description length if provided
+    if (req.body.description && req.body.description.length > MAX_DESCRIPTION) {
+      return res.status(400).json({
+        error: "ValidationError",
+        message: `Expense description cannot exceed ${MAX_DESCRIPTION} characters`,
+        field: "description",
+        maxLength: MAX_DESCRIPTION,
+        currentLength: req.body.description.length,
+      });
+    }
+
+    // Check notes length if provided
+    if (req.body.notes && req.body.notes.length > MAX_NOTES) {
+      return res.status(400).json({
+        error: "ValidationError",
+        message: `Expense notes cannot exceed ${MAX_NOTES} characters`,
+        field: "notes",
+        maxLength: MAX_NOTES,
+        currentLength: req.body.notes.length,
+      });
     }
 
     if (req.body.amount > budgetStatus.remainingBudget) {
       return res.status(400).json({
-        message: `Expense exceeds remaining budget ($${budgetStatus.remainingBudget} available)`,
+        message: `Expense exceeds remaining budget ($${budgetStatus.remainingBudget.toFixed(
+          2
+        )} available). Top up your overall budget with $${(
+          req.body.amount - budgetStatus.remainingBudget
+        ).toFixed(2)} to add this expense.`,
         remainingBudget: budgetStatus.remainingBudget,
         attemptedAmount: req.body.amount,
       });
@@ -78,9 +110,11 @@ const updateExpense = async (req, res) => {
   try {
     const existingExpense = await Expense.findById(req.params.id);
     if (!existingExpense) {
-      return res.status(404).json({ message: "Expense not found" });
+      return res.status(404).json({
+        error: "NotFound",
+        message: "Expense not found",
+      });
     }
-
     const budgetStatus = await getBudgetStatus(existingExpense.eventId);
 
     // Calculate potential new total if this update is applied
@@ -92,8 +126,32 @@ const updateExpense = async (req, res) => {
 
     if (potentialRemaining < 0) {
       return res.status(400).json({
-        message: `Update would exceed budget by $${-potentialRemaining}. Please work within the available budget or increase it.`,
+        message: `Update would exceed budget by $${-potentialRemaining.toFixed(
+          2
+        )}. Please work within the available budget or increase it.`,
         maxAllowed: budgetStatus.totalBudget - otherExpensesTotal,
+      });
+    }
+
+    // Check description length if provided in update
+    if (req.body.description && req.body.description.length > MAX_DESCRIPTION) {
+      return res.status(400).json({
+        error: "ValidationError",
+        message: `Description cannot exceed ${MAX_DESCRIPTION} characters`,
+        field: "description",
+        maxLength: MAX_DESCRIPTION,
+        currentLength: req.body.description.length,
+      });
+    }
+
+    // Check notes length if provided in update
+    if (req.body.notes && req.body.notes.length > MAX_NOTES) {
+      return res.status(400).json({
+        error: "ValidationError",
+        message: `Notes cannot exceed ${MAX_NOTES} characters`,
+        field: "notes",
+        maxLength: MAX_NOTES,
+        currentLength: req.body.notes.length,
       });
     }
 
@@ -150,25 +208,28 @@ const deleteExpense = async (req, res) => {
     // Payment status check
     if (expense.paymentStatus === "paid") {
       return res.status(400).json({
-        message: "Paid expenses cannot be deleted",
+        message:
+          "For transparency, this expense cannot be deleted because it has already been paid and deducted from the budget.",
         actionRequired: "Create a compensating expense instead",
         contact: "accounting@example.com",
       });
     }
 
     // Final deletion
-    await Expense.findByIdAndDelete(req.params.id);
+    const deletedExpense = await Expense.findByIdAndDelete(req.params.id);
+    const updatedBudgetStatus = await getBudgetStatus(expense.eventId);
 
     res.json({
       message: "Expense deleted successfully",
-      budgetStatus: await getBudgetStatus(expense.eventId),
+      budgetStatus: updatedBudgetStatus,
       deletedExpense: {
-        amount: expense.amount,
-        category: expense.category,
-        description: expense.description,
-        date: expense.createdAt,
+        _id: deletedExpense._id,
+        amount: deletedExpense.amount,
+        category: deletedExpense.category,
+        description: deletedExpense.description,
+        date: deletedExpense.createdAt,
       },
-      newRemaining: (await getBudgetStatus(expense.eventId)).remainingBudget,
+      newRemaining: updatedBudgetStatus.remainingBudget,
     });
   } catch (err) {
     res.status(500).json({
