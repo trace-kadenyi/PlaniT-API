@@ -29,6 +29,6 @@ router.delete("/:id", deleteExpense);
 router.get("/:eventId/summary", getExpensesSummary);
 
 // get all expenses
-router.get("/");
+router.get("/", getAllExpenses);
 
 module.exports = router;
