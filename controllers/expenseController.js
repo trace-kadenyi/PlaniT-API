@@ -278,6 +278,29 @@ const getExpensesSummary = async (req, res) => {
   }
 };
 
+// expenseController.js
+const getBudgetStatusForAllEvents = async (req, res) => {
+  try {
+    const events = await Event.find().select("_id");
+    const result = {};
+
+    for (const event of events) {
+      const expenses = await Expense.find({ eventId: event._id });
+      const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+
+      result[event._id] = {
+        totalBudget: event.budget || 0, // Assuming events have a 'budget' field
+        totalExpenses,
+        remainingBudget: (event.budget || 0) - totalExpenses,
+      };
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   createExpense,
   getExpensesByEventId,
@@ -286,4 +309,5 @@ module.exports = {
   deleteExpense,
   getExpensesSummary,
   getAllExpenses,
+  getBudgetStatusForAllEvents,
 };
