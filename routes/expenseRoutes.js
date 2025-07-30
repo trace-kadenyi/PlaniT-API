@@ -7,6 +7,7 @@ const {
   updateExpense,
   deleteExpense,
   getExpensesSummary,
+  getAllExpenses,
 } = require("../controllers/expenseController");
 
 // create expense
@@ -26,5 +27,8 @@ router.delete("/:id", deleteExpense);
 
 // expenses summary
 router.get("/:eventId/summary", getExpensesSummary);
+
+// get all expenses
+router.get("/");
 
 module.exports = router;
