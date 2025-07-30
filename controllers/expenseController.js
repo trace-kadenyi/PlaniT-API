@@ -279,25 +279,46 @@ const getExpensesSummary = async (req, res) => {
 };
 
 // expenseController.js
+// expenseController.js
 const getBudgetStatusForAllEvents = async (req, res) => {
   try {
-    const events = await Event.find().select("_id");
-    const result = {};
+    // Get all events with their budgets
+    const events = await Event.find().select("_id name budget"); // Include budget field
 
-    for (const event of events) {
-      const expenses = await Expense.find({ eventId: event._id });
-      const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    // Get all expenses grouped by event
+    const expensesByEvent = await Expense.aggregate([
+      {
+        $group: {
+          _id: "$eventId",
+          totalExpenses: { $sum: "$amount" },
+        },
+      },
+    ]);
 
-      result[event._id] = {
-        totalBudget: event.budget || 0, // Assuming events have a 'budget' field
-        totalExpenses,
-        remainingBudget: (event.budget || 0) - totalExpenses,
+    // Create response with proper budget data
+    const response = events.map((event) => {
+      const eventExpense = expensesByEvent.find(
+        (e) => e._id.toString() === event._id.toString()
+      );
+
+      return {
+        eventId: event._id,
+        eventName: event.name,
+        budgetStatus: {
+          totalBudget: event.budget || 0, // Use the event's budget field
+          totalExpenses: eventExpense?.totalExpenses || 0,
+          remainingBudget:
+            (event.budget || 0) - (eventExpense?.totalExpenses || 0),
+        },
       };
-    }
+    });
 
-    res.json(result);
+    res.json(response);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({
+      message: "Failed to get budget status",
+      error: err.message,
+    });
   }
 };
 
