@@ -52,7 +52,7 @@ const updateBudget = async (req, res) => {
       const totalExpenses = expenses[0]?.total || 0;
       if (req.body.totalBudget < totalExpenses) {
         return res.status(400).json({
-          message: `New budget must be at least ${totalExpenses} (current expenses total)`,
+          message: `New budget must be at least $${totalExpenses} (current expenses total)`,
         });
       }
     }
