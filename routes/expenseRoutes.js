@@ -8,6 +8,7 @@ const {
   deleteExpense,
   getExpensesSummary,
   getAllExpenses,
+  getBudgetStatusForAllEvents,
 } = require("../controllers/expenseController");
 
 // create expense
@@ -30,5 +31,8 @@ router.get("/:eventId/summary", getExpensesSummary);
 
 // get all expenses
 router.get("/", getAllExpenses);
+
+// get budget status
+router.get("/budget-status", getBudgetStatusForAllEvents);
 
 module.exports = router;
