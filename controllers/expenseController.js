@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const Event = require("../models/EventSchema");
 const Expense = require("../models/ExpenseSchema");
+const Budget = require("../models/BudgetSchema");
 const { getBudgetStatus } = require("../utils/budgetHelpers");
 
 const MAX_DESCRIPTION = 150;
@@ -278,14 +279,16 @@ const getExpensesSummary = async (req, res) => {
   }
 };
 
-// expenseController.js
-// expenseController.js
+// get budget status for all events
 const getBudgetStatusForAllEvents = async (req, res) => {
   try {
-    // Get all events with their budgets
-    const events = await Event.find().select("_id name budget"); // Include budget field
+    // 1. Get all events with their basic info
+    const events = await Event.find().select("_id name");
 
-    // Get all expenses grouped by event
+    // 2. Get all budgets
+    const budgets = await Budget.find().select("eventId totalBudget");
+
+    // 3. Get all expenses grouped by event
     const expensesByEvent = await Expense.aggregate([
       {
         $group: {
@@ -295,20 +298,25 @@ const getBudgetStatusForAllEvents = async (req, res) => {
       },
     ]);
 
-    // Create response with proper budget data
+    // 4. Create response with accurate budget data
     const response = events.map((event) => {
+      const eventBudget = budgets.find(
+        (b) => b.eventId.toString() === event._id.toString()
+      );
       const eventExpense = expensesByEvent.find(
         (e) => e._id.toString() === event._id.toString()
       );
+
+      const totalBudget = eventBudget?.totalBudget || 0;
+      const totalExpenses = eventExpense?.totalExpenses || 0;
 
       return {
         eventId: event._id,
         eventName: event.name,
         budgetStatus: {
-          totalBudget: event.budget || 0, // Use the event's budget field
-          totalExpenses: eventExpense?.totalExpenses || 0,
-          remainingBudget:
-            (event.budget || 0) - (eventExpense?.totalExpenses || 0),
+          totalBudget,
+          totalExpenses,
+          remainingBudget: totalBudget - totalExpenses,
         },
       };
     });
