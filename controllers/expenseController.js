@@ -73,6 +73,16 @@ const createExpense = async (req, res) => {
   }
 };
 
+// Get all expenses
+const getAllExpenses = async (req, res) => {
+  try {
+    const expenses = await Expense.find();
+    res.json(expenses);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // Get all expenses for an event
 const getExpensesByEventId = async (req, res) => {
   try {
@@ -275,4 +285,5 @@ module.exports = {
   updateExpense,
   deleteExpense,
   getExpensesSummary,
+  getAllExpenses,
 };
