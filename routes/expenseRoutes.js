@@ -14,6 +14,9 @@ const {
 // create expense
 router.post("/", createExpense);
 
+// get budget status
+router.get("/budget-status", getBudgetStatusForAllEvents);
+
 // get expenses by event id
 router.get("/event/:eventId", getExpensesByEventId);
 
@@ -31,8 +34,5 @@ router.get("/:eventId/summary", getExpensesSummary);
 
 // get all expenses
 router.get("/", getAllExpenses);
-
-// get budget status
-router.get("/budget-status", getBudgetStatusForAllEvents);
 
 module.exports = router;
