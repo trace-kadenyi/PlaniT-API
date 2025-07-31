@@ -74,5 +74,6 @@ module.exports = {
   createClient,
   getAllClients,
   getClientWithEvents,
-  
+  updateClient,
+  deleteClient,
 };
