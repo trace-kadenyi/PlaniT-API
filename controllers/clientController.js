@@ -11,4 +11,13 @@ const createClient = async (req, res) => {
   }
 };
 
+// Get all clients
+const getAllClients = async (req, res) => {
+  try {
+    const clients = await Client.find();
+    res.json(clients);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
