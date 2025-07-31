@@ -21,3 +21,17 @@ const getAllClients = async (req, res) => {
   }
 };
 
+// Get a single client and their events
+const getClientWithEvents = async (req, res) => {
+  try {
+    const client = await Client.findById(req.params.id);
+    if (!client) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
+    const events = await Event.find({ client: req.params.id });
+    res.json({ client, events });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
