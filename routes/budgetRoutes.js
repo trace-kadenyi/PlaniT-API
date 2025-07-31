@@ -3,7 +3,7 @@ const router = express.Router();
 const {
   getBudgetByEventId,
   updateBudget,
-} = require("../controllers/budgetControllers");
+} = require("../controllers/budgetController");
 
 // Get budget by event ID
 router.get("/:eventId", getBudgetByEventId);
