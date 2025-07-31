@@ -5,7 +5,7 @@ const {
   createClient,
   getAllClients,
   getClientWithEvents,
-} = require("../controllers/clients.controller");
+} = require("../controllers/clientController");
 
 // POST /api/clients
 router.post("/", createClient);
