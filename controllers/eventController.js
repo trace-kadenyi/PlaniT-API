@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const Event = require("../models/EventSchema");
 const Task = require("../models/TaskSchema");
-const Budget = require("../models/BudgetSchema")
+const Budget = require("../models/BudgetSchema");
 const Expense = require("../models/ExpenseSchema");
 
 const maxChars = 300;
@@ -87,7 +87,11 @@ const createEvent = async (req, res) => {
 // Get all events
 const getAllEvents = async (req, res) => {
   try {
-    const events = await Event.find().sort({ createdAt: -1 }).lean();
+    // const events = await Event.find().sort({ createdAt: -1 }).lean();
+    const events = await Event.find()
+      .populate("client") // 👈 This loads full client data
+      .sort({ createdAt: -1 })
+      .lean();
 
     // Format all dates consistently
     const formattedEvents = events.map((event) => ({
@@ -106,7 +110,9 @@ const getAllEvents = async (req, res) => {
 // Get event by ID
 const getEventById = async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id).lean();
+    // const event = await Event.findById(req.params.id).lean();
+    const event = await Event.findById(req.params.id).populate("client").lean();
+
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
     }
@@ -114,7 +120,9 @@ const getEventById = async (req, res) => {
     // Get budget and expense totals
     const budget = await Budget.findOne({ eventId: req.params.id }).lean();
     const expenses = await Expense.aggregate([
-      { $match: { eventId: new mongoose.Types.ObjectId(String(req.params.id)) } },
+      {
+        $match: { eventId: new mongoose.Types.ObjectId(String(req.params.id)) },
+      },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
 
