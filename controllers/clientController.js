@@ -55,7 +55,20 @@ const updateClient = async (req, res) => {
   }
 };
 
+// Delete a client (soft delete option too)
+const deleteClient = async (req, res) => {
+  try {
+    const client = await Client.findByIdAndDelete(req.params.id);
 
+    if (!client) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
+    res.json({ message: "Client deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 module.exports = {
   createClient,
