@@ -15,8 +15,8 @@ const createClient = async (req, res) => {
 const getAllClients = async (req, res) => {
   try {
     const { showArchived } = req.query;
-    const filter = showArchived === 'true' ? {} : { isArchived: false };
-    
+    const filter = showArchived === "true" ? {} : { isArchived: false };
+
     const clients = await Client.find(filter);
     res.json(clients);
   } catch (err) {
@@ -58,16 +58,29 @@ const updateClient = async (req, res) => {
   }
 };
 
-// Delete a client (soft delete option too)
-const deleteClient = async (req, res) => {
+// Archive a client (replace deleteClient)
+const archiveClient = async (req, res) => {
   try {
-    const client = await Client.findByIdAndDelete(req.params.id);
+    const client = await Client.findByIdAndUpdate(
+      req.params.id,
+      {
+        isArchived: true,
+        archivedAt: new Date(),
+        // Optionally clear sensitive data:
+        "contact.email": null,
+        "contact.phone": null,
+      },
+      { new: true }
+    );
 
     if (!client) {
       return res.status(404).json({ error: "Client not found" });
     }
 
-    res.json({ message: "Client deleted" });
+    res.json({
+      message: "Client archived successfully",
+      client,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
