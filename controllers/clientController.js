@@ -86,10 +86,36 @@ const archiveClient = async (req, res) => {
   }
 };
 
+// Unarchive archived clients
+const restoreClient = async (req, res) => {
+  try {
+    const client = await Client.findByIdAndUpdate(
+      req.params.id,
+      {
+        isArchived: false,
+        archivedAt: null,
+      },
+      { new: true }
+    );
+
+    if (!client) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
+    res.json({
+      message: "Client restored successfully",
+      client,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   createClient,
   getAllClients,
   getClientWithEvents,
   updateClient,
-  deleteClient,
+  archiveClient,
+  restoreClient,
 };
