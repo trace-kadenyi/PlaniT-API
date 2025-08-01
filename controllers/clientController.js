@@ -14,10 +14,11 @@ const createClient = async (req, res) => {
 // Get all active clients
 const getAllClients = async (req, res) => {
   try {
-    const { showArchived } = req.query;
-    const filter = showArchived === "true" ? {} : { isArchived: false };
+    // const { showArchived } = req.query;
+    // const filter = showArchived === "true" ? {} : { isArchived: false };
 
-    const clients = await Client.find(filter);
+    // const clients = await Client.find(filter);
+    const clients = await Client.find();
     res.json(clients);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -66,9 +67,6 @@ const archiveClient = async (req, res) => {
       {
         isArchived: true,
         archivedAt: new Date(),
-        // Optionally clear sensitive data:
-        "contact.email": null,
-        "contact.phone": null,
       },
       { new: true }
     );
