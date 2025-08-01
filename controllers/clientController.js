@@ -11,10 +11,13 @@ const createClient = async (req, res) => {
   }
 };
 
-// Get all clients
+// Get all active clients
 const getAllClients = async (req, res) => {
   try {
-    const clients = await Client.find();
+    const { showArchived } = req.query;
+    const filter = showArchived === 'true' ? {} : { isArchived: false };
+    
+    const clients = await Client.find(filter);
     res.json(clients);
   } catch (err) {
     res.status(500).json({ error: err.message });
