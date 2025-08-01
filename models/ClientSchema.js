@@ -12,6 +12,11 @@ const clientSchema = new mongoose.Schema(
     },
     preferences: String,
     notes: String,
+    isArchived: {
+      type: Boolean,
+      default: false,
+    },
+    archivedAt: Date,
   },
   { timestamps: true }
 );
