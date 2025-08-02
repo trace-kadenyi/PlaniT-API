@@ -89,10 +89,7 @@ const getAllEvents = async (req, res) => {
   try {
     // const events = await Event.find().sort({ createdAt: -1 }).lean();
     const events = await Event.find()
-      .populate({
-        path: "client",
-        match: { isArchived: { $ne: true } },
-      })
+      .populate("client")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -114,12 +111,7 @@ const getAllEvents = async (req, res) => {
 const getEventById = async (req, res) => {
   try {
     // const event = await Event.findById(req.params.id).lean();
-    const event = await Event.findById(req.params.id)
-      .populate({
-        path: "client",
-        match: { isArchived: { $ne: true } },
-      })
-      .lean();
+    const event = await Event.findById(req.params.id).populate("client").lean();
 
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
