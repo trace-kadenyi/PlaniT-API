@@ -84,6 +84,24 @@ const getAllExpenses = async (req, res) => {
   }
 };
 
+// const getExpensesByEventId = async (req, res) => {
+//   try {
+//     const expenses = await Expense.find({ eventId: req.params.eventId }).sort({
+//       createdAt: -1,
+//     });
+
+//     const budgetStatus = await getBudgetStatus(req.params.eventId);
+
+//     if (budgetStatus.totalBudget === 0) {
+//       return res.status(404).json({ message: "Event budget not found" });
+//     }
+
+//     res.json({ expenses, budgetStatus });
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 // Get all expenses for an event
 const getExpensesByEventId = async (req, res) => {
   try {
@@ -93,13 +111,22 @@ const getExpensesByEventId = async (req, res) => {
 
     const budgetStatus = await getBudgetStatus(req.params.eventId);
 
-    if (budgetStatus.totalBudget === 0) {
-      return res.status(404).json({ message: "Event budget not found" });
-    }
-
-    res.json({ expenses, budgetStatus });
+    // Always return success with empty array if no expenses exist
+    res.json({
+      expenses: expenses || [],
+      budgetStatus,
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    // Return empty state instead of error
+    res.json({
+      expenses: [],
+      budgetStatus: {
+        totalBudget: 0,
+        totalExpenses: 0,
+        remainingBudget: 0,
+        budgetExists: false,
+      },
+    });
   }
 };
 
