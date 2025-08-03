@@ -42,6 +42,10 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: [true, "Type of Event is required"],
     },
+    client: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Client",
+    },
   },
   {
     timestamps: true,

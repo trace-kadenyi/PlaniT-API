@@ -1,0 +1,119 @@
+const Client = require("../models/ClientSchema");
+const Event = require("../models/EventSchema");
+
+// Create new client
+const createClient = async (req, res) => {
+  try {
+    const client = await Client.create(req.body);
+    res.status(201).json(client);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// Get all active clients
+const getAllClients = async (req, res) => {
+  try {
+    // const { showArchived } = req.query;
+    // const filter = showArchived === "true" ? {} : { isArchived: false };
+
+    // const clients = await Client.find(filter);
+    const clients = await Client.find();
+    res.json(clients);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get a single client and their events
+const getClientWithEvents = async (req, res) => {
+  try {
+    const client = await Client.findById(req.params.id);
+    if (!client) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
+    const events = await Event.find({ client: req.params.id });
+    res.json({ client, events });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Update a client
+const updateClient = async (req, res) => {
+  try {
+    const client = await Client.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+
+    if (!client) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
+    res.json(client);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// Archive a client (replace deleteClient)
+const archiveClient = async (req, res) => {
+  try {
+    const client = await Client.findByIdAndUpdate(
+      req.params.id,
+      {
+        isArchived: true,
+        archivedAt: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!client) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
+    res.json({
+      message: "Client archived successfully",
+      client,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Unarchive archived clients
+const restoreClient = async (req, res) => {
+  try {
+    const client = await Client.findByIdAndUpdate(
+      req.params.id,
+      {
+        isArchived: false,
+        archivedAt: null,
+      },
+      { new: true }
+    );
+
+    if (!client) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
+    res.json({
+      message: "Client restored successfully",
+      client,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = {
+  createClient,
+  getAllClients,
+  getClientWithEvents,
+  updateClient,
+  archiveClient,
+  restoreClient,
+};
