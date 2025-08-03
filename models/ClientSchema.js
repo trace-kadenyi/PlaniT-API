@@ -12,6 +12,10 @@ const clientSchema = new mongoose.Schema(
     },
     preferences: String,
     notes: String,
+    company: {
+      type: String,
+      default: "Individual",
+    },
     isArchived: {
       type: Boolean,
       default: false,
