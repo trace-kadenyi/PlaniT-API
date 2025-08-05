@@ -33,3 +33,23 @@ const createVendor = async (req, res) => {
   }
 };
 
+// Get all vendors
+const getAllVendors = async (req, res) => {
+  try {
+    const { service, archived } = req.query;
+    const filter = {};
+
+    if (service) {
+      filter.services = service;
+    }
+    if (archived !== undefined) {
+      filter.isArchived = archived === 'true';
+    }
+
+    const vendors = await Vendor.find(filter).sort({ name: 1 });
+    res.json(vendors);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
