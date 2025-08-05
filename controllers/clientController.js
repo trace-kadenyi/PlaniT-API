@@ -66,25 +66,6 @@ const getClientWithEvents = async (req, res) => {
 
 // Update a client
 const updateClient = async (req, res) => {
-  try {
-    const client = await Client.findByIdAndUpdate(
-      req.params.id,
-      { $set: req.body },
-      { new: true, runValidators: true }
-    );
-
-    if (!client) {
-      return res.status(404).json({ error: "Client not found" });
-    }
-
-    res.json(client);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-};
-
-// Archive a client (replace deleteClient)
-const archiveClient = async (req, res) => {
   // Check notes length if provided
   if (req.body.notes && req.body.notes.length > MAX_NOTES) {
     return res.status(400).json({
@@ -106,6 +87,25 @@ const archiveClient = async (req, res) => {
       currentLength: req.body.preferences.length,
     });
   }
+  try {
+    const client = await Client.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+
+    if (!client) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
+    res.json(client);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// Archive a client (replace deleteClient)
+const archiveClient = async (req, res) => {
   try {
     const client = await Client.findByIdAndUpdate(
       req.params.id,
