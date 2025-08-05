@@ -32,9 +32,9 @@ const expenseSchema = new mongoose.Schema(
       ],
       default: "other",
     },
-    vendorName: {
-      type: String,
-      trim: true,
+    vendor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Vendor",
     },
     paymentStatus: {
       type: String,
