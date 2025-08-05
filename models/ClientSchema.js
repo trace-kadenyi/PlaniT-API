@@ -10,8 +10,14 @@ const clientSchema = new mongoose.Schema(
       email: String,
       phone: String,
     },
-    preferences: String,
-    notes: String,
+    preferences: {
+      type: String,
+      maxlength: [150, "Description must be 150 characters or fewer"],
+    },
+    notes: {
+      type: String,
+      maxlength: [200, "Description must be 200 characters or fewer"],
+    },
     company: {
       type: String,
       default: "Individual",
