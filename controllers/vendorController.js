@@ -66,3 +66,40 @@ const getVendorById = async (req, res) => {
   }
 };
 
+// Update vendor
+const updateVendor = async (req, res) => {
+  try {
+    // Check notes length if provided in update
+    if (req.body.notes && req.body.notes.length > MAX_NOTES) {
+      return res.status(400).json({
+        error: "ValidationError",
+        message: `Notes cannot exceed ${MAX_NOTES} characters`,
+        field: "notes",
+        maxLength: MAX_NOTES,
+        currentLength: req.body.notes.length,
+      });
+    }
+
+    const updatedVendor = await Vendor.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.json(updatedVendor);
+  } catch (err) {
+    if (err.name === "ValidationError") {
+      return res.status(400).json({
+        message: Object.values(err.errors)
+          .map((e) => e.message)
+          .join(", "),
+      });
+    }
+    res.status(500).json({ message: err.message });
+  }
+};
+
