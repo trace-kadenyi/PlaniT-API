@@ -1,9 +1,33 @@
 const Client = require("../models/ClientSchema");
 const Event = require("../models/EventSchema");
 
+const MAX_NOTES = 200;
+const MAX_PREFERENCES = 150;
 // Create new client
 const createClient = async (req, res) => {
   try {
+    // Check notes length if provided
+    if (req.body.notes && req.body.notes.length > MAX_NOTES) {
+      return res.status(400).json({
+        error: "ValidationError",
+        message: `Client notes cannot exceed ${MAX_NOTES} characters`,
+        field: "notes",
+        maxLength: MAX_NOTES,
+        currentLength: req.body.notes.length,
+      });
+    }
+
+    // Check prereferences length if provided
+    if (req.body.preferences && req.body.preferences.length > MAX_PREFERENCES) {
+      return res.status(400).json({
+        error: "ValidationError",
+        message: `Client preferences cannot exceed ${MAX_PREFERENCES} characters`,
+        field: "preferences",
+        maxLength: MAX_PREFERENCES,
+        currentLength: req.body.preferences.length,
+      });
+    }
+
     const client = await Client.create(req.body);
     res.status(201).json(client);
   } catch (err) {
@@ -61,6 +85,27 @@ const updateClient = async (req, res) => {
 
 // Archive a client (replace deleteClient)
 const archiveClient = async (req, res) => {
+  // Check notes length if provided
+  if (req.body.notes && req.body.notes.length > MAX_NOTES) {
+    return res.status(400).json({
+      error: "ValidationError",
+      message: `Client notes cannot exceed ${MAX_NOTES} characters`,
+      field: "notes",
+      maxLength: MAX_NOTES,
+      currentLength: req.body.notes.length,
+    });
+  }
+
+  // Check prereferences length if provided
+  if (req.body.preferences && req.body.preferences.length > MAX_PREFERENCES) {
+    return res.status(400).json({
+      error: "ValidationError",
+      message: `Client preferences cannot exceed ${MAX_PREFERENCES} characters`,
+      field: "preferences",
+      maxLength: MAX_PREFERENCES,
+      currentLength: req.body.preferences.length,
+    });
+  }
   try {
     const client = await Client.findByIdAndUpdate(
       req.params.id,
