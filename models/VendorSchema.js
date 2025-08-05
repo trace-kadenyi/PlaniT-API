@@ -28,7 +28,7 @@ const vendorSchema = new mongoose.Schema(
     address: String,
     notes: {
       type: String,
-      maxlength: [200, "Description must be 150 characters or fewer"],
+      maxlength: [200, "Description must be 200 characters or fewer"],
     },
     isArchived: {
       type: Boolean,
