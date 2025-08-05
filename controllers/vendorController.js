@@ -103,3 +103,23 @@ const updateVendor = async (req, res) => {
   }
 };
 
+// Archive/unarchive vendor
+const toggleVendorArchive = async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.params.id);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    vendor.isArchived = !vendor.isArchived;
+    await vendor.save();
+
+    res.json({
+      message: `Vendor ${vendor.isArchived ? 'archived' : 'unarchived'} successfully`,
+      vendor
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
