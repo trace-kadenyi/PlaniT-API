@@ -143,3 +143,11 @@ const getVendorStats = async (req, res) => {
   }
 };
 
+module.exports = {
+  createVendor,
+  getAllVendors,
+  getVendorById,
+  updateVendor,
+  toggleVendorArchive,
+  getVendorStats
+};
