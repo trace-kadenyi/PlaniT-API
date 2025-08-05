@@ -53,3 +53,16 @@ const getAllVendors = async (req, res) => {
   }
 };
 
+// Get vendor by ID
+const getVendorById = async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.params.id);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+    res.json(vendor);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
