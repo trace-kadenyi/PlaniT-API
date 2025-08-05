@@ -123,3 +123,23 @@ const toggleVendorArchive = async (req, res) => {
   }
 };
 
+// Get vendor statistics
+const getVendorStats = async (req, res) => {
+  try {
+    const stats = await Vendor.aggregate([
+      {
+        $group: {
+          _id: "$services",
+          count: { $sum: 1 },
+          archived: { $sum: { $cond: [{ $eq: ["$isArchived", true] }, 1, 0] } }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
