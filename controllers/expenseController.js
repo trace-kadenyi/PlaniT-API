@@ -87,9 +87,9 @@ const getAllExpenses = async (req, res) => {
 // Get all expenses for an event
 const getExpensesByEventId = async (req, res) => {
   try {
-    const expenses = await Expense.find({ eventId: req.params.eventId }).sort({
-      createdAt: -1,
-    });
+    const expenses = await Expense.find({ eventId: req.params.eventId })
+      .populate("vendor", "name services")
+      .sort({ createdAt: -1 });
 
     const budgetStatus = await getBudgetStatus(req.params.eventId);
 
