@@ -48,28 +48,8 @@ const eventSchema = new mongoose.Schema(
     },
     vendors: [
       {
-        vendor: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Vendor",
-        },
-        role: {
-          type: String,
-          enum: [
-            "venue",
-            "catering",
-            "decorations",
-            "equipment",
-            "staffing",
-            "marketing",
-            "other",
-          ],
-          required: true,
-        },
-        contractSigned: {
-          type: Boolean,
-          default: false,
-        },
-        notes: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Vendor",
       },
     ],
   },
