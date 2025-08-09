@@ -42,7 +42,7 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: [true, "Type of Event is required"],
     },
-    notes: {
+    summary: {
       type: String,
       trim: true,
       maxlength: 200,
