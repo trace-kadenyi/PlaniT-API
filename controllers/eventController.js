@@ -7,7 +7,7 @@ const Expense = require("../models/ExpenseSchema");
 
 const maxChars = 300;
 const maxNameChars = 70;
-const maxNotesChars = 200;
+const maxSummaryChars = 200;
 
 // Date normalization middleware
 const normalizeEventDate = (date) => {
@@ -58,12 +58,12 @@ const createEvent = async (req, res) => {
         .json({ message: `Description cannot exceed ${maxChars} characters.` });
     }
 
-    // notes word limit
-    const notes = eventData.notes || "";
-    if (notes.length > maxNotesChars) {
+    // Summary word limit
+    const summary = eventData.summary || "";
+    if (summary.length > maxSummaryChars) {
       return res
         .status(400)
-        .json({ message: `Notes cannot exceed ${maxNotesChars} characters.` });
+        .json({ message: `Event summary cannot exceed ${maxSummaryChars} characters.` });
     }
 
     const event = new Event(eventData); // Use normalized data
@@ -189,12 +189,12 @@ const updateEvent = async (req, res) => {
         .json({ message: `Description cannot exceed ${maxChars} characters.` });
     }
 
-    // notes word limit
-    const notes = updateData.notes || "";
-    if (notes.length > maxNotesChars) {
+    // Summary word limit
+    const summary = updateData.summary || "";
+    if (summary.length > maxSummaryChars) {
       return res
         .status(400)
-        .json({ message: `Notes cannot exceed ${maxNotesChars} characters.` });
+        .json({ message: `Event summary cannot exceed ${maxSummaryChars} characters.` });
     }
 
     const updatedEvent = await Event.findByIdAndUpdate(
