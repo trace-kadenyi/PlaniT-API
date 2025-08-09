@@ -7,6 +7,7 @@ const Expense = require("../models/ExpenseSchema");
 
 const maxChars = 300;
 const maxNameChars = 70;
+const maxNotesChars = 200;
 
 // Date normalization middleware
 const normalizeEventDate = (date) => {
@@ -41,7 +42,7 @@ const createEvent = async (req, res) => {
       date: eventDate,
     };
 
-    // name word limit (keep existing)
+    // name word limit
     const eventName = eventData.name || "";
     if (eventName.length > maxNameChars) {
       return res.status(400).json({
@@ -49,12 +50,20 @@ const createEvent = async (req, res) => {
       });
     }
 
-    // description word limit (keep existing)
+    // description word limit
     const description = eventData.description || "";
     if (description.length > maxChars) {
       return res
         .status(400)
         .json({ message: `Description cannot exceed ${maxChars} characters.` });
+    }
+
+    // notes word limit
+    const notes = eventData.notes || "";
+    if (notes.length > maxNotesChars) {
+      return res
+        .status(400)
+        .json({ message: `Notes cannot exceed ${maxNotesChars} characters.` });
     }
 
     const event = new Event(eventData); // Use normalized data
@@ -164,7 +173,7 @@ const updateEvent = async (req, res) => {
       ? { ...req.body, date: eventDate }
       : req.body;
 
-    // name word limit (keep existing)
+    // name word limit
     const eventName = updateData.name || "";
     if (eventName.length > maxNameChars) {
       return res.status(400).json({
@@ -172,12 +181,20 @@ const updateEvent = async (req, res) => {
       });
     }
 
-    // description word limit (keep existing)
+    // description word limit
     const description = updateData.description || "";
     if (description.length > maxChars) {
       return res
         .status(400)
         .json({ message: `Description cannot exceed ${maxChars} characters.` });
+    }
+
+    // notes word limit
+    const notes = updateData.notes || "";
+    if (notes.length > maxNotesChars) {
+      return res
+        .status(400)
+        .json({ message: `Notes cannot exceed ${maxNotesChars} characters.` });
     }
 
     const updatedEvent = await Event.findByIdAndUpdate(
