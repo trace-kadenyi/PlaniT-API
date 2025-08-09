@@ -58,8 +58,13 @@ const createExpense = async (req, res) => {
     const expense = new Expense(req.body);
     await expense.save();
 
+    const populatedExpense = await Expense.findById(expense._id).populate(
+      "vendor",
+      "name services"
+    );
+
     res.status(201).json({
-      expense,
+      expense: populatedExpense,
       budgetStatus: await getBudgetStatus(req.body.eventId),
     });
   } catch (err) {
@@ -179,7 +184,7 @@ const updateExpense = async (req, res) => {
       req.params.id,
       req.body,
       { new: true, runValidators: true }
-    );
+    ).populate("vendor", "name services");
 
     res.json({
       expense: updatedExpense,
