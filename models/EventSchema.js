@@ -42,6 +42,11 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: [true, "Type of Event is required"],
     },
+    notes: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
     client: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Client",
