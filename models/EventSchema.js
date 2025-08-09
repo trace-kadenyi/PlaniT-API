@@ -16,7 +16,7 @@ const eventSchema = new mongoose.Schema(
       type: Date,
       required: [true, "Date is required"],
       index: true,
-      get: (date) => date?.toISOString(), // Ensure consistent ISO format
+      get: (date) => date?.toISOString(),
     },
     location: {
       venue: {
@@ -42,10 +42,21 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: [true, "Type of Event is required"],
     },
+    summary: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
     client: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Client",
     },
+    vendors: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Vendor",
+      },
+    ],
   },
   {
     timestamps: true,

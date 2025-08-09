@@ -7,6 +7,7 @@ const Expense = require("../models/ExpenseSchema");
 
 const maxChars = 300;
 const maxNameChars = 70;
+const maxSummaryChars = 200;
 
 // Date normalization middleware
 const normalizeEventDate = (date) => {
@@ -41,7 +42,7 @@ const createEvent = async (req, res) => {
       date: eventDate,
     };
 
-    // name word limit (keep existing)
+    // name word limit
     const eventName = eventData.name || "";
     if (eventName.length > maxNameChars) {
       return res.status(400).json({
@@ -49,12 +50,20 @@ const createEvent = async (req, res) => {
       });
     }
 
-    // description word limit (keep existing)
+    // description word limit
     const description = eventData.description || "";
     if (description.length > maxChars) {
       return res
         .status(400)
         .json({ message: `Description cannot exceed ${maxChars} characters.` });
+    }
+
+    // Summary word limit
+    const summary = eventData.summary || "";
+    if (summary.length > maxSummaryChars) {
+      return res
+        .status(400)
+        .json({ message: `Event summary cannot exceed ${maxSummaryChars} characters.` });
     }
 
     const event = new Event(eventData); // Use normalized data
@@ -90,6 +99,7 @@ const getAllEvents = async (req, res) => {
     // const events = await Event.find().sort({ createdAt: -1 }).lean();
     const events = await Event.find()
       .populate("client")
+      .populate("vendors", "name services")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -111,7 +121,10 @@ const getAllEvents = async (req, res) => {
 const getEventById = async (req, res) => {
   try {
     // const event = await Event.findById(req.params.id).lean();
-    const event = await Event.findById(req.params.id).populate("client").lean();
+    const event = await Event.findById(req.params.id)
+      .populate("client")
+      .populate("vendors", "name services")
+      .lean();
 
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
@@ -160,7 +173,7 @@ const updateEvent = async (req, res) => {
       ? { ...req.body, date: eventDate }
       : req.body;
 
-    // name word limit (keep existing)
+    // name word limit
     const eventName = updateData.name || "";
     if (eventName.length > maxNameChars) {
       return res.status(400).json({
@@ -168,12 +181,20 @@ const updateEvent = async (req, res) => {
       });
     }
 
-    // description word limit (keep existing)
+    // description word limit
     const description = updateData.description || "";
     if (description.length > maxChars) {
       return res
         .status(400)
         .json({ message: `Description cannot exceed ${maxChars} characters.` });
+    }
+
+    // Summary word limit
+    const summary = updateData.summary || "";
+    if (summary.length > maxSummaryChars) {
+      return res
+        .status(400)
+        .json({ message: `Event summary cannot exceed ${maxSummaryChars} characters.` });
     }
 
     const updatedEvent = await Event.findByIdAndUpdate(

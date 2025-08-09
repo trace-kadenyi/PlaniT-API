@@ -84,30 +84,12 @@ const getAllExpenses = async (req, res) => {
   }
 };
 
-// const getExpensesByEventId = async (req, res) => {
-//   try {
-//     const expenses = await Expense.find({ eventId: req.params.eventId }).sort({
-//       createdAt: -1,
-//     });
-
-//     const budgetStatus = await getBudgetStatus(req.params.eventId);
-
-//     if (budgetStatus.totalBudget === 0) {
-//       return res.status(404).json({ message: "Event budget not found" });
-//     }
-
-//     res.json({ expenses, budgetStatus });
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
 // Get all expenses for an event
 const getExpensesByEventId = async (req, res) => {
   try {
-    const expenses = await Expense.find({ eventId: req.params.eventId }).sort({
-      createdAt: -1,
-    });
+    const expenses = await Expense.find({ eventId: req.params.eventId })
+      .populate("vendor", "name services")
+      .sort({ createdAt: -1 });
 
     const budgetStatus = await getBudgetStatus(req.params.eventId);
 

@@ -21,6 +21,7 @@ const eventRoutes = require("./routes/eventRoutes");
 const budgetRoutes = require("./routes/budgetRoutes");
 const expenseRoutes = require("./routes/expenseRoutes");
 const clientRoutes = require("./routes/clientRoutes");
+const vendorRoutes = require("./routes/vendorRoutes");
 
 // connect to MongoDB
 mongoose.connect(process.env.DATABASE_URI);
@@ -41,6 +42,7 @@ app.use("/api/events", eventRoutes);
 app.use("/api/budget", budgetRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/clients", clientRoutes);
+app.use("/api/vendors", vendorRoutes);
 
 // start server
 mongoose.connection.once("open", () => {
