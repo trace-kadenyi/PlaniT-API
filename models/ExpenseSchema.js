@@ -22,13 +22,16 @@ const expenseSchema = new mongoose.Schema(
       type: String,
       required: [true, "Category is required"],
       enum: [
-        "venue",
-        "catering",
-        "decorations",
-        "equipment",
-        "staffing",
-        "marketing",
-        "other",
+        "venue", // Location rental
+        "catering", // Food, drinks, cake
+        "decorations", // Design, florals, signage
+        "equipment", // Rentals: tents, furniture, A/V
+        "staffing", // Wait staff, ushers, cleaners
+        "entertainment", // DJs, MCs, performers
+        "transportation", // Guest or vendor transport
+        "marketing", // Invites, digital promo, posters
+        "photography/videography",
+        "other", // Any unique/unclassified vendors
       ],
       default: "other",
     },
