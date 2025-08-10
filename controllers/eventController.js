@@ -61,11 +61,9 @@ const createEvent = async (req, res) => {
     // Summary word limit
     const summary = eventData.summary || "";
     if (summary.length > maxSummaryChars) {
-      return res
-        .status(400)
-        .json({
-          message: `Event summary cannot exceed ${maxSummaryChars} characters.`,
-        });
+      return res.status(400).json({
+        message: `Event summary cannot exceed ${maxSummaryChars} characters.`,
+      });
     }
 
     const event = new Event(eventData); // Use normalized data
@@ -96,24 +94,83 @@ const createEvent = async (req, res) => {
   }
 };
 // Get all events
+// const getAllEvents = async (req, res) => {
+//   try {
+//     // const events = await Event.find().sort({ createdAt: -1 }).lean();
+//     const events = await Event.find()
+//       .populate("client")
+//       .populate("vendors", "name services")
+//       .sort({ createdAt: -1 })
+//       .lean();
+
+//     // Format all dates consistently
+//     const formattedEvents = events.map((event) => ({
+//       ...event,
+//       date: event.date?.toISOString(),
+//       createdAt: event.createdAt?.toISOString(),
+//       updatedAt: event.updatedAt?.toISOString(),
+//     }));
+
+//     res.json(formattedEvents);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 const getAllEvents = async (req, res) => {
   try {
-    // const events = await Event.find().sort({ createdAt: -1 }).lean();
+    // First get all events without vendors
     const events = await Event.find()
       .populate("client")
-      .populate("vendors", "name services")
       .sort({ createdAt: -1 })
       .lean();
 
-    // Format all dates consistently
-    const formattedEvents = events.map((event) => ({
-      ...event,
-      date: event.date?.toISOString(),
-      createdAt: event.createdAt?.toISOString(),
-      updatedAt: event.updatedAt?.toISOString(),
-    }));
+    // Get all expenses grouped by event
+    const expensesByEvent = await Expense.aggregate([
+      {
+        $group: {
+          _id: "$eventId",
+          expenseIds: { $push: "$_id" },
+        },
+      },
+    ]);
 
-    res.json(formattedEvents);
+    // Get vendors for each event's expenses
+    const eventsWithVendors = await Promise.all(
+      events.map(async (event) => {
+        const eventExpenses = expensesByEvent.find(
+          (e) => e._id.toString() === event._id.toString()
+        );
+
+        let vendors = [];
+        if (eventExpenses) {
+          const expenses = await Expense.find({
+            _id: { $in: eventExpenses.expenseIds },
+          }).populate("vendor", "name services isArchived");
+
+          const vendorMap = new Map();
+          expenses.forEach((expense) => {
+            if (
+              expense.vendor &&
+              !vendorMap.has(expense.vendor._id.toString())
+            ) {
+              vendorMap.set(expense.vendor._id.toString(), expense.vendor);
+            }
+          });
+          vendors = Array.from(vendorMap.values());
+        }
+
+        return {
+          ...event,
+          vendors,
+          date: event.date?.toISOString(),
+          createdAt: event.createdAt?.toISOString(),
+          updatedAt: event.updatedAt?.toISOString(),
+        };
+      })
+    );
+
+    res.json(eventsWithVendors);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -243,11 +300,9 @@ const updateEvent = async (req, res) => {
     // Summary word limit
     const summary = updateData.summary || "";
     if (summary.length > maxSummaryChars) {
-      return res
-        .status(400)
-        .json({
-          message: `Event summary cannot exceed ${maxSummaryChars} characters.`,
-        });
+      return res.status(400).json({
+        message: `Event summary cannot exceed ${maxSummaryChars} characters.`,
+      });
     }
 
     const updatedEvent = await Event.findByIdAndUpdate(
