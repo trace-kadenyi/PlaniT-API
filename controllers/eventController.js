@@ -123,7 +123,7 @@ const getEventById = async (req, res) => {
     // const event = await Event.findById(req.params.id).lean();
     const event = await Event.findById(req.params.id)
       .populate("client")
-      .populate("vendors", "name services")
+      .populate("vendors", "name services isArchived")
       .lean();
 
     if (!event) {
