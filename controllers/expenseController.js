@@ -58,6 +58,15 @@ const createExpense = async (req, res) => {
     const expense = new Expense(req.body);
     await expense.save();
 
+    // Add vendor to event if not already present
+    if (expense.vendor) {
+      await Event.findByIdAndUpdate(
+        expense.eventId,
+        { $addToSet: { vendors: expense.vendor } },
+        { new: true }
+      );
+    }
+
     const populatedExpense = await Expense.findById(expense._id).populate(
       "vendor",
       "name services"
@@ -185,6 +194,15 @@ const updateExpense = async (req, res) => {
       req.body,
       { new: true, runValidators: true }
     ).populate("vendor", "name services");
+
+    // Add vendor to event if not already present
+    if (req.body.vendor) {
+      await Event.findByIdAndUpdate(
+        updatedExpense.eventId,
+        { $addToSet: { vendors: req.body.vendor } },
+        { new: true }
+      );
+    }
 
     res.json({
       expense: updatedExpense,
