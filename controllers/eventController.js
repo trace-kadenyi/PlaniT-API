@@ -61,9 +61,9 @@ const createEvent = async (req, res) => {
     // Summary word limit
     const summary = eventData.summary || "";
     if (summary.length > maxSummaryChars) {
-      return res
-        .status(400)
-        .json({ message: `Event summary cannot exceed ${maxSummaryChars} characters.` });
+      return res.status(400).json({
+        message: `Event summary cannot exceed ${maxSummaryChars} characters.`,
+      });
     }
 
     const event = new Event(eventData); // Use normalized data
@@ -94,55 +94,163 @@ const createEvent = async (req, res) => {
   }
 };
 // Get all events
+// const getAllEvents = async (req, res) => {
+//   try {
+//     // const events = await Event.find().sort({ createdAt: -1 }).lean();
+//     const events = await Event.find()
+//       .populate("client")
+//       .populate("vendors", "name services")
+//       .sort({ createdAt: -1 })
+//       .lean();
+
+//     // Format all dates consistently
+//     const formattedEvents = events.map((event) => ({
+//       ...event,
+//       date: event.date?.toISOString(),
+//       createdAt: event.createdAt?.toISOString(),
+//       updatedAt: event.updatedAt?.toISOString(),
+//     }));
+
+//     res.json(formattedEvents);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 const getAllEvents = async (req, res) => {
   try {
-    // const events = await Event.find().sort({ createdAt: -1 }).lean();
+    // First get all events without vendors
     const events = await Event.find()
       .populate("client")
-      .populate("vendors", "name services")
       .sort({ createdAt: -1 })
       .lean();
 
-    // Format all dates consistently
-    const formattedEvents = events.map((event) => ({
-      ...event,
-      date: event.date?.toISOString(),
-      createdAt: event.createdAt?.toISOString(),
-      updatedAt: event.updatedAt?.toISOString(),
-    }));
+    // Get all expenses grouped by event
+    const expensesByEvent = await Expense.aggregate([
+      {
+        $group: {
+          _id: "$eventId",
+          expenseIds: { $push: "$_id" },
+        },
+      },
+    ]);
 
-    res.json(formattedEvents);
+    // Get vendors for each event's expenses
+    const eventsWithVendors = await Promise.all(
+      events.map(async (event) => {
+        const eventExpenses = expensesByEvent.find(
+          (e) => e._id.toString() === event._id.toString()
+        );
+
+        let vendors = [];
+        if (eventExpenses) {
+          const expenses = await Expense.find({
+            _id: { $in: eventExpenses.expenseIds },
+          }).populate("vendor", "name services isArchived");
+
+          const vendorMap = new Map();
+          expenses.forEach((expense) => {
+            if (
+              expense.vendor &&
+              !vendorMap.has(expense.vendor._id.toString())
+            ) {
+              vendorMap.set(expense.vendor._id.toString(), expense.vendor);
+            }
+          });
+          vendors = Array.from(vendorMap.values());
+        }
+
+        return {
+          ...event,
+          vendors,
+          date: event.date?.toISOString(),
+          createdAt: event.createdAt?.toISOString(),
+          updatedAt: event.updatedAt?.toISOString(),
+        };
+      })
+    );
+
+    res.json(eventsWithVendors);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
 // Get event by ID
+// const getEventById = async (req, res) => {
+//   try {
+//     // const event = await Event.findById(req.params.id).lean();
+//     const event = await Event.findById(req.params.id)
+//       .populate("client")
+//       .populate("vendors", "name services isArchived")
+//       .lean();
+
+//     if (!event) {
+//       return res.status(404).json({ message: "Event not found" });
+//     }
+
+//     // Get budget and expense totals
+//     const budget = await Budget.findOne({ eventId: req.params.id }).lean();
+//     const expenses = await Expense.aggregate([
+//       {
+//         $match: { eventId: new mongoose.Types.ObjectId(String(req.params.id)) },
+//       },
+//       { $group: { _id: null, total: { $sum: "$amount" } } },
+//     ]);
+
+//     const responseData = {
+//       ...event,
+//       budget: budget || null,
+//       totalExpenses: expenses[0]?.total || 0,
+//       date: event.date?.toISOString(),
+//       createdAt: event.createdAt?.toISOString(),
+//       updatedAt: event.updatedAt?.toISOString(),
+//     };
+
+//     res.json(responseData);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 const getEventById = async (req, res) => {
   try {
-    // const event = await Event.findById(req.params.id).lean();
-    const event = await Event.findById(req.params.id)
-      .populate("client")
-      .populate("vendors", "name services isArchived")
-      .lean();
+    // First get the basic event data
+    const event = await Event.findById(req.params.id).populate("client").lean();
 
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Get budget and expense totals
+    // Get all expenses for this event to calculate totals and get vendors
+    const expenses = await Expense.find({ eventId: req.params.id }).populate(
+      "vendor",
+      "name services isArchived"
+    );
+
+    // Calculate total expenses
+    const totalExpenses = expenses.reduce(
+      (sum, expense) => sum + expense.amount,
+      0
+    );
+
+    // Get unique vendors from expenses
+    const vendorMap = new Map();
+    expenses.forEach((expense) => {
+      if (expense.vendor && !vendorMap.has(expense.vendor._id.toString())) {
+        vendorMap.set(expense.vendor._id.toString(), expense.vendor);
+      }
+    });
+    const vendors = Array.from(vendorMap.values());
+
+    // Get budget
     const budget = await Budget.findOne({ eventId: req.params.id }).lean();
-    const expenses = await Expense.aggregate([
-      {
-        $match: { eventId: new mongoose.Types.ObjectId(String(req.params.id)) },
-      },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
 
     const responseData = {
       ...event,
+      vendors, // Add the derived vendors list
       budget: budget || null,
-      totalExpenses: expenses[0]?.total || 0,
+      totalExpenses,
       date: event.date?.toISOString(),
       createdAt: event.createdAt?.toISOString(),
       updatedAt: event.updatedAt?.toISOString(),
@@ -192,9 +300,9 @@ const updateEvent = async (req, res) => {
     // Summary word limit
     const summary = updateData.summary || "";
     if (summary.length > maxSummaryChars) {
-      return res
-        .status(400)
-        .json({ message: `Event summary cannot exceed ${maxSummaryChars} characters.` });
+      return res.status(400).json({
+        message: `Event summary cannot exceed ${maxSummaryChars} characters.`,
+      });
     }
 
     const updatedEvent = await Event.findByIdAndUpdate(
