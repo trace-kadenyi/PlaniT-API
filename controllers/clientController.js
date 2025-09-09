@@ -154,7 +154,7 @@ const restoreClient = async (req, res) => {
   }
 };
 
-// Delete client completely (without deleting associated events)
+// Delete client completely
 const deleteClient = async (req, res) => {
   try {
     const client = await Client.findByIdAndDelete(req.params.id);
