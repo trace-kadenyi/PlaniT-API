@@ -8,6 +8,7 @@ const {
   updateClient,
   archiveClient,
   restoreClient,
+  deleteClient,
 } = require("../controllers/clientController");
 
 // POST /api/clients
@@ -30,5 +31,8 @@ router.patch("/:id/archive", archiveClient);
 
 // PATCH /api/client/id/restore
 router.patch("/:id/restore", restoreClient);
+
+// DELETE /api/client/id
+router.delete("/:id", deleteClient);
 
 module.exports = router;

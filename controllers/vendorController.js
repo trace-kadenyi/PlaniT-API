@@ -43,7 +43,7 @@ const getAllVendors = async (req, res) => {
       filter.services = service;
     }
     if (archived !== undefined) {
-      filter.isArchived = archived === 'true';
+      filter.isArchived = archived === "true";
     }
 
     const vendors = await Vendor.find(filter).sort({ name: 1 });
@@ -115,8 +115,10 @@ const toggleVendorArchive = async (req, res) => {
     await vendor.save();
 
     res.json({
-      message: `Vendor ${vendor.isArchived ? 'archived' : 'unarchived'} successfully`,
-      vendor
+      message: `Vendor ${
+        vendor.isArchived ? "archived" : "unarchived"
+      } successfully`,
+      vendor,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -131,15 +133,33 @@ const getVendorStats = async (req, res) => {
         $group: {
           _id: "$services",
           count: { $sum: 1 },
-          archived: { $sum: { $cond: [{ $eq: ["$isArchived", true] }, 1, 0] } }
-        }
+          archived: { $sum: { $cond: [{ $eq: ["$isArchived", true] }, 1, 0] } },
+        },
       },
-      { $sort: { _id: 1 } }
+      { $sort: { _id: 1 } },
     ]);
 
     res.json(stats);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+// Delete vendor completely
+const deleteVendor = async (req, res) => {
+  try {
+    const vendor = await Vendor.findByIdAndDelete(req.params.id);
+
+    if (!vendor) {
+      return res.status(404).json({ error: "Vendor not found" });
+    }
+
+    res.json({
+      message: "Vendor deleted successfully",
+      deletedVendor: vendor,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
@@ -149,5 +169,6 @@ module.exports = {
   getVendorById,
   updateVendor,
   toggleVendorArchive,
-  getVendorStats
+  getVendorStats,
+  deleteVendor,
 };

@@ -7,6 +7,7 @@ const {
   updateVendor,
   toggleVendorArchive,
   getVendorStats,
+  deleteVendor,
 } = require("../controllers/vendorController");
 
 // Create vendor
@@ -26,5 +27,8 @@ router.put("/:id", updateVendor);
 
 // Archive/unarchive vendor
 router.patch("/:id/archive", toggleVendorArchive);
+
+// DELETE /api/vendor/id
+router.delete("/:id", deleteVendor);
 
 module.exports = router;
