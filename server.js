@@ -58,8 +58,8 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Fallback for undefined routes
-app.all("*", (req, res) => {
+// // Fallback for undefined routes
+app.all(/.*/, (req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
