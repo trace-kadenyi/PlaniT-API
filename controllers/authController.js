@@ -89,6 +89,52 @@ exports.login = async (req, res) => {
   }
 };
 
+// Refresh token
+exports.refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        status: "error",
+        message: "No refresh token provided",
+      });
+    }
+
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+
+    // Check if user still exists
+    const currentUser = await User.findById(decoded.id);
+    if (!currentUser) {
+      return res.status(401).json({
+        status: "error",
+        message: "The user belonging to this token does no longer exist",
+      });
+    }
+
+    // Check if user changed password after the token was issued
+    if (currentUser.changedPasswordAfter(decoded.iat)) {
+      return res.status(401).json({
+        status: "error",
+        message: "User recently changed password! Please log in again",
+      });
+    }
+
+    // If everything is ok, create new access token
+    const accessToken = signToken(currentUser._id);
+
+    res.status(200).json({
+      status: "success",
+      accessToken,
+    });
+  } catch (err) {
+    res.status(401).json({
+      status: "error",
+      message: "Invalid refresh token",
+    });
+  }
+};
 
 
 
