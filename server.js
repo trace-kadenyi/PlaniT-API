@@ -49,10 +49,18 @@ app.use("/api/vendors", vendorRoutes);
 // ADD ERROR HANDLING MIDDLEWARE (important for auth)
 app.use((error, req, res, next) => {
   console.error(error.stack);
-  res.status(500).json({ 
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+  res.status(500).json({
+    message: "Something went wrong!",
+    error:
+      process.env.NODE_ENV === "development"
+        ? error.message
+        : "Internal server error",
   });
+});
+
+// Fallback for undefined routes
+app.all("*", (req, res) => {
+  res.status(404).json({ message: "Route not found" });
 });
 
 // start server
