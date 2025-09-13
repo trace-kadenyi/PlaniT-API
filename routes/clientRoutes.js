@@ -23,9 +23,6 @@ router.get("/:id", getClientWithEvents);
 // PUT /api/clients/:id
 router.put("/:id", updateClient);
 
-// PUT /api/clients/id
-router.put("/:id", archiveClient);
-
 // PATCH /api/client/id/archive
 router.patch("/:id/archive", archiveClient);
 
