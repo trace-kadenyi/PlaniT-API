@@ -22,6 +22,7 @@ const budgetRoutes = require("./routes/budgetRoutes");
 const expenseRoutes = require("./routes/expenseRoutes");
 const clientRoutes = require("./routes/clientRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
+const authRoutes = require("./routes/authRoutes");
 
 // connect to MongoDB
 mongoose.connect(process.env.DATABASE_URI);
@@ -37,6 +38,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // use routes
 app.use("/", root);
+app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/budget", budgetRoutes);
