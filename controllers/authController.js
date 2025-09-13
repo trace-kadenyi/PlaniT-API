@@ -9,6 +9,28 @@ const signToken = (id) => {
   });
 };
 
+const createSendToken = (user, statusCode, res) => {
+  const accessToken = signToken(user._id);
+  const refreshToken = jwt.sign(
+    { id: user._id },
+    process.env.JWT_REFRESH_SECRET,
+    {
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+    }
+  );
+
+  // Remove password from output
+  user.password = undefined;
+
+  res.status(statusCode).json({
+    status: "success",
+    accessToken,
+    refreshToken,
+    data: {
+      user,
+    },
+  });
+};
 
 
 
