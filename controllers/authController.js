@@ -52,6 +52,42 @@ exports.signup = async (req, res) => {
   }
 };
 
+// Login
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // 1) Check if email and password exist
+    if (!email || !password) {
+      return res.status(400).json({
+        status: "error",
+        message: "Please provide email and password",
+      });
+    }
+
+    // 2) Check if user exists && password is correct
+    const user = await User.findOne({ email }).select("+password");
+
+    if (!user || !(await user.correctPassword(password, user.password))) {
+      return res.status(401).json({
+        status: "error",
+        message: "Incorrect email or password",
+      });
+    }
+
+    // 3) Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // 4) If everything ok, send token to client
+    createSendToken(user, 200, res);
+  } catch (err) {
+    res.status(400).json({
+      status: "error",
+      message: err.message,
+    });
+  }
+};
 
 
 
