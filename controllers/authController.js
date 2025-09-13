@@ -136,6 +136,41 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
+// Forgot password
+exports.forgotPassword = async (req, res) => {
+  try {
+    // 1) Get user based on POSTed email
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "There is no user with that email address",
+      });
+    }
+
+    // 2) Generate the random reset token
+    const resetToken = user.createPasswordResetToken();
+    await user.save({ validateBeforeSave: false });
+
+    // 3) Send it to user's email (you'll implement this)
+    // For now, we'll just return the token
+    res.status(200).json({
+      status: "success",
+      message: "Token sent to email!",
+      resetToken, // In production, remove this line and actually send email
+    });
+  } catch (err) {
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(500).json({
+      status: "error",
+      message: "There was an error sending the email. Try again later!",
+    });
+  }
+};
+
 
 
 
