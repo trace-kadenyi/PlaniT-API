@@ -46,6 +46,15 @@ app.use("/api/expenses", expenseRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/vendors", vendorRoutes);
 
+// ADD ERROR HANDLING MIDDLEWARE (important for auth)
+app.use((error, req, res, next) => {
+  console.error(error.stack);
+  res.status(500).json({ 
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+  });
+});
+
 // start server
 mongoose.connection.once("open", () => {
   console.log("connected to MongoDB");
