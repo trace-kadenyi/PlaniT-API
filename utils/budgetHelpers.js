@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Budget = require("../models/BudgetSchema");
 const Expense = require("../models/ExpenseSchema");
 
+// get budget status
 const getBudgetStatus = async (eventId) => {
   try {
     const [budget, expenses] = await Promise.all([
