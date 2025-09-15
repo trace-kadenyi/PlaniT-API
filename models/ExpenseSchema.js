@@ -30,7 +30,7 @@ const expenseSchema = new mongoose.Schema(
         "entertainment", // DJs, MCs, performers
         "transportation", // Guest or vendor transport
         "marketing", // Invites, digital promo, posters
-        "photography/videography",
+        "photography/videography", // photos, videos
         "other", // Any unique/unclassified vendors
       ],
       default: "other",
