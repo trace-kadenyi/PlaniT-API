@@ -177,42 +177,6 @@ const getAllEvents = async (req, res) => {
 };
 
 // Get event by ID
-// const getEventById = async (req, res) => {
-//   try {
-//     // const event = await Event.findById(req.params.id).lean();
-//     const event = await Event.findById(req.params.id)
-//       .populate("client")
-//       .populate("vendors", "name services isArchived")
-//       .lean();
-
-//     if (!event) {
-//       return res.status(404).json({ message: "Event not found" });
-//     }
-
-//     // Get budget and expense totals
-//     const budget = await Budget.findOne({ eventId: req.params.id }).lean();
-//     const expenses = await Expense.aggregate([
-//       {
-//         $match: { eventId: new mongoose.Types.ObjectId(String(req.params.id)) },
-//       },
-//       { $group: { _id: null, total: { $sum: "$amount" } } },
-//     ]);
-
-//     const responseData = {
-//       ...event,
-//       budget: budget || null,
-//       totalExpenses: expenses[0]?.total || 0,
-//       date: event.date?.toISOString(),
-//       createdAt: event.createdAt?.toISOString(),
-//       updatedAt: event.updatedAt?.toISOString(),
-//     };
-
-//     res.json(responseData);
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
 const getEventById = async (req, res) => {
   try {
     // First get the basic event data
