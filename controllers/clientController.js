@@ -38,10 +38,6 @@ const createClient = async (req, res) => {
 // Get all active clients
 const getAllClients = async (req, res) => {
   try {
-    // const { showArchived } = req.query;
-    // const filter = showArchived === "true" ? {} : { isArchived: false };
-
-    // const clients = await Client.find(filter);
     const clients = await Client.find();
     res.json(clients);
   } catch (err) {
