@@ -43,6 +43,7 @@ const createExpense = async (req, res) => {
       });
     }
 
+    // control: expense must be less than remaining budget
     if (req.body.amount > budgetStatus.remainingBudget) {
       return res.status(400).json({
         message: `Expense exceeds remaining budget ($${budgetStatus.remainingBudget.toFixed(
