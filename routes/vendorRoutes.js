@@ -10,26 +10,27 @@ const {
   getVendorStats,
   deleteVendor,
 } = require("../controllers/vendorController");
+const authController = require("../controllers/authController");
 
 // Create vendor
-router.post("/", createVendor);
+router.post("/", authController.protect, createVendor);
 
 // Get all vendors
-router.get("/", getAllVendors);
+router.get("/", authController.protect, getAllVendors);
 
 // Get vendor stats
-router.get("/stats", getVendorStats);
+router.get("/stats", authController.protect, getVendorStats);
 
 // Get single vendor
-router.get("/:id", getVendorById);
+router.get("/:id", authController.protect, getVendorById);
 
 // Update vendor
-router.put("/:id", updateVendor);
+router.put("/:id", authController.protect, updateVendor);
 
 // Archive/unarchive vendor
-router.patch("/:id/archive", toggleVendorArchive);
+router.patch("/:id/archive", authController.protect, toggleVendorArchive);
 
 // DELETE /api/vendor/id
-router.delete("/:id", deleteVendor);
+router.delete("/:id", authController.protect, deleteVendor);
 
 module.exports = router;
