@@ -10,26 +10,27 @@ const {
   restoreClient,
   deleteClient,
 } = require("../controllers/clientController");
+const authController = require("../controllers/authController");
 
 // POST /api/clients
-router.post("/", createClient);
+router.post("/", authController.protect, createClient);
 
 // GET /api/clients
-router.get("/", getAllClients);
+router.get("/", authController.protect, getAllClients);
 
 // GET /api/clients/:id
-router.get("/:id", getClientWithEvents);
+router.get("/:id", authController.protect, getClientWithEvents);
 
 // PUT /api/clients/:id
-router.put("/:id", updateClient);
+router.put("/:id", authController.protect, updateClient);
 
 // PATCH /api/client/id/archive
-router.patch("/:id/archive", archiveClient);
+router.patch("/:id/archive", authController.protect, archiveClient);
 
 // PATCH /api/client/id/restore
-router.patch("/:id/restore", restoreClient);
+router.patch("/:id/restore", authController.protect, restoreClient);
 
 // DELETE /api/client/id
-router.delete("/:id", deleteClient);
+router.delete("/:id", authController.protect, deleteClient);
 
 module.exports = router;
