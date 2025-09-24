@@ -153,7 +153,7 @@ exports.forgotPassword = async (req, res) => {
     const resetToken = user.createPasswordResetToken();
     await user.save({ validateBeforeSave: false });
 
-    // 3) Send it to user's email (you'll implement this)
+    // 3) Send it to user's email (later implementation)
     // For now, we'll just return the token
     res.status(200).json({
       status: "success",
