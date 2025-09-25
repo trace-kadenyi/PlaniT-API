@@ -154,7 +154,7 @@ exports.forgotPassword = async (req, res) => {
     await user.save({ validateBeforeSave: false });
 
     // 3) Send it to user's email (later implementation)
-    // For now, we'll just return the token
+    // For dev, just return the token
     res.status(200).json({
       status: "success",
       message: "Token sent to email!",
