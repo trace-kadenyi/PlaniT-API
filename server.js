@@ -46,7 +46,7 @@ app.use("/api/expenses", expenseRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/vendors", vendorRoutes);
 
-// ADD ERROR HANDLING MIDDLEWARE (important for auth)
+// ERROR HANDLING MIDDLEWARE (important for auth)
 app.use((error, req, res, next) => {
   console.error(error.stack);
   res.status(500).json({
