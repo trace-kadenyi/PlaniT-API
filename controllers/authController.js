@@ -20,14 +20,14 @@ const createSendToken = (user, statusCode, res) => {
   );
 
   console.log("Setting refresh token cookie for user:", user._id);
-  
+
   // FIXED: Cookie settings for local development
-  res.cookie('refreshToken', refreshToken, {
+  res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: false, // Set to false for local development (HTTP)
-    sameSite: 'lax', // Change from 'strict' to 'lax' for cross-origin
+    sameSite: "lax", // Change from 'strict' to 'lax' for cross-origin
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    domain: 'localhost' // Explicitly set domain for local development
+    domain: "localhost", // Explicitly set domain for local development
   });
 
   user.password = undefined;
@@ -44,10 +44,12 @@ exports.refreshToken = async (req, res) => {
   try {
     console.log("Refresh token endpoint hit - cookies:", req.cookies);
     const refreshToken = req.cookies.refreshToken;
-    
+
     if (!refreshToken) {
       console.log("No refresh token cookie found");
-      return res.status(401).json({ status: "error", message: "No refresh token" });
+      return res
+        .status(401)
+        .json({ status: "error", message: "No refresh token" });
     }
 
     console.log("Refresh token found, verifying...");
@@ -120,10 +122,12 @@ exports.login = async (req, res) => {
 // Refresh token
 exports.refreshToken = async (req, res) => {
   try {
-     const refreshToken = req.cookies.refreshToken; // Get from cookie
-    
+    const refreshToken = req.cookies.refreshToken; // Get from cookie
+
     if (!refreshToken) {
-      return res.status(401).json({ status: "error", message: "No refresh token" });
+      return res
+        .status(401)
+        .json({ status: "error", message: "No refresh token" });
     }
 
     // Verify refresh token
@@ -297,4 +301,17 @@ exports.restrictTo = (...roles) => {
   };
 };
 
+// Logout - clear the refresh token cookie
+exports.logout = (req, res) => {
+  res.cookie("refreshToken", "loggedout", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 1, // 1ms - effectively expires immediately
+  });
 
+  res.status(200).json({
+    status: "success",
+    message: "Logged out successfully",
+  });
+};
