@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
+const cookieParser = require("cookie-parser"); 
 
 // mongoose/mongodb
 const mongoose = require("mongoose");
@@ -31,10 +32,38 @@ require("dotenv").config();
 app.use(express.json());
 
 // cors
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// cookie-parser
+app.use(cookieParser());
 
 // middleware to handle static files
 app.use(express.static(path.join(__dirname, "public")));
+
+// Add this before your other routes in server.js
+app.get('/api/debug-cookies-set', (req, res) => {
+  console.log('Setting debug cookie...');
+  res.cookie('debugCookie', 'test-value', {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000
+  });
+  res.json({ message: 'Debug cookie should be set' });
+});
+
+app.get('/api/debug-cookies-check', (req, res) => {
+  console.log('Received cookies:', req.cookies);
+  res.json({ 
+    receivedCookies: req.cookies,
+    headers: req.headers
+  });
+});
 
 // use routes
 app.use("/", root);
