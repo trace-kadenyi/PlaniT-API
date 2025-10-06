@@ -18,4 +18,7 @@ router.post("/forgot-password", authController.forgotPassword);
 // reset password
 router.patch("/reset-password/:token", authController.resetPassword);
 
+// logout
+router.post('/logout', authController.logout);
+
 module.exports = router;
