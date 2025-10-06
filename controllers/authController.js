@@ -10,29 +10,56 @@ const signToken = (id) => {
   });
 };
 
+// In createSendToken function, add logging:
 const createSendToken = (user, statusCode, res) => {
   const accessToken = signToken(user._id);
   const refreshToken = jwt.sign(
     { id: user._id },
     process.env.JWT_REFRESH_SECRET,
-    {
-      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
-    }
+    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN }
   );
 
-  // Remove password from output
+  console.log("Setting refresh token cookie for user:", user._id);
+  
+  // FIXED: Cookie settings for local development
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: false, // Set to false for local development (HTTP)
+    sameSite: 'lax', // Change from 'strict' to 'lax' for cross-origin
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    domain: 'localhost' // Explicitly set domain for local development
+  });
+
   user.password = undefined;
 
   res.status(statusCode).json({
     status: "success",
     accessToken,
-    refreshToken,
-    data: {
-      user,
-    },
+    data: { user },
   });
 };
 
+// In refreshToken endpoint, add logging:
+exports.refreshToken = async (req, res) => {
+  try {
+    console.log("Refresh token endpoint hit - cookies:", req.cookies);
+    const refreshToken = req.cookies.refreshToken;
+    
+    if (!refreshToken) {
+      console.log("No refresh token cookie found");
+      return res.status(401).json({ status: "error", message: "No refresh token" });
+    }
+
+    console.log("Refresh token found, verifying...");
+    // ... rest of your code
+  } catch (err) {
+    console.log("Refresh token error:", err.message);
+    res.status(401).json({
+      status: "error",
+      message: "Invalid refresh token",
+    });
+  }
+};
 // Signup
 exports.signup = async (req, res) => {
   try {
@@ -93,13 +120,10 @@ exports.login = async (req, res) => {
 // Refresh token
 exports.refreshToken = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
-
+     const refreshToken = req.cookies.refreshToken; // Get from cookie
+    
     if (!refreshToken) {
-      return res.status(401).json({
-        status: "error",
-        message: "No refresh token provided",
-      });
+      return res.status(401).json({ status: "error", message: "No refresh token" });
     }
 
     // Verify refresh token
@@ -272,3 +296,5 @@ exports.restrictTo = (...roles) => {
     next();
   };
 };
+
+
