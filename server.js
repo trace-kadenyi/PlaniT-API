@@ -1,9 +1,9 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const cookieParser = require("cookie-parser"); 
-const helmet = require("helmet")
-
+const cookieParser = require("cookie-parser");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 
 // mongoose/mongodb
 const mongoose = require("mongoose");
@@ -19,6 +19,14 @@ const path = require("path");
 
 // Security headers
 app.use(helmet());
+
+// Rate limiting - prevent brute force attacks
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again later.",
+});
+app.use("/api/", limiter);
 
 // import routes
 const root = require("./routes/root");
@@ -37,12 +45,14 @@ require("dotenv").config();
 app.use(express.json());
 
 // cors
-app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // cookie-parser
 app.use(cookieParser());
@@ -51,22 +61,22 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
 // Add this before your other routes in server.js
-app.get('/api/debug-cookies-set', (req, res) => {
-  console.log('Setting debug cookie...');
-  res.cookie('debugCookie', 'test-value', {
+app.get("/api/debug-cookies-set", (req, res) => {
+  console.log("Setting debug cookie...");
+  res.cookie("debugCookie", "test-value", {
     httpOnly: true,
     secure: false,
-    sameSite: 'lax',
-    maxAge: 24 * 60 * 60 * 1000
+    sameSite: "lax",
+    maxAge: 24 * 60 * 60 * 1000,
   });
-  res.json({ message: 'Debug cookie should be set' });
+  res.json({ message: "Debug cookie should be set" });
 });
 
-app.get('/api/debug-cookies-check', (req, res) => {
-  console.log('Received cookies:', req.cookies);
-  res.json({ 
+app.get("/api/debug-cookies-check", (req, res) => {
+  console.log("Received cookies:", req.cookies);
+  res.json({
     receivedCookies: req.cookies,
-    headers: req.headers
+    headers: req.headers,
   });
 });
 
