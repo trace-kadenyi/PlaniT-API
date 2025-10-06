@@ -2,6 +2,8 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const cookieParser = require("cookie-parser"); 
+const helmet = require("helmet")
+
 
 // mongoose/mongodb
 const mongoose = require("mongoose");
@@ -14,6 +16,9 @@ const PORT = process.env.PORT || 4000;
 
 // path
 const path = require("path");
+
+// Security headers
+app.use(helmet());
 
 // import routes
 const root = require("./routes/root");
