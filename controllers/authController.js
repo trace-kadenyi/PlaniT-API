@@ -156,6 +156,15 @@ exports.refreshToken = async (req, res) => {
     res.status(200).json({
       status: "success",
       accessToken,
+      data: {
+        user: {
+          _id: currentUser._id,
+          firstName: currentUser.firstName,
+          lastName: currentUser.lastName,
+          email: currentUser.email,
+          role: currentUser.role,
+        },
+      },
     });
   } catch (err) {
     res.status(401).json({
