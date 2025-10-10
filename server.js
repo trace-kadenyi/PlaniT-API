@@ -17,6 +17,34 @@ const PORT = process.env.PORT || 4000;
 // path
 const path = require("path");
 
+// import routes
+const root = require("./routes/root");
+const taskRoutes = require("./routes/taskRoutes");
+const eventRoutes = require("./routes/eventRoutes");
+const budgetRoutes = require("./routes/budgetRoutes");
+const expenseRoutes = require("./routes/expenseRoutes");
+const clientRoutes = require("./routes/clientRoutes");
+const vendorRoutes = require("./routes/vendorRoutes");
+const authRoutes = require("./routes/authRoutes");
+
+// connect to MongoDB
+mongoose.connect(process.env.DATABASE_URI);
+
+require("dotenv").config();
+
+// cors
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  })
+);
+
+// cookie-parser
+app.use(cookieParser());
+
 // Security headers
 app.use(helmet());
 
@@ -37,38 +65,7 @@ const authLimiter = rateLimit({
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/signup", authLimiter);
 
-// import routes
-const root = require("./routes/root");
-const taskRoutes = require("./routes/taskRoutes");
-const eventRoutes = require("./routes/eventRoutes");
-const budgetRoutes = require("./routes/budgetRoutes");
-const expenseRoutes = require("./routes/expenseRoutes");
-const clientRoutes = require("./routes/clientRoutes");
-const vendorRoutes = require("./routes/vendorRoutes");
-const authRoutes = require("./routes/authRoutes");
-
-// connect to MongoDB
-mongoose.connect(process.env.DATABASE_URI);
-
-require("dotenv").config();
 app.use(express.json());
-
-// cors
-// cors - UPDATED CONFIG
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  })
-);
-
-// Handle preflight requests explicitly
-// app.options('*', cors());
-
-// cookie-parser
-app.use(cookieParser());
 
 // middleware to handle static files
 app.use(express.static(path.join(__dirname, "public")));
