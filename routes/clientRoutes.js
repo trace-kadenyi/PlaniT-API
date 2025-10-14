@@ -9,6 +9,7 @@ const {
   archiveClient,
   restoreClient,
   deleteClient,
+  deleteAllClients,
 } = require("../controllers/clientController");
 const authController = require("../controllers/authController");
 
@@ -32,5 +33,8 @@ router.patch("/:id/restore", authController.protect, restoreClient);
 
 // DELETE /api/client/id
 router.delete("/:id", authController.protect, deleteClient);
+
+// DELETE /api/client
+router.delete("/", authController.protect, deleteAllClients);
 
 module.exports = router;
