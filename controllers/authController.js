@@ -19,7 +19,6 @@ const createSendToken = (user, statusCode, res) => {
     { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN }
   );
 
-
   // Cookie settings for local development
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
