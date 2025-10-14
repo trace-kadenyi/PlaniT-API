@@ -9,6 +9,7 @@ const {
   toggleVendorArchive,
   getVendorStats,
   deleteVendor,
+  deleteAllVendors,
 } = require("../controllers/vendorController");
 const authController = require("../controllers/authController");
 
@@ -32,5 +33,8 @@ router.patch("/:id/archive", authController.protect, toggleVendorArchive);
 
 // DELETE /api/vendor/id
 router.delete("/:id", authController.protect, deleteVendor);
+
+// DELETE /api/vendors
+router.delete("/", authController.protect, deleteAllVendors);
 
 module.exports = router;
