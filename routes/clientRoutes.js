@@ -25,16 +25,16 @@ router.get("/:id", authController.protect, getClientWithEvents);
 // PUT /api/clients/:id
 router.put("/:id", authController.protect, updateClient);
 
-// PATCH /api/client/id/archive
+// PATCH /api/clients/id/archive
 router.patch("/:id/archive", authController.protect, archiveClient);
 
-// PATCH /api/client/id/restore
+// PATCH /api/clients/id/restore
 router.patch("/:id/restore", authController.protect, restoreClient);
 
-// DELETE /api/client/id
+// DELETE /api/clients/id
 router.delete("/:id", authController.protect, deleteClient);
 
-// DELETE /api/client
+// DELETE /api/clients
 router.delete("/", authController.protect, deleteAllClients);
 
 module.exports = router;
