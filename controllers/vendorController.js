@@ -163,6 +163,21 @@ const deleteVendor = async (req, res) => {
   }
 };
 
+// Delete all vendors completely
+const deleteAllVendors = async (req, res) => {
+  try {
+    // Delete all vendors
+    const deletedVendors = await Vendor.deleteMany({});
+
+    res.json({
+      message: "All vendors deleted successfully",
+      deletedCount: deletedVendors.deletedCount,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   createVendor,
   getAllVendors,
@@ -171,4 +186,5 @@ module.exports = {
   toggleVendorArchive,
   getVendorStats,
   deleteVendor,
+  deleteAllVendors
 };
