@@ -168,6 +168,21 @@ const deleteClient = async (req, res) => {
   }
 };
 
+// Delete all clients completely
+const deleteAllClients = async (req, res) => {
+  try {
+    // Delete all clients
+    const deletedClients = await Client.deleteMany({});
+
+    res.json({
+      message: "All clients deleted successfully",
+      deletedCount: deletedClients.deletedCount,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   createClient,
   getAllClients,
@@ -176,4 +191,5 @@ module.exports = {
   archiveClient,
   restoreClient,
   deleteClient,
+  deleteAllClients,
 };
