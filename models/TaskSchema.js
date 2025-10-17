@@ -17,9 +17,14 @@ const taskSchema = new mongoose.Schema(
       ref: "Event",
       required: true,
     },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     assignedTo: {
-      type: String,
-      default: "Unassigned",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
     deadline: {
       type: Date,
