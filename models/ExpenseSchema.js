@@ -56,6 +56,11 @@ const expenseSchema = new mongoose.Schema(
       trim: true,
       match: [/^https?:\/\/.+/, "Invalid receipt URL"],
     },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   },
   {
     timestamps: true,
