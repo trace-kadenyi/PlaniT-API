@@ -129,3 +129,54 @@ const removeUserFromOrganization = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// Update user role in organization
+const updateUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { organizationRole } = req.body;
+
+    // Check permissions
+    if (!["owner", "admin"].includes(req.user.organizationRole)) {
+      return res.status(403).json({
+        message: "Only organization admins can update user roles",
+      });
+    }
+
+    const userToUpdate = await User.findOne({
+      _id: userId,
+      organization: req.user.organization,
+    });
+
+    if (!userToUpdate) {
+      return res.status(404).json({
+        message: "User not found in organization",
+      });
+    }
+
+    // Prevent changing owner role (only owner can transfer ownership)
+    if (
+      userToUpdate.organizationRole === "owner" &&
+      req.user.organizationRole !== "owner"
+    ) {
+      return res.status(403).json({
+        message: "Only organization owner can change owner role",
+      });
+    }
+
+    userToUpdate.organizationRole = organizationRole;
+    await userToUpdate.save();
+
+    res.json({
+      message: "User role updated successfully",
+      user: {
+        id: userToUpdate._id,
+        firstName: userToUpdate.firstName,
+        lastName: userToUpdate.lastName,
+        organizationRole: userToUpdate.organizationRole,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
