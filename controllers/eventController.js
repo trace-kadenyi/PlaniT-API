@@ -4,6 +4,7 @@ const Event = require("../models/EventSchema");
 const Task = require("../models/TaskSchema");
 const Budget = require("../models/BudgetSchema");
 const Expense = require("../models/ExpenseSchema");
+const User = require("../models/UserSchema");
 
 const maxChars = 300;
 const maxNameChars = 70;
@@ -40,6 +41,7 @@ const createEvent = async (req, res) => {
     const eventData = {
       ...req.body,
       date: eventDate,
+      createdBy: req.user._id,
     };
 
     // name word limit
@@ -76,6 +78,11 @@ const createEvent = async (req, res) => {
       notes: req.body.budgetNotes || "",
     });
     await budget.save();
+
+    // assignedto user
+    await User.findByIdAndUpdate(req.user._id, {
+      $addToSet: { assignedEvents: savedEvent._id },
+    });
 
     res.status(201).json({
       event: savedEvent,
