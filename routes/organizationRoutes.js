@@ -19,6 +19,8 @@ router.get("/users", getOrganizationUsers);
 
 // delete/remove a user from org
 router.delete("/users/:userId", removeUserFromOrganization);
+
+// update the role of a user within org
 router.patch("/users/:userId/role", updateUserRole);
 
 module.exports = router;
