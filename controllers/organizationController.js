@@ -19,11 +19,11 @@ const addUserToOrganization = async (req, res) => {
       organization: req.user.organization,
     });
 
-    if (currentUserCount >= organization.maxUsers) {
-      return res.status(400).json({
-        message: "Organization user limit reached",
-      });
-    }
+    // if (currentUserCount >= organization.maxUsers) {
+    //   return res.status(400).json({
+    //     message: "Organization user limit reached",
+    //   });
+    // }
 
     // Check if user already exists in this organization
     const existingUser = await User.findOne({
