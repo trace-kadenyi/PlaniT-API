@@ -103,11 +103,19 @@ const createEvent = async (req, res) => {
 // Get all events
 const getAllEvents = async (req, res) => {
   try {
-    // get all events (without vendors)
+    // Find all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    // Show events created by ANY user in the same organization
     const events = await Event.find({
-      $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
+      createdBy: { $in: organizationUserIds },
     })
       .populate("client")
+      .populate("createdBy", "firstName lastName") // Show who created it
       .sort({ createdAt: -1 })
       .lean();
 
