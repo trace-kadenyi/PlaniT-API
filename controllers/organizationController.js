@@ -71,3 +71,17 @@ const addUserToOrganization = async (req, res) => {
   }
 };
 
+
+// Get all users in organization
+const getOrganizationUsers = async (req, res) => {
+  try {
+    const users = await User.find({ 
+      organization: req.user.organization 
+    }).select('-password');
+    
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
