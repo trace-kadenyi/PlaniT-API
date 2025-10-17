@@ -166,10 +166,17 @@ const getAllEvents = async (req, res) => {
 const getEventById = async (req, res) => {
   try {
     // First get the basic event data
-    const event = await Event.findById(req.params.id).populate("client").lean();
+    const event = await Event.findOne({
+      _id: req.params.id,
+      $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
+    })
+      .populate("client")
+      .lean();
 
     if (!event) {
-      return res.status(404).json({ message: "Event not found" });
+      return res
+        .status(404)
+        .json({ message: "Event not found or access denied" });
     }
 
     // Get all expenses for this event to calculate totals and get vendors
