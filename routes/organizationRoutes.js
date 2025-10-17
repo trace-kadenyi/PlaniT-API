@@ -11,7 +11,10 @@ const {
 
 router.use(protect); // All routes protected
 
+// create new user
 router.post("/users", addUserToOrganization);
+
+// get all users within an org
 router.get("/users", getOrganizationUsers);
 router.delete("/users/:userId", removeUserFromOrganization);
 router.patch("/users/:userId/role", updateUserRole);
