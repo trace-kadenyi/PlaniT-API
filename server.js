@@ -58,8 +58,8 @@ app.use("/api/", limiter);
 
 // More aggressive rate limiting for auth routes
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10, // only 10 login attempts per 15 minutes
+  windowMs: 5 * 60 * 1000,                                                   // CHANGE TO 15 AFTER DEVELOPMENT
+  max: 100, // only 10 login attempts per 15 minutes                         (CHANGE TO 10 AFTER DEVELOPMENT)
   handler: (req, res) => {
     res.status(429).json({
       status: "error",
