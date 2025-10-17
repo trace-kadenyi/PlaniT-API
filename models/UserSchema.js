@@ -27,6 +27,16 @@ const userSchema = new mongoose.Schema(
         "Please enter a valid email",
       ],
     },
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: [true, "User must belong to an organization"],
+    },
+    organizationRole: {
+      type: String,
+      enum: ["owner", "admin", "planner", "viewer"],
+      default: "planner",
+    },
     password: {
       type: String,
       required: [true, "Password is required"],
@@ -76,6 +86,9 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Compound index for unique emails per organization
+userSchema.index({ email: 1, organization: 1 }, { unique: true });
 
 // Index for better query performance
 userSchema.index({ role: 1, isActive: 1 });
