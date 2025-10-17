@@ -180,3 +180,10 @@ const updateUserRole = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+module.exports = {
+  addUserToOrganization,
+  getOrganizationUsers,
+  removeUserFromOrganization,
+  updateUserRole,
+};
