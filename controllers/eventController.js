@@ -103,7 +103,7 @@ const createEvent = async (req, res) => {
 // Get all events
 const getAllEvents = async (req, res) => {
   try {
-    // get all events
+    // get all events (without vendors)
     const events = await Event.find()
       .populate("client")
       .sort({ createdAt: -1 })
