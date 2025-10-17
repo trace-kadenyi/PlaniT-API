@@ -103,10 +103,8 @@ const createEvent = async (req, res) => {
 // Get all events
 const getAllEvents = async (req, res) => {
   try {
-    // First get all events without vendors
-    const events = await Event.find({
-      $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
-    })
+    // get all events
+    const events = await Event.find()
       .populate("client")
       .sort({ createdAt: -1 })
       .lean();
