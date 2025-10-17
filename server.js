@@ -26,6 +26,7 @@ const expenseRoutes = require("./routes/expenseRoutes");
 const clientRoutes = require("./routes/clientRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
 const authRoutes = require("./routes/authRoutes");
+const organizationRoutes = require("./routes/organizationRoutes");
 
 // connect to MongoDB
 mongoose.connect(process.env.DATABASE_URI);
@@ -58,7 +59,7 @@ app.use("/api/", limiter);
 
 // More aggressive rate limiting for auth routes
 const authLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,                                                   // CHANGE TO 15 AFTER DEVELOPMENT
+  windowMs: 5 * 60 * 1000, // CHANGE TO 15 AFTER DEVELOPMENT
   max: 100, // only 10 login attempts per 15 minutes                         (CHANGE TO 10 AFTER DEVELOPMENT)
   handler: (req, res) => {
     res.status(429).json({
@@ -99,6 +100,7 @@ app.get("/api/debug-cookies-check", (req, res) => {
 // use routes
 app.use("/", root);
 app.use("/api/auth", authRoutes);
+app.use("/api/organization", organizationRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/budget", budgetRoutes);
