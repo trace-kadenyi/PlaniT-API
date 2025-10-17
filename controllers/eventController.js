@@ -101,29 +101,6 @@ const createEvent = async (req, res) => {
   }
 };
 // Get all events
-// const getAllEvents = async (req, res) => {
-//   try {
-//     // const events = await Event.find().sort({ createdAt: -1 }).lean();
-//     const events = await Event.find()
-//       .populate("client")
-//       .populate("vendors", "name services")
-//       .sort({ createdAt: -1 })
-//       .lean();
-
-//     // Format all dates consistently
-//     const formattedEvents = events.map((event) => ({
-//       ...event,
-//       date: event.date?.toISOString(),
-//       createdAt: event.createdAt?.toISOString(),
-//       updatedAt: event.updatedAt?.toISOString(),
-//     }));
-
-//     res.json(formattedEvents);
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
 const getAllEvents = async (req, res) => {
   try {
     // First get all events without vendors
