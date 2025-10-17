@@ -27,7 +27,13 @@ const clientSchema = new mongoose.Schema(
       default: false,
     },
     archivedAt: Date,
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   },
+
   { timestamps: true }
 );
 
