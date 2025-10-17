@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
 const User = require("../models/UserSchema");
+const Organization = require("../models/OrganizationSchema");
 
 // Generate JWT tokens
 const signToken = (id) => {
@@ -63,12 +64,23 @@ exports.refreshToken = async (req, res) => {
 // Signup
 exports.signup = async (req, res) => {
   try {
+    const { firstName, lastName, email, password, organizationName } = req.body;
+
+    // Create organization first
+    const organization = new Organization({
+      name: organizationName || `${firstName}'s Event Planning`,
+    });
+    await organization.save();
+
+    // Create user as organization owner
     const newUser = await User.create({
-      firstName: req.body.firstName,
-      lastName: req.body.lastName,
-      email: req.body.email,
-      password: req.body.password,
-      role: req.body.role,
+      firstName,
+      lastName,
+      email,
+      password,
+      organization: organization._id,
+      organizationRole: "owner", // First user becomes owner
+      role: "admin", // Your existing role system
     });
 
     createSendToken(newUser, 201, res);
