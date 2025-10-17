@@ -16,6 +16,8 @@ router.post("/users", addUserToOrganization);
 
 // get all users within an org
 router.get("/users", getOrganizationUsers);
+
+// delete/remove a user from org
 router.delete("/users/:userId", removeUserFromOrganization);
 router.patch("/users/:userId/role", updateUserRole);
 
