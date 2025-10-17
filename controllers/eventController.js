@@ -215,6 +215,18 @@ const getEventById = async (req, res) => {
 // Update an event
 const updateEvent = async (req, res) => {
   try {
+    // check if user has permission to update this event
+    const existingEvent = await Event.findOne({
+      _id: req.params.id,
+      $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
+    });
+
+    if (!existingEvent) {
+      return res
+        .status(404)
+        .json({ message: "Event not found or access denied" });
+    }
+
     // Normalize the date if provided
     let eventDate;
     if (req.body.date) {
