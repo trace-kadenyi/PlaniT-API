@@ -102,6 +102,7 @@ const removeUserFromOrganization = async (req, res) => {
       });
     }
 
+    // identify user to be removed
     const userToRemove = await User.findOne({
       _id: userId,
       organization: req.user.organization,
