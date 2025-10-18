@@ -44,7 +44,7 @@ const addUserToOrganization = async (req, res) => {
       email: email.toLowerCase(),
       organization: req.user.organization,
       organizationRole: organizationRole || "planner",
-      password: password || "tempPassword123", // You might want to generate a random one
+      password: password || "tempPassword123", // You might want to generate a random one (to be done)
       role: "planner", // Keep your existing role system
     });
 
