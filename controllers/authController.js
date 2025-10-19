@@ -97,7 +97,7 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1) Check if email and password exist
+    // Check if email and password exist
     if (!email || !password) {
       return res.status(400).json({
         status: "error",
@@ -105,21 +105,29 @@ exports.login = async (req, res) => {
       });
     }
 
-    // 2) Check if user exists && password is correct
+    // Check if user email exists
+    const userEmail = await User.findOne({email})
+
+    if(!userEmail) return res.status(401).json({
+      status: "error",
+      message: "Email does not exist on our system"
+    })
+
+    // Check if user exists && password is correct
     const user = await User.findOne({ email }).select("+password");
 
     if (!user || !(await user.correctPassword(password, user.password))) {
       return res.status(401).json({
         status: "error",
-        message: "Incorrect email or password",
+        message: "Incorrect password",
       });
     }
 
-    // 3) Update last login
+    // Update last login
     user.lastLogin = new Date();
     await user.save();
 
-    // 4) If everything ok, send token to client
+    // If everything ok, send token to client
     createSendToken(user, 200, res);
   } catch (err) {
     res.status(400).json({
