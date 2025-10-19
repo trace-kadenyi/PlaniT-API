@@ -1,5 +1,6 @@
 const Client = require("../models/ClientSchema");
 const Event = require("../models/EventSchema");
+const User = require("../models/UserSchema");
 
 const MAX_NOTES = 200;
 const MAX_PREFERENCES = 150;
@@ -43,7 +44,18 @@ const createClient = async (req, res) => {
 // Get all active clients
 const getAllClients = async (req, res) => {
   try {
-    const clients = await Client.find();
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    // Show clients created by ANY user in the same organization
+    const clients = await Client.find({
+      createdBy: { $in: organizationUserIds },
+    });
+
     res.json(clients);
   } catch (err) {
     res.status(500).json({ error: err.message });
