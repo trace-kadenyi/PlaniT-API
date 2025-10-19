@@ -84,39 +84,44 @@ exports.signup = async (req, res) => {
     });
 
     createSendToken(newUser, 201, res);
- } catch (err) {
-  // Enhanced error handling for duplicate emails
+  } catch (err) {
+    // Enhanced error handling for duplicate emails
     if (err.code === 11000) {
       // Check if it's an email+organization duplicate
-      if (err.keyPattern && err.keyPattern.email && err.keyPattern.organization) {
+      if (
+        err.keyPattern &&
+        err.keyPattern.email &&
+        err.keyPattern.organization
+      ) {
         return res.status(400).json({
           status: "error",
           message: "This email is already registered in your organization",
         });
       }
     }
-    
+
     // Enhanced error handling
     if (err.name === "ValidationError") {
       const messages = Object.values(err.errors).map((e) => e.message);
       return res.status(400).json({
         status: "error",
         message: messages.join(", "),
-        validationErrors: err.errors // Send detailed errors
-      });
-    }
-    
-    // Handle duplicate email error
-    if (err.code === 11000) {
-      return res.status(400).json({
-        status: "error", 
-        message: "Email already exists in an organization"
+        validationErrors: err.errors, // Send detailed errors
       });
     }
 
+    // Handle duplicate email error
+    // if (err.code === 11000) {
+    //   return res.status(400).json({
+    //     status: "error",
+    //     message: "Email already exists in an organization"
+    //   });
+    // }
+
     res.status(400).json({
       status: "error",
-      message: err.message || "Something went wrong while creating the account.",
+      message:
+        err.message || "Something went wrong while creating the account.",
     });
   }
 };
@@ -135,12 +140,13 @@ exports.login = async (req, res) => {
     }
 
     // Check if user email exists
-    const userEmail = await User.findOne({email})
+    const userEmail = await User.findOne({ email });
 
-    if(!userEmail) return res.status(401).json({
-      status: "error",
-      message: "Email does not exist on our system"
-    })
+    if (!userEmail)
+      return res.status(401).json({
+        status: "error",
+        message: "Email does not exist on our system",
+      });
 
     // Check if user exists && password is correct
     const user = await User.findOne({ email }).select("+password");
