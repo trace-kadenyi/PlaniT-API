@@ -6,7 +6,18 @@ const maxNameChars = 50;
 // Get all tasks
 const getAllTasks = async (req, res) => {
   try {
-    const filter = {};
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    // Base filter - only tasks created by users in same organization
+    const filter = {
+      createdBy: { $in: organizationUserIds },
+    };
+
     if (req.query.eventId) {
       filter.eventId = req.query.eventId;
     }
