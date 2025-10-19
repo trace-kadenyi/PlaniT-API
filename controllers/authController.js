@@ -85,6 +85,17 @@ exports.signup = async (req, res) => {
 
     createSendToken(newUser, 201, res);
  } catch (err) {
+  // Enhanced error handling for duplicate emails
+    if (err.code === 11000) {
+      // Check if it's an email+organization duplicate
+      if (err.keyPattern && err.keyPattern.email && err.keyPattern.organization) {
+        return res.status(400).json({
+          status: "error",
+          message: "This email is already registered in your organization",
+        });
+      }
+    }
+    
     // Enhanced error handling
     if (err.name === "ValidationError") {
       const messages = Object.values(err.errors).map((e) => e.message);
