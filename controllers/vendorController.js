@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Vendor = require("../models/VendorSchema");
+const User = require("../models/UserSchema");
 
 const MAX_NOTES = 200;
 
@@ -17,8 +18,12 @@ const createVendor = async (req, res) => {
       });
     }
 
-    const vendor = new Vendor(req.body);
-    await vendor.save();
+    const vendorData = {
+      ...req.body,
+      createdBy: req.user._id,
+    };
+
+    const vendor = await Vendor.create(vendorData);
 
     res.status(201).json(vendor);
   } catch (err) {
@@ -186,5 +191,5 @@ module.exports = {
   toggleVendorArchive,
   getVendorStats,
   deleteVendor,
-  deleteAllVendors
+  deleteAllVendors,
 };
