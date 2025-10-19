@@ -190,10 +190,18 @@ const updateTask = async (req, res) => {
 // Get a single task by ID
 const getTaskById = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id).populate(
-      "eventId",
-      "name date"
-    );
+     // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    const task = await Task.findOne({
+      _id: req.params.id,
+      createdBy: { $in: organizationUserIds }  // ← ADD THIS
+    }).populate("eventId", "name date");
+    
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
