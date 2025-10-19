@@ -4,6 +4,7 @@ const User = require("../models/UserSchema");
 
 const MAX_NOTES = 200;
 const MAX_PREFERENCES = 150;
+
 // Create new client
 const createClient = async (req, res) => {
   try {
