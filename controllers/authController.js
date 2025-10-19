@@ -156,7 +156,7 @@ exports.refreshToken = async (req, res) => {
     if (!currentUser) {
       return res.status(401).json({
         status: "error",
-        message: "The user belonging to this token does no longer exist",
+        message: "The user belonging to this token no longer exists",
       });
     }
 
@@ -292,7 +292,7 @@ exports.protect = async (req, res, next) => {
     if (!currentUser) {
       return res.status(401).json({
         status: "error",
-        message: "The user belonging to this token does no longer exist",
+        message: "The user belonging to this token no longer exists",
       });
     }
 
