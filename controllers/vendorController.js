@@ -42,7 +42,17 @@ const createVendor = async (req, res) => {
 const getAllVendors = async (req, res) => {
   try {
     const { service, archived } = req.query;
-    const filter = {};
+
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    const filter = {
+      createdBy: { $in: organizationUserIds },
+    };
 
     if (service) {
       filter.services = service;
