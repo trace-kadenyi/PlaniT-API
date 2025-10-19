@@ -71,7 +71,18 @@ const getAllVendors = async (req, res) => {
 // Get vendor by ID
 const getVendorById = async (req, res) => {
   try {
-    const vendor = await Vendor.findById(req.params.id);
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    const vendor = await Vendor.findOne({
+      _id: req.params.id,
+      createdBy: { $in: organizationUserIds }, // ← ADD THIS
+    });
+
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
