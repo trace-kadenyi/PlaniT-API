@@ -28,7 +28,12 @@ const createClient = async (req, res) => {
       });
     }
 
-    const client = await Client.create(req.body);
+    const clientData = {
+      ...req.body,
+      createdBy: req.user._id,
+    };
+
+    const client = await Client.create(clientData);
     res.status(201).json(client);
   } catch (err) {
     res.status(400).json({ error: err.message });
