@@ -84,10 +84,28 @@ exports.signup = async (req, res) => {
     });
 
     createSendToken(newUser, 201, res);
-  } catch (err) {
+ } catch (err) {
+    // Enhanced error handling
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map((e) => e.message);
+      return res.status(400).json({
+        status: "error",
+        message: messages.join(", "),
+        validationErrors: err.errors // Send detailed errors
+      });
+    }
+    
+    // Handle duplicate email error
+    if (err.code === 11000) {
+      return res.status(400).json({
+        status: "error", 
+        message: "Email already exists in an organization"
+      });
+    }
+
     res.status(400).json({
       status: "error",
-      message: err.message,
+      message: err.message || "Something went wrong while creating the account.",
     });
   }
 };
