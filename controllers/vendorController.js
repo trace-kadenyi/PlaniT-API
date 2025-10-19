@@ -80,7 +80,7 @@ const getVendorById = async (req, res) => {
 
     const vendor = await Vendor.findOne({
       _id: req.params.id,
-      createdBy: { $in: organizationUserIds }, // ← ADD THIS
+      createdBy: { $in: organizationUserIds },
     });
 
     if (!vendor) {
