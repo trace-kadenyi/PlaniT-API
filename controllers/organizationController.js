@@ -144,6 +144,7 @@ const updateUserRole = async (req, res) => {
       });
     }
 
+    // identify user to update
     const userToUpdate = await User.findOne({
       _id: userId,
       organization: req.user.organization,
