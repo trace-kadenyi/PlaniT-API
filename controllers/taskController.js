@@ -45,7 +45,7 @@ const getAllTasks = async (req, res) => {
 // Create a new task
 const createTask = async (req, res) => {
   try {
-    // Validate input lengths first
+    // name word limit
     const taskName = req.body.title || "";
     if (taskName.length > maxNameChars) {
       return res.status(400).json({
@@ -53,6 +53,7 @@ const createTask = async (req, res) => {
       });
     }
 
+    // description word limit
     const description = req.body.description || "";
     if (description.length > maxChars) {
       return res
@@ -190,7 +191,7 @@ const updateTask = async (req, res) => {
 // Get a single task by ID
 const getTaskById = async (req, res) => {
   try {
-     // Get all users in the same organization
+    // Get all users in the same organization
     const organizationUsers = await User.find({
       organization: req.user.organization,
     }).select("_id");
@@ -199,9 +200,9 @@ const getTaskById = async (req, res) => {
 
     const task = await Task.findOne({
       _id: req.params.id,
-      createdBy: { $in: organizationUserIds }  // ← ADD THIS
+      createdBy: { $in: organizationUserIds }, // ← ADD THIS
     }).populate("eventId", "name date");
-    
+
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
