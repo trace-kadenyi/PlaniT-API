@@ -1,5 +1,6 @@
 const Task = require("../models/TaskSchema");
 const Event = require("../models/EventSchema");
+const User = require("../models/UserSchema");
 
 const maxChars = 150;
 const maxNameChars = 50;
