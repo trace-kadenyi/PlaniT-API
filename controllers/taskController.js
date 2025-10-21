@@ -252,8 +252,11 @@ const getTaskById = async (req, res) => {
 
     const task = await Task.findOne({
       _id: req.params.id,
-      createdBy: { $in: organizationUserIds }, // ← ADD THIS
-    }).populate("eventId", "name date");
+      createdBy: { $in: organizationUserIds },
+    })
+      .populate("eventId", "name date")
+      .populate("assignedTo", "firstName lastName email")
+      .populate("createdBy", "firstName lastName email");
 
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
