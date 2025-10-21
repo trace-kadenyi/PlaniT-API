@@ -147,6 +147,24 @@ const createTask = async (req, res) => {
 // Update a task
 const updateTask = async (req, res) => {
   try {
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    // Check if task exists and user has access (any task in the organization)
+    const existingTask = await Task.findOne({
+      _id: req.params.id,
+      createdBy: { $in: organizationUserIds },
+    });
+
+    if (!existingTask) {
+      return res.status(404).json({
+        message: "Task not found or access denied",
+      });
+    }
+
     // name word limit
     const taskName = req.body.title || "";
     if (taskName.length > maxNameChars) {
@@ -208,7 +226,10 @@ const updateTask = async (req, res) => {
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
-    });
+    })
+      .populate("assignedTo", "firstName lastName email")
+      .populate("createdBy", "firstName lastName email");
+
     if (!updatedTask) {
       return res.status(404).json({ message: "Task not found" });
     }
