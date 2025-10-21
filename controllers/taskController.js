@@ -28,7 +28,9 @@ const getAllTasks = async (req, res) => {
         path: "eventId",
         select: "name date", // Only get name and date
         options: { retainNullValues: true }, // Keep null if eventId is null
-      });
+      })
+      .populate("assignedTo", "firstName lastName email")
+      .populate("createdBy", "firstName lastName email");
 
     // Transform tasks to include eventName at top level
     const tasksWithEventName = tasks.map((task) => ({
@@ -67,6 +69,24 @@ const createTask = async (req, res) => {
       return res.status(404).json({ message: "Associated event not found" });
     }
 
+    // verify user has access to this event (event must be in same org)
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    // Check if the event was created by someone in the same organization
+    const eventCreatorInOrg = await Event.findOne({
+      _id: req.body.eventId,
+      createdBy: { $in: organizationUserIds },
+    });
+
+    if (!eventCreatorInOrg) {
+      return res.status(403).json({
+        message: "Access denied to this event",
+      });
+    }
+
     // Convert dates to consistent format for comparison
     const taskDeadline = new Date(req.body.deadline);
     const eventDate = new Date(event.date);
@@ -96,9 +116,20 @@ const createTask = async (req, res) => {
     }
 
     // Only create task if validation passes
-    const task = new Task(req.body);
+    const taskData = {
+      ...req.body,
+      createdBy: req.user._id,
+    };
+
+    const task = new Task(taskData);
     await task.save();
-    res.status(201).json(task);
+
+    // Populate the response with user details
+    const populatedTask = await Task.findById(task._id)
+      .populate("assignedTo", "firstName lastName email")
+      .populate("createdBy", "firstName lastName email");
+
+    res.status(201).json(populatedTask);
   } catch (err) {
     if (err.name === "ValidationError") {
       const messages = Object.values(err.errors).map((e) => e.message);
