@@ -265,6 +265,11 @@ const updateEvent = async (req, res) => {
       ? { ...req.body, date: eventDate }
       : req.body;
 
+       // SANITIZATION: Handle empty strings for ObjectId fields
+    if (updateData.client === "") {
+      updateData.client = null; // Convert empty string to null
+    }
+
     // name word limit
     const eventName = updateData.name || "";
     if (eventName.length > maxNameChars) {
