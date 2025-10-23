@@ -186,6 +186,7 @@ const getEventById = async (req, res) => {
       createdBy: { $in: organizationUserIds },
     })
       .populate("client")
+      .populate("createdBy", "firstName lastName")
       .lean();
 
     if (!event) {
@@ -265,7 +266,7 @@ const updateEvent = async (req, res) => {
       ? { ...req.body, date: eventDate }
       : req.body;
 
-       // SANITIZATION: Handle empty strings for ObjectId fields
+    // SANITIZATION: Handle empty strings for ObjectId fields
     if (updateData.client === "") {
       updateData.client = null; // Convert empty string to null
     }
