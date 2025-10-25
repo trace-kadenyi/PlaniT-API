@@ -194,7 +194,9 @@ const updateExpense = async (req, res) => {
       req.params.id,
       req.body,
       { new: true, runValidators: true }
-    ).populate("vendor", "name services");
+    )
+      .populate("vendor", "name services")
+      .populate("createdBy", "name email");
 
     res.json({
       expense: updatedExpense,
