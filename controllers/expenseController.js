@@ -127,7 +127,10 @@ const getExpensesByEventId = async (req, res) => {
 // Get expense by ID
 const getExpenseById = async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id);
+    const expense = await Expense.findById(req.params.id)
+      .populate("vendor", "name services")
+      .populate("createdBy", "name email");
+
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
