@@ -67,7 +67,7 @@ const createExpense = async (req, res) => {
 
     const populatedExpense = await Expense.findById(expense._id)
       .populate("vendor", "name services")
-      .populate("createdBy", "name email");
+      .populate("createdBy", "firstName lastName email");
 
     res.status(201).json({
       expense: populatedExpense,
@@ -100,7 +100,7 @@ const getExpensesByEventId = async (req, res) => {
   try {
     const expenses = await Expense.find({ eventId: req.params.eventId })
       .populate("vendor", "name services isArchived")
-      .populate("createdBy", "name email")
+      .populate("createdBy", "firstName lastName email")
       .sort({ createdAt: -1 });
 
     const budgetStatus = await getBudgetStatus(req.params.eventId);
@@ -129,7 +129,7 @@ const getExpenseById = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id)
       .populate("vendor", "name services")
-      .populate("createdBy", "name email");
+      .populate("createdBy", "firstName lastName email");
 
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
@@ -196,7 +196,7 @@ const updateExpense = async (req, res) => {
       { new: true, runValidators: true }
     )
       .populate("vendor", "name services")
-      .populate("createdBy", "name email");
+      .populate("createdBy", "firstName lastName email");
 
     res.json({
       expense: updatedExpense,
