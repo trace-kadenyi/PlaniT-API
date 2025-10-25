@@ -101,7 +101,7 @@ const getExpensesByEventId = async (req, res) => {
     const expenses = await Expense.find({ eventId: req.params.eventId })
       .populate("vendor", "name services isArchived")
       .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firtName lastName email")
+      .populate("updatedBy", "firstName lastName email")
       .sort({ createdAt: -1 });
 
     const budgetStatus = await getBudgetStatus(req.params.eventId);
