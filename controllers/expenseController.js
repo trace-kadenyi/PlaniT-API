@@ -190,13 +190,20 @@ const updateExpense = async (req, res) => {
       });
     }
 
+    // Add updatedBy to the update data
+    const updateData = {
+      ...req.body,
+      updatedBy: req.user._id, // Set the user who made the update
+    };
+
     const updatedExpense = await Expense.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     )
       .populate("vendor", "name services")
-      .populate("createdBy", "firstName lastName email");
+      .populate("createdBy", "firstName lastName email")
+      .populate("updatedBy", "firstName lastName email");
 
     res.json({
       expense: updatedExpense,
