@@ -56,13 +56,18 @@ const createExpense = async (req, res) => {
       });
     }
 
-    const expense = new Expense(req.body);
+    // Add createdBy from authenticated user
+    const expenseData = {
+      ...req.body,
+      createdBy: req.user._id,
+    };
+
+    const expense = new Expense(expenseData);
     await expense.save();
 
-    const populatedExpense = await Expense.findById(expense._id).populate(
-      "vendor",
-      "name services"
-    );
+    const populatedExpense = await Expense.findById(expense._id)
+      .populate("vendor", "name services")
+      .populate("createdBy", "name email");
 
     res.status(201).json({
       expense: populatedExpense,
