@@ -83,7 +83,13 @@ const getClientWithEvents = async (req, res) => {
     }
 
     const events = await Event.find({ client: req.params.id });
-    res.json({ client, events });
+
+    const clientData = client.toObject();
+    if (client.isDeleted) {
+      clientData.name = `${client.name} (Deleted)`;
+    }
+
+    res.json({ client: clientData, events });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
