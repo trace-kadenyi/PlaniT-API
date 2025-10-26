@@ -203,6 +203,11 @@ const getEventById = async (req, res) => {
         .json({ message: "Event not found or access denied" });
     }
 
+     // Apply the "(Deleted)" label if client is deleted
+    if (event.client && event.client.isDeleted) {
+      event.client.name = `${event.client.name} (Deleted)`;
+    }
+
     // Get all expenses for this event to calculate totals and get vendors
     const expenses = await Expense.find({ eventId: req.params.id }).populate(
       "vendor",
