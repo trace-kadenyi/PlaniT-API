@@ -134,11 +134,13 @@ const archiveClient = async (req, res) => {
   try {
     const client = await Client.findOne({
       _id: req.params.id,
-      isDeleted: false // Can't archive already deleted clients
+      isDeleted: false, // Can't archive already deleted clients
     });
 
     if (!client) {
-      return res.status(404).json({ error: "Client not found or already deleted" });
+      return res
+        .status(404)
+        .json({ error: "Client not found or already deleted" });
     }
 
     const updatedClient = await Client.findByIdAndUpdate(
@@ -164,11 +166,13 @@ const restoreClient = async (req, res) => {
   try {
     const client = await Client.findOne({
       _id: req.params.id,
-      isDeleted: false // Can't restore deleted clients (they're permanently gone)
+      isDeleted: false, // Can't restore deleted clients (they're permanently gone)
     });
 
     if (!client) {
-      return res.status(404).json({ error: "Client not found or permanently deleted" });
+      return res
+        .status(404)
+        .json({ error: "Client not found or permanently deleted" });
     }
 
     const updatedClient = await Client.findByIdAndUpdate(
@@ -239,12 +243,17 @@ const deleteClient = async (req, res) => {
 // Delete all clients completely
 const deleteAllClients = async (req, res) => {
   try {
-    // Delete all clients
-    const deletedClients = await Client.deleteMany({});
+    const result = await Client.updateMany(
+      { isDeleted: false }, // Only delete clients that aren't already deleted
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+      }
+    );
 
     res.json({
-      message: "All clients deleted successfully",
-      deletedCount: deletedClients.deletedCount,
+      message: "All clients permanently deleted successfully",
+      deletedCount: result.modifiedCount,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
