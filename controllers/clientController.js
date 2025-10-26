@@ -162,7 +162,16 @@ const archiveClient = async (req, res) => {
 // Unarchive archived clients
 const restoreClient = async (req, res) => {
   try {
-    const client = await Client.findByIdAndUpdate(
+    const client = await Client.findOne({
+      _id: req.params.id,
+      isDeleted: false // Can't restore deleted clients (they're permanently gone)
+    });
+
+    if (!client) {
+      return res.status(404).json({ error: "Client not found or permanently deleted" });
+    }
+
+    const updatedClient = await Client.findByIdAndUpdate(
       req.params.id,
       {
         isArchived: false,
@@ -171,19 +180,14 @@ const restoreClient = async (req, res) => {
       { new: true }
     );
 
-    if (!client) {
-      return res.status(404).json({ error: "Client not found" });
-    }
-
     res.json({
       message: "Client restored successfully",
-      client,
+      client: updatedClient,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 // Delete client completely
 // const deleteClient = async (req, res) => {
 //   try {
