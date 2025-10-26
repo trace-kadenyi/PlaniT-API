@@ -55,6 +55,7 @@ const getAllClients = async (req, res) => {
     // Show clients created by ANY user in the same organization
     const clients = await Client.find({
       createdBy: { $in: organizationUserIds },
+      isDeleted: false,
     });
 
     res.json(clients);
@@ -218,8 +219,8 @@ const deleteClient = async (req, res) => {
         _id: client._id,
         name: `${client.name} (Deleted)`,
         isDeleted: true,
-        deletedAt: client.deletedAt
-      }
+        deletedAt: client.deletedAt,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
