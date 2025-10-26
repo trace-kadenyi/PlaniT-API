@@ -5,6 +5,7 @@ const Task = require("../models/TaskSchema");
 const Budget = require("../models/BudgetSchema");
 const Expense = require("../models/ExpenseSchema");
 const User = require("../models/UserSchema");
+const Client = require("../models/ClientSchema");
 
 const maxChars = 300;
 const maxNameChars = 70;
@@ -134,12 +135,12 @@ const getAllEvents = async (req, res) => {
       .lean();
 
     // Apply the "(Deleted)" label to client names if they are deleted
-    const eventsWithProperClients = events.map((event) => {
-      if (event.client && event.client.isDeleted) {
-        event.client.name = `${event.client.name} (Deleted)`;
-      }
-      return event;
-    });
+    // const eventsWithProperClients = events.map((event) => {
+    //   if (event.client && event.client.isDeleted) {
+    //     event.client.name = `${event.client.name} (Deleted)`;
+    //   }
+    //   return event;
+    // });
 
     // Get all expenses grouped by event
     const expensesByEvent = await Expense.aggregate([
@@ -218,9 +219,9 @@ const getEventById = async (req, res) => {
     }
 
     // Apply the "(Deleted)" label if client is deleted
-    if (event.client && event.client.isDeleted) {
-      event.client.name = `${event.client.name} (Deleted)`;
-    }
+    // if (event.client && event.client.isDeleted) {
+    //   event.client.name = `${event.client.name} (Deleted)`;
+    // }
 
     // Get all expenses for this event to calculate totals and get vendors
     const expenses = await Expense.find({ eventId: req.params.id }).populate(
