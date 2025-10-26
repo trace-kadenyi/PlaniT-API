@@ -119,6 +119,14 @@ const getAllEvents = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
+    // Apply the "(Deleted)" label to client names if they are deleted
+    const eventsWithProperClients = events.map((event) => {
+      if (event.client && event.client.isDeleted) {
+        event.client.name = `${event.client.name} (Deleted)`;
+      }
+      return event;
+    });
+
     // Get all expenses grouped by event
     const expensesByEvent = await Expense.aggregate([
       {
