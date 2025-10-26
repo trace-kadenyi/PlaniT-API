@@ -179,17 +179,47 @@ const restoreClient = async (req, res) => {
 };
 
 // Delete client completely
+// const deleteClient = async (req, res) => {
+//   try {
+//     const client = await Client.findByIdAndDelete(req.params.id);
+
+//     if (!client) {
+//       return res.status(404).json({ error: "Client not found" });
+//     }
+
+//     res.json({
+//       message: "Client deleted successfully",
+//       deletedClient: client,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
+// Permanent soft delete only
 const deleteClient = async (req, res) => {
   try {
-    const client = await Client.findByIdAndDelete(req.params.id);
+    const client = await Client.findByIdAndUpdate(
+      req.params.id,
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+      { new: true }
+    );
 
     if (!client) {
       return res.status(404).json({ error: "Client not found" });
     }
 
     res.json({
-      message: "Client deleted successfully",
-      deletedClient: client,
+      message: "Client permanently deleted successfully",
+      client: {
+        _id: client._id,
+        name: `${client.name} (Deleted)`,
+        isDeleted: true,
+        deletedAt: client.deletedAt
+      }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
