@@ -49,18 +49,39 @@ app.use(cookieParser());
 // Security headers
 app.use(helmet());
 
-// Rate limiting - prevent brute force attacks
-const limiter = rateLimit({
+// ========== RATE LIMITING SETUP ==========
+
+// More permissive rate limiting for refresh token
+const refreshTokenLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 30, // 30 refresh attempts per minute (more permissive)
+  message: "Too many token refresh attempts. Please slow down.",
+  handler: (req, res) => {
+    res.status(429).json({
+      status: "error",
+      message:
+        "Too many token refresh attempts. Please wait a moment before trying again.",
+    });
+  },
+});
+
+// Apply refresh token limiter specifically to refresh-token endpoint
+app.use("/api/auth/refresh-token", refreshTokenLimiter);
+
+// General rate limiting for all other API routes
+const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   message: "Too many requests from this IP, please try again later.",
+  // Skip refresh-token since we have a separate limiter for it
+  skip: (req) => req.originalUrl === "/api/auth/refresh-token",
 });
-app.use("/api/", limiter);
+app.use("/api/", generalLimiter);
 
-// More aggressive rate limiting for auth routes
+// Aggressive rate limiting for sensitive auth routes
 const authLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // CHANGE TO 15 AFTER DEVELOPMENT
-  max: 100, // only 10 login attempts per 15 minutes                         (CHANGE TO 10 AFTER DEVELOPMENT)
+  max: 100, // CHANGE TO 10 AFTER DEVELOPMENT
   handler: (req, res) => {
     res.status(429).json({
       status: "error",
@@ -71,6 +92,8 @@ const authLimiter = rateLimit({
 });
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/signup", authLimiter);
+
+// ========== END RATE LIMITING SETUP ==========
 
 app.use(express.json());
 
