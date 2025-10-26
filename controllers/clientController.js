@@ -132,7 +132,16 @@ const updateClient = async (req, res) => {
 // Archive a client (replace deleteClient)
 const archiveClient = async (req, res) => {
   try {
-    const client = await Client.findByIdAndUpdate(
+    const client = await Client.findOne({
+      _id: req.params.id,
+      isDeleted: false // Can't archive already deleted clients
+    });
+
+    if (!client) {
+      return res.status(404).json({ error: "Client not found or already deleted" });
+    }
+
+    const updatedClient = await Client.findByIdAndUpdate(
       req.params.id,
       {
         isArchived: true,
@@ -141,13 +150,9 @@ const archiveClient = async (req, res) => {
       { new: true }
     );
 
-    if (!client) {
-      return res.status(404).json({ error: "Client not found" });
-    }
-
     res.json({
       message: "Client archived successfully",
-      client,
+      client: updatedClient,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
