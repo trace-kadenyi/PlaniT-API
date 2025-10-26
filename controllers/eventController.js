@@ -28,6 +28,20 @@ const normalizeEventDate = (date) => {
 // Create a new event
 const createEvent = async (req, res) => {
   try {
+     // If assigning a client, check if that client exists and is not deleted
+    if (req.body.client) {
+      const client = await Client.findOne({
+        _id: req.body.client,
+        isDeleted: false
+      });
+      
+      if (!client) {
+        return res.status(400).json({
+          message: "Cannot assign a deleted or non-existent client to an event"
+        });
+      }
+    }
+    
     // Normalize the date before creating
     const eventDate = normalizeEventDate(req.body.date);
 
