@@ -226,10 +226,19 @@ const updateTask = async (req, res) => {
       }
     }
 
-    const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    })
+    const updateData = {
+      ...req.body,
+      updatedBy: req.user._id,
+    };
+
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      {
+        new: true,
+        runValidators: true,
+      }
+    )
       .populate("assignedTo", "firstName lastName email")
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email");
