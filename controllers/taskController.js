@@ -260,7 +260,8 @@ const getTaskById = async (req, res) => {
     })
       .populate("eventId", "name date")
       .populate("assignedTo", "firstName lastName email")
-      .populate("createdBy", "firstName lastName email");
+      .populate("createdBy", "firstName lastName email")
+      .populate("updatedBy", "firstName lastName email");
 
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
