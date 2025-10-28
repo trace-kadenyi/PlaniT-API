@@ -4,6 +4,7 @@ const User = require("../models/UserSchema");
 
 const maxChars = 150;
 const maxNameChars = 50;
+
 // Get all tasks
 const getAllTasks = async (req, res) => {
   try {
@@ -31,7 +32,8 @@ const getAllTasks = async (req, res) => {
         options: { retainNullValues: true }, // Keep null if eventId is null
       })
       .populate("assignedTo", "firstName lastName email")
-      .populate("createdBy", "firstName lastName email");
+      .populate("createdBy", "firstName lastName email")
+      .populate("updatedBy", "firstName lastName email");
 
     // Transform tasks to include eventName at top level
     const tasksWithEventName = tasks.map((task) => ({
