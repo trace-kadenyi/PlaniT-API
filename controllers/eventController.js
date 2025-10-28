@@ -211,6 +211,7 @@ const getEventById = async (req, res) => {
     })
       .populate("client")
       .populate("createdBy", "firstName lastName")
+      .populate("updatedBy", "firstName lastName email")
       .lean();
 
     if (!event) {
