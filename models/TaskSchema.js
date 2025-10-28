@@ -40,6 +40,10 @@ const taskSchema = new mongoose.Schema(
       enum: ["To Do", "In Progress", "In Review", "Completed"],
       default: "To Do",
     },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   { timestamps: true }
 );
