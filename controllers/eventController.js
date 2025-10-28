@@ -130,7 +130,7 @@ const getAllEvents = async (req, res) => {
       createdBy: { $in: organizationUserIds },
     })
       .populate("client")
-      .populate("createdBy", "firstName lastName") // Show who created it
+      .populate("createdBy", "firstName lastName")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -305,8 +305,8 @@ const updateEvent = async (req, res) => {
     }
 
     const updateData = req.body.date
-      ? { ...req.body, date: eventDate }
-      : req.body;
+      ? { ...req.body, date: eventDate, updatedBy: req.user._id }
+      : { ...req.body, updatedBy: req.user._id };
 
     // SANITIZATION: Handle empty strings for ObjectId fields
     if (updateData.client === "") {
@@ -344,7 +344,10 @@ const updateEvent = async (req, res) => {
         new: true,
         runValidators: true,
       }
-    );
+    )
+      .populate("createdBy", "firstName lastName email")
+      .populate("updatedBy", "firstName lastName email")
+      .populate("client");
 
     if (!updatedEvent) {
       return res.status(404).json({ message: "Event not found" });
