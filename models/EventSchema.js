@@ -68,6 +68,10 @@ const eventSchema = new mongoose.Schema(
         ref: "Vendor",
       },
     ],
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   {
     timestamps: true,
