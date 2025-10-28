@@ -131,6 +131,7 @@ const getAllEvents = async (req, res) => {
     })
       .populate("client")
       .populate("createdBy", "firstName lastName")
+      .populate("updatedBy", "firstName lastName email")
       .sort({ createdAt: -1 })
       .lean();
 
