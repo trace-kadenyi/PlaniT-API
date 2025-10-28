@@ -281,18 +281,18 @@ const updateEvent = async (req, res) => {
     }
 
     // If assigning a client, check if that client exists and is not deleted
-    if (req.body.client) {
-      const client = await Client.findOne({
-        _id: req.body.client,
-        isDeleted: false,
-      });
+    // if (req.body.client) {
+    //   const client = await Client.findOne({
+    //     _id: req.body.client,
+    //     isDeleted: false,
+    //   });
 
-      if (!client) {
-        return res.status(400).json({
-          message: "Cannot assign a deleted or non-existent client to an event",
-        });
-      }
-    }
+    //   if (!client) {
+    //     return res.status(400).json({
+    //       message: "Cannot assign a deleted or non-existent client to an event",
+    //     });
+    //   }
+    // }
 
     // Normalize the date if provided
     let eventDate;
