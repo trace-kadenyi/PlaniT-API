@@ -231,7 +231,8 @@ const updateTask = async (req, res) => {
       runValidators: true,
     })
       .populate("assignedTo", "firstName lastName email")
-      .populate("createdBy", "firstName lastName email");
+      .populate("createdBy", "firstName lastName email")
+      .populate("updatedBy", "firstName lastName email");
 
     if (!updatedTask) {
       return res.status(404).json({ message: "Task not found" });
