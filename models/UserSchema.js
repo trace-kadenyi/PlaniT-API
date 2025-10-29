@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
       ref: "Organization",
       required: [true, "User must belong to an organization"],
     },
-    organizationRole: {
+    role: {
       type: String,
       enum: ["owner", "admin", "planner", "viewer"],
       default: "planner",
@@ -52,11 +52,6 @@ const userSchema = new mongoose.Schema(
           "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
       },
       select: false,
-    },
-    role: {
-      type: String,
-      enum: ["admin", "planner", "viewer"],
-      default: "planner",
     },
     contact: {
       phone: {
