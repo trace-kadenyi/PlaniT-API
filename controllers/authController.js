@@ -79,8 +79,7 @@ exports.signup = async (req, res) => {
       email,
       password,
       organization: organization._id,
-      organizationRole: "owner", // First user becomes owner
-      role: "admin", // Your existing role system
+      role: "owner", // First user becomes owner
     });
 
     createSendToken(newUser, 201, res);
