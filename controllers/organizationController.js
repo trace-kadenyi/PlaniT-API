@@ -4,20 +4,32 @@ const User = require("../models/UserSchema");
 // Add user to organization (admin function)
 const addUserToOrganization = async (req, res) => {
   try {
-    const { email, firstName, lastName, organizationRole, password } = req.body;
+    const { email, firstName, lastName, role, password } = req.body;
 
     // Check if current user has permission (admin or owner)
-    if (!["owner", "admin"].includes(req.user.organizationRole)) {
+    if (!["owner", "admin"].includes(req.user.role)) {
       return res.status(403).json({
         message: "Only organization admins can add users",
       });
     }
 
+    // validate password
+    if (password) {
+      const passwordRegex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+      if (!passwordRegex.test(password)) {
+        return res.status(400).json({
+          message:
+            "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+        });
+      }
+    }
+
     // Check organization user limit
-    const organization = await Organization.findById(req.user.organization);
-    const currentUserCount = await User.countDocuments({
-      organization: req.user.organization,
-    });
+    // const organization = await Organization.findById(req.user.organization);
+    // const currentUserCount = await User.countDocuments({
+    //   organization: req.user.organization,
+    // });
 
     // if (currentUserCount >= organization.maxUsers) {
     //   return res.status(400).json({
@@ -43,9 +55,8 @@ const addUserToOrganization = async (req, res) => {
       lastName,
       email: email.toLowerCase(),
       organization: req.user.organization,
-      organizationRole: organizationRole || "planner",
+      role: role || "planner",
       password: password || "tempPassword123", // You might want to generate a random one (to be done)
-      role: "planner", // Keep your existing role system
     });
 
     await newUser.save();
@@ -57,7 +68,7 @@ const addUserToOrganization = async (req, res) => {
         firstName: newUser.firstName,
         lastName: newUser.lastName,
         email: newUser.email,
-        organizationRole: newUser.organizationRole,
+        role: newUser.role,
       },
     });
   } catch (err) {
@@ -89,7 +100,7 @@ const removeUserFromOrganization = async (req, res) => {
     const { userId } = req.params;
 
     // Check permissions
-    if (!["owner", "admin"].includes(req.user.organizationRole)) {
+    if (!["owner", "admin"].includes(req.user.role)) {
       return res.status(403).json({
         message: "Only organization admins can remove users",
       });
@@ -115,7 +126,7 @@ const removeUserFromOrganization = async (req, res) => {
     }
 
     // Prevent removing organization owners
-    if (userToRemove.organizationRole === "owner") {
+    if (userToRemove.role === "owner") {
       return res.status(403).json({
         message: "Cannot remove organization owner",
       });
@@ -135,10 +146,10 @@ const removeUserFromOrganization = async (req, res) => {
 const updateUserRole = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { organizationRole } = req.body;
+    const { role } = req.body;
 
     // Check permissions
-    if (!["owner", "admin"].includes(req.user.organizationRole)) {
+    if (!["owner", "admin"].includes(req.user.role)) {
       return res.status(403).json({
         message: "Only organization admins can update user roles",
       });
@@ -158,15 +169,15 @@ const updateUserRole = async (req, res) => {
 
     // Prevent changing owner role (only owner can transfer ownership)
     if (
-      userToUpdate.organizationRole === "owner" &&
-      req.user.organizationRole !== "owner"
+      userToUpdate.role === "owner" &&
+      req.user.role !== "owner"
     ) {
       return res.status(403).json({
         message: "Only organization owner can change owner role",
       });
     }
 
-    userToUpdate.organizationRole = organizationRole;
+    userToUpdate.role = role;
     await userToUpdate.save();
 
     res.json({
@@ -175,7 +186,7 @@ const updateUserRole = async (req, res) => {
         id: userToUpdate._id,
         firstName: userToUpdate.firstName,
         lastName: userToUpdate.lastName,
-        organizationRole: userToUpdate.organizationRole,
+        role: userToUpdate.role,
       },
     });
   } catch (err) {
