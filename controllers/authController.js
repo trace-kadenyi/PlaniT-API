@@ -72,14 +72,14 @@ exports.signup = async (req, res) => {
     });
     await organization.save();
 
-    // Create user as organization owner
+    // Create user as organization super admin
     const newUser = await User.create({
       firstName,
       lastName,
       email,
       password,
       organization: organization._id,
-      role: "owner", // First user becomes owner
+      role: "super_admin", // First user becomes super admin
     });
 
     createSendToken(newUser, 201, res);
