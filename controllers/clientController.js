@@ -1,8 +1,10 @@
 const Client = require("../models/ClientSchema");
 const Event = require("../models/EventSchema");
+const User = require("../models/UserSchema");
 
 const MAX_NOTES = 200;
 const MAX_PREFERENCES = 150;
+
 // Create new client
 const createClient = async (req, res) => {
   try {
@@ -28,7 +30,12 @@ const createClient = async (req, res) => {
       });
     }
 
-    const client = await Client.create(req.body);
+    const clientData = {
+      ...req.body,
+      createdBy: req.user._id,
+    };
+
+    const client = await Client.create(clientData);
     res.status(201).json(client);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -38,11 +45,19 @@ const createClient = async (req, res) => {
 // Get all active clients
 const getAllClients = async (req, res) => {
   try {
-    // const { showArchived } = req.query;
-    // const filter = showArchived === "true" ? {} : { isArchived: false };
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
 
-    // const clients = await Client.find(filter);
-    const clients = await Client.find();
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    // Show clients created by ANY user in the same organization
+    const clients = await Client.find({
+      createdBy: { $in: organizationUserIds },
+      isDeleted: false,
+    });
+
     res.json(clients);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -52,13 +67,29 @@ const getAllClients = async (req, res) => {
 // Get a single client and their events
 const getClientWithEvents = async (req, res) => {
   try {
-    const client = await Client.findById(req.params.id);
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    const client = await Client.findOne({
+      _id: req.params.id,
+      createdBy: { $in: organizationUserIds }, // ← Only clients from same org
+    });
     if (!client) {
       return res.status(404).json({ error: "Client not found" });
     }
 
     const events = await Event.find({ client: req.params.id });
-    res.json({ client, events });
+
+    const clientData = client.toObject();
+    if (client.isDeleted) {
+      clientData.name = `${client.name} (Deleted)`;
+    }
+
+    res.json({ client: clientData, events });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -107,7 +138,18 @@ const updateClient = async (req, res) => {
 // Archive a client (replace deleteClient)
 const archiveClient = async (req, res) => {
   try {
-    const client = await Client.findByIdAndUpdate(
+    const client = await Client.findOne({
+      _id: req.params.id,
+      isDeleted: false, // Can't archive already deleted clients
+    });
+
+    if (!client) {
+      return res
+        .status(404)
+        .json({ error: "Client not found or already deleted" });
+    }
+
+    const updatedClient = await Client.findByIdAndUpdate(
       req.params.id,
       {
         isArchived: true,
@@ -116,13 +158,9 @@ const archiveClient = async (req, res) => {
       { new: true }
     );
 
-    if (!client) {
-      return res.status(404).json({ error: "Client not found" });
-    }
-
     res.json({
       message: "Client archived successfully",
-      client,
+      client: updatedClient,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -132,11 +170,60 @@ const archiveClient = async (req, res) => {
 // Unarchive archived clients
 const restoreClient = async (req, res) => {
   try {
-    const client = await Client.findByIdAndUpdate(
+    const client = await Client.findOne({
+      _id: req.params.id,
+      isDeleted: false, // Can't restore deleted clients (they're permanently gone)
+    });
+
+    if (!client) {
+      return res
+        .status(404)
+        .json({ error: "Client not found or permanently deleted" });
+    }
+
+    const updatedClient = await Client.findByIdAndUpdate(
       req.params.id,
       {
         isArchived: false,
         archivedAt: null,
+      },
+      { new: true }
+    );
+
+    res.json({
+      message: "Client restored successfully",
+      client: updatedClient,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+// Delete client completely
+// const deleteClient = async (req, res) => {
+//   try {
+//     const client = await Client.findByIdAndDelete(req.params.id);
+
+//     if (!client) {
+//       return res.status(404).json({ error: "Client not found" });
+//     }
+
+//     res.json({
+//       message: "Client deleted successfully",
+//       deletedClient: client,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
+// Permanent soft delete only
+const deleteClient = async (req, res) => {
+  try {
+    const client = await Client.findByIdAndUpdate(
+      req.params.id,
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
       },
       { new: true }
     );
@@ -146,26 +233,33 @@ const restoreClient = async (req, res) => {
     }
 
     res.json({
-      message: "Client restored successfully",
-      client,
+      message: "Client permanently deleted successfully",
+      client: {
+        _id: client._id,
+        name: `${client.name} (Deleted)`,
+        isDeleted: true,
+        deletedAt: client.deletedAt,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Delete client completely
-const deleteClient = async (req, res) => {
+// Delete all clients completely
+const deleteAllClients = async (req, res) => {
   try {
-    const client = await Client.findByIdAndDelete(req.params.id);
-
-    if (!client) {
-      return res.status(404).json({ error: "Client not found" });
-    }
+    const result = await Client.updateMany(
+      { isDeleted: false }, // Only delete clients that aren't already deleted
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+      }
+    );
 
     res.json({
-      message: "Client deleted successfully",
-      deletedClient: client,
+      message: "All clients permanently deleted successfully",
+      deletedCount: result.modifiedCount,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -180,4 +274,5 @@ module.exports = {
   archiveClient,
   restoreClient,
   deleteClient,
+  deleteAllClients,
 };

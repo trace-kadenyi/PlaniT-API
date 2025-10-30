@@ -18,7 +18,7 @@ const vendorSchema = new mongoose.Schema(
         "entertainment", // DJs, MCs, performers
         "transportation", // Guest or vendor transport
         "marketing", // Invites, digital promo, posters
-        "photography/videography",
+        "photography/videography", // photos, videos
         "other", // Any unique/unclassified vendors
       ],
       required: true,
@@ -36,6 +36,11 @@ const vendorSchema = new mongoose.Schema(
     isArchived: {
       type: Boolean,
       default: false,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
   },
   { timestamps: true }

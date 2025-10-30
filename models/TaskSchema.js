@@ -17,9 +17,14 @@ const taskSchema = new mongoose.Schema(
       ref: "Event",
       required: true,
     },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     assignedTo: {
-      type: String,
-      default: "Unassigned",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
     deadline: {
       type: Date,
@@ -34,6 +39,10 @@ const taskSchema = new mongoose.Schema(
       type: String,
       enum: ["To Do", "In Progress", "In Review", "Completed"],
       default: "To Do",
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
   },
   { timestamps: true }

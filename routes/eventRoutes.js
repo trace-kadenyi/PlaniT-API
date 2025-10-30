@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+
 const {
   createEvent,
   getAllEvents,
@@ -7,20 +8,21 @@ const {
   updateEvent,
   deleteEvent,
 } = require("../controllers/eventController");
+const authController = require("../controllers/authController");
 
 // Create new event
-router.post("/", createEvent);
+router.post("/", authController.protect, createEvent);
 
 // Get all events
-router.get("/", getAllEvents);
+router.get("/", authController.protect, getAllEvents);
 
 // Get event by ID
-router.get("/:id", getEventById);
+router.get("/:id", authController.protect, getEventById);
 
 // Update event by ID
-router.put("/:id", updateEvent);
+router.put("/:id", authController.protect, updateEvent);
 
 // Delete event by ID
-router.delete("/:id", deleteEvent);
+router.delete("/:id", authController.protect, deleteEvent);
 
 module.exports = router;

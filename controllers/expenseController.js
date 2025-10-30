@@ -43,6 +43,7 @@ const createExpense = async (req, res) => {
       });
     }
 
+    // control: expense must be less than remaining budget
     if (req.body.amount > budgetStatus.remainingBudget) {
       return res.status(400).json({
         message: `Expense exceeds remaining budget ($${budgetStatus.remainingBudget.toFixed(
@@ -55,13 +56,18 @@ const createExpense = async (req, res) => {
       });
     }
 
-    const expense = new Expense(req.body);
+    // Add createdBy from authenticated user
+    const expenseData = {
+      ...req.body,
+      createdBy: req.user._id,
+    };
+
+    const expense = new Expense(expenseData);
     await expense.save();
 
-    const populatedExpense = await Expense.findById(expense._id).populate(
-      "vendor",
-      "name services"
-    );
+    const populatedExpense = await Expense.findById(expense._id)
+      .populate("vendor", "name services")
+      .populate("createdBy", "firstName lastName email");
 
     res.status(201).json({
       expense: populatedExpense,
@@ -94,6 +100,8 @@ const getExpensesByEventId = async (req, res) => {
   try {
     const expenses = await Expense.find({ eventId: req.params.eventId })
       .populate("vendor", "name services isArchived")
+      .populate("createdBy", "firstName lastName email")
+      .populate("updatedBy", "firstName lastName email")
       .sort({ createdAt: -1 });
 
     const budgetStatus = await getBudgetStatus(req.params.eventId);
@@ -120,7 +128,11 @@ const getExpensesByEventId = async (req, res) => {
 // Get expense by ID
 const getExpenseById = async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id);
+    const expense = await Expense.findById(req.params.id)
+      .populate("vendor", "name services")
+      .populate("createdBy", "firstName lastName email")
+      .populate("updatedBy", "firstName lastName email");
+
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
@@ -180,11 +192,20 @@ const updateExpense = async (req, res) => {
       });
     }
 
+    // Add updatedBy to the update data
+    const updateData = {
+      ...req.body,
+      updatedBy: req.user._id, // Set the user who made the update
+    };
+
     const updatedExpense = await Expense.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
-    ).populate("vendor", "name services");
+    )
+      .populate("vendor", "name services")
+      .populate("createdBy", "firstName lastName email")
+      .populate("updatedBy", "firstName lastName email");
 
     res.json({
       expense: updatedExpense,

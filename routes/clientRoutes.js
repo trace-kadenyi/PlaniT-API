@@ -9,30 +9,32 @@ const {
   archiveClient,
   restoreClient,
   deleteClient,
+  deleteAllClients,
 } = require("../controllers/clientController");
+const authController = require("../controllers/authController");
 
 // POST /api/clients
-router.post("/", createClient);
+router.post("/", authController.protect, createClient);
 
 // GET /api/clients
-router.get("/", getAllClients);
+router.get("/", authController.protect, getAllClients);
 
 // GET /api/clients/:id
-router.get("/:id", getClientWithEvents);
+router.get("/:id", authController.protect, getClientWithEvents);
 
 // PUT /api/clients/:id
-router.put("/:id", updateClient);
+router.put("/:id", authController.protect, updateClient);
 
-// PUT /api/clients/id
-router.put("/:id", archiveClient);
+// PATCH /api/clients/id/archive
+router.patch("/:id/archive", authController.protect, archiveClient);
 
-// PATCH /api/client/id/archive
-router.patch("/:id/archive", archiveClient);
+// PATCH /api/clients/id/restore
+router.patch("/:id/restore", authController.protect, restoreClient);
 
-// PATCH /api/client/id/restore
-router.patch("/:id/restore", restoreClient);
+// DELETE /api/clients/id
+router.delete("/:id", authController.protect, deleteClient);
 
-// DELETE /api/client/id
-router.delete("/:id", deleteClient);
+// DELETE /api/clients
+router.delete("/", authController.protect, deleteAllClients);
 
 module.exports = router;

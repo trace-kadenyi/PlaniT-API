@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Vendor = require("../models/VendorSchema");
+const User = require("../models/UserSchema");
 
 const MAX_NOTES = 200;
 
@@ -17,8 +18,12 @@ const createVendor = async (req, res) => {
       });
     }
 
-    const vendor = new Vendor(req.body);
-    await vendor.save();
+    const vendorData = {
+      ...req.body,
+      createdBy: req.user._id,
+    };
+
+    const vendor = await Vendor.create(vendorData);
 
     res.status(201).json(vendor);
   } catch (err) {
@@ -37,7 +42,17 @@ const createVendor = async (req, res) => {
 const getAllVendors = async (req, res) => {
   try {
     const { service, archived } = req.query;
-    const filter = {};
+
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    const filter = {
+      createdBy: { $in: organizationUserIds },
+    };
 
     if (service) {
       filter.services = service;
@@ -56,7 +71,18 @@ const getAllVendors = async (req, res) => {
 // Get vendor by ID
 const getVendorById = async (req, res) => {
   try {
-    const vendor = await Vendor.findById(req.params.id);
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    const vendor = await Vendor.findOne({
+      _id: req.params.id,
+      createdBy: { $in: organizationUserIds },
+    });
+
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
@@ -128,7 +154,19 @@ const toggleVendorArchive = async (req, res) => {
 // Get vendor statistics
 const getVendorStats = async (req, res) => {
   try {
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
     const stats = await Vendor.aggregate([
+      {
+        $match: {
+          createdBy: { $in: organizationUserIds },
+        },
+      },
       {
         $group: {
           _id: "$services",
@@ -163,6 +201,21 @@ const deleteVendor = async (req, res) => {
   }
 };
 
+// Delete all vendors completely
+const deleteAllVendors = async (req, res) => {
+  try {
+    // Delete all vendors
+    const deletedVendors = await Vendor.deleteMany({});
+
+    res.json({
+      message: "All vendors deleted successfully",
+      deletedCount: deletedVendors.deletedCount,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   createVendor,
   getAllVendors,
@@ -171,4 +224,5 @@ module.exports = {
   toggleVendorArchive,
   getVendorStats,
   deleteVendor,
+  deleteAllVendors,
 };

@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+
 const {
   createExpense,
   getExpensesByEventId,
@@ -10,29 +11,34 @@ const {
   getAllExpenses,
   getBudgetStatusForAllEvents,
 } = require("../controllers/expenseController");
+const authController = require("../controllers/authController");
 
 // create expense
-router.post("/", createExpense);
+router.post("/", authController.protect, createExpense);
 
 // get budget status
-router.get("/budget-status", getBudgetStatusForAllEvents);
+router.get(
+  "/budget-status",
+  authController.protect,
+  getBudgetStatusForAllEvents
+);
 
 // get expenses by event id
-router.get("/event/:eventId", getExpensesByEventId);
+router.get("/event/:eventId", authController.protect, getExpensesByEventId);
 
 // get single expense
-router.get("/:id", getExpenseById);
+router.get("/:id", authController.protect, getExpenseById);
 
 // update expense
-router.put("/:id", updateExpense);
+router.put("/:id", authController.protect, updateExpense);
 
 // delete expense
-router.delete("/:id", deleteExpense);
+router.delete("/:id", authController.protect, deleteExpense);
 
 // expenses summary
-router.get("/:eventId/summary", getExpensesSummary);
+router.get("/:eventId/summary", authController.protect, getExpensesSummary);
 
 // get all expenses
-router.get("/", getAllExpenses);
+router.get("/", authController.protect, getAllExpenses);
 
 module.exports = router;

@@ -47,6 +47,17 @@ const eventSchema = new mongoose.Schema(
       trim: true,
       maxlength: 200,
     },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Event must have a creator"],
+    },
+    assignedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     client: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Client",
@@ -57,6 +68,10 @@ const eventSchema = new mongoose.Schema(
         ref: "Vendor",
       },
     ],
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   {
     timestamps: true,

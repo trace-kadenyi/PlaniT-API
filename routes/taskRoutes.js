@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+
 const {
   getAllTasks,
   createTask,
@@ -7,20 +8,21 @@ const {
   getTaskById,
   deleteTask,
 } = require("../controllers/taskController");
+const authController = require("../controllers/authController");
 
 // Get all tasks
-router.get("/", getAllTasks);
+router.get("/", authController.protect, getAllTasks);
 
 // Create a new task
-router.post("/", createTask);
+router.post("/", authController.protect, createTask);
 
 // Update a task by ID
-router.put("/:id", updateTask);
+router.put("/:id", authController.protect, updateTask);
 
 // Get task by id
-router.get("/:id", getTaskById);
+router.get("/:id", authController.protect, getTaskById);
 
 // Delete a task by ID
-router.delete("/:id", deleteTask);
+router.delete("/:id", authController.protect, deleteTask);
 
 module.exports = router;

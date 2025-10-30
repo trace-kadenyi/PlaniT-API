@@ -1,12 +1,25 @@
 const Task = require("../models/TaskSchema");
 const Event = require("../models/EventSchema");
+const User = require("../models/UserSchema");
 
 const maxChars = 150;
 const maxNameChars = 50;
+
 // Get all tasks
 const getAllTasks = async (req, res) => {
   try {
-    const filter = {};
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    // Base filter - only tasks created by users in same organization
+    const filter = {
+      createdBy: { $in: organizationUserIds },
+    };
+
     if (req.query.eventId) {
       filter.eventId = req.query.eventId;
     }
@@ -17,7 +30,10 @@ const getAllTasks = async (req, res) => {
         path: "eventId",
         select: "name date", // Only get name and date
         options: { retainNullValues: true }, // Keep null if eventId is null
-      });
+      })
+      .populate("assignedTo", "firstName lastName email")
+      .populate("createdBy", "firstName lastName email")
+      .populate("updatedBy", "firstName lastName email");
 
     // Transform tasks to include eventName at top level
     const tasksWithEventName = tasks.map((task) => ({
@@ -34,7 +50,7 @@ const getAllTasks = async (req, res) => {
 // Create a new task
 const createTask = async (req, res) => {
   try {
-    // Validate input lengths first
+    // name word limit
     const taskName = req.body.title || "";
     if (taskName.length > maxNameChars) {
       return res.status(400).json({
@@ -42,6 +58,7 @@ const createTask = async (req, res) => {
       });
     }
 
+    // description word limit
     const description = req.body.description || "";
     if (description.length > maxChars) {
       return res
@@ -53,6 +70,24 @@ const createTask = async (req, res) => {
     const event = await Event.findById(req.body.eventId);
     if (!event) {
       return res.status(404).json({ message: "Associated event not found" });
+    }
+
+    // verify user has access to this event (event must be in same org)
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    // Check if the event was created by someone in the same organization
+    const eventCreatorInOrg = await Event.findOne({
+      _id: req.body.eventId,
+      createdBy: { $in: organizationUserIds },
+    });
+
+    if (!eventCreatorInOrg) {
+      return res.status(403).json({
+        message: "Access denied to this event",
+      });
     }
 
     // Convert dates to consistent format for comparison
@@ -84,9 +119,20 @@ const createTask = async (req, res) => {
     }
 
     // Only create task if validation passes
-    const task = new Task(req.body);
+    const taskData = {
+      ...req.body,
+      createdBy: req.user._id,
+    };
+
+    const task = new Task(taskData);
     await task.save();
-    res.status(201).json(task);
+
+    // Populate the response with user details
+    const populatedTask = await Task.findById(task._id)
+      .populate("assignedTo", "firstName lastName email")
+      .populate("createdBy", "firstName lastName email");
+
+    res.status(201).json(populatedTask);
   } catch (err) {
     if (err.name === "ValidationError") {
       const messages = Object.values(err.errors).map((e) => e.message);
@@ -104,6 +150,24 @@ const createTask = async (req, res) => {
 // Update a task
 const updateTask = async (req, res) => {
   try {
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    // Check if task exists and user has access (any task in the organization)
+    const existingTask = await Task.findOne({
+      _id: req.params.id,
+      createdBy: { $in: organizationUserIds },
+    });
+
+    if (!existingTask) {
+      return res.status(404).json({
+        message: "Task not found or access denied",
+      });
+    }
+
     // name word limit
     const taskName = req.body.title || "";
     if (taskName.length > maxNameChars) {
@@ -162,10 +226,23 @@ const updateTask = async (req, res) => {
       }
     }
 
-    const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const updateData = {
+      ...req.body,
+      updatedBy: req.user._id,
+    };
+
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      {
+        new: true,
+        runValidators: true,
+      }
+    )
+      .populate("assignedTo", "firstName lastName email")
+      .populate("createdBy", "firstName lastName email")
+      .populate("updatedBy", "firstName lastName email");
+
     if (!updatedTask) {
       return res.status(404).json({ message: "Task not found" });
     }
@@ -179,10 +256,22 @@ const updateTask = async (req, res) => {
 // Get a single task by ID
 const getTaskById = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id).populate(
-      "eventId",
-      "name date"
-    );
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    const task = await Task.findOne({
+      _id: req.params.id,
+      createdBy: { $in: organizationUserIds },
+    })
+      .populate("eventId", "name date")
+      .populate("assignedTo", "firstName lastName email")
+      .populate("createdBy", "firstName lastName email")
+      .populate("updatedBy", "firstName lastName email");
+
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }

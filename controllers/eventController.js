@@ -4,6 +4,8 @@ const Event = require("../models/EventSchema");
 const Task = require("../models/TaskSchema");
 const Budget = require("../models/BudgetSchema");
 const Expense = require("../models/ExpenseSchema");
+const User = require("../models/UserSchema");
+const Client = require("../models/ClientSchema");
 
 const maxChars = 300;
 const maxNameChars = 70;
@@ -27,6 +29,20 @@ const normalizeEventDate = (date) => {
 // Create a new event
 const createEvent = async (req, res) => {
   try {
+    // If assigning a client, check if that client exists and is not deleted
+    if (req.body.client) {
+      const client = await Client.findOne({
+        _id: req.body.client,
+        isDeleted: false,
+      });
+
+      if (!client) {
+        return res.status(400).json({
+          message: "Cannot assign a deleted or non-existent client to an event",
+        });
+      }
+    }
+
     // Normalize the date before creating
     const eventDate = normalizeEventDate(req.body.date);
 
@@ -40,6 +56,7 @@ const createEvent = async (req, res) => {
     const eventData = {
       ...req.body,
       date: eventDate,
+      createdBy: req.user._id,
     };
 
     // name word limit
@@ -77,6 +94,11 @@ const createEvent = async (req, res) => {
     });
     await budget.save();
 
+    // assignedto user
+    await User.findByIdAndUpdate(req.user._id, {
+      $addToSet: { assignedEvents: savedEvent._id },
+    });
+
     res.status(201).json({
       event: savedEvent,
       budgetId: budget._id,
@@ -94,36 +116,32 @@ const createEvent = async (req, res) => {
   }
 };
 // Get all events
-// const getAllEvents = async (req, res) => {
-//   try {
-//     // const events = await Event.find().sort({ createdAt: -1 }).lean();
-//     const events = await Event.find()
-//       .populate("client")
-//       .populate("vendors", "name services")
-//       .sort({ createdAt: -1 })
-//       .lean();
-
-//     // Format all dates consistently
-//     const formattedEvents = events.map((event) => ({
-//       ...event,
-//       date: event.date?.toISOString(),
-//       createdAt: event.createdAt?.toISOString(),
-//       updatedAt: event.updatedAt?.toISOString(),
-//     }));
-
-//     res.json(formattedEvents);
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
 const getAllEvents = async (req, res) => {
   try {
-    // First get all events without vendors
-    const events = await Event.find()
+    // Find all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    // Show events created by ANY user in the same organization
+    const events = await Event.find({
+      createdBy: { $in: organizationUserIds },
+    })
       .populate("client")
+      .populate("createdBy", "firstName lastName")
+      .populate("updatedBy", "firstName lastName email")
       .sort({ createdAt: -1 })
       .lean();
+
+    // Apply the "(Deleted)" label to client names if they are deleted
+    // const eventsWithProperClients = events.map((event) => {
+    //   if (event.client && event.client.isDeleted) {
+    //     event.client.name = `${event.client.name} (Deleted)`;
+    //   }
+    //   return event;
+    // });
 
     // Get all expenses grouped by event
     const expensesByEvent = await Expense.aggregate([
@@ -177,50 +195,35 @@ const getAllEvents = async (req, res) => {
 };
 
 // Get event by ID
-// const getEventById = async (req, res) => {
-//   try {
-//     // const event = await Event.findById(req.params.id).lean();
-//     const event = await Event.findById(req.params.id)
-//       .populate("client")
-//       .populate("vendors", "name services isArchived")
-//       .lean();
-
-//     if (!event) {
-//       return res.status(404).json({ message: "Event not found" });
-//     }
-
-//     // Get budget and expense totals
-//     const budget = await Budget.findOne({ eventId: req.params.id }).lean();
-//     const expenses = await Expense.aggregate([
-//       {
-//         $match: { eventId: new mongoose.Types.ObjectId(String(req.params.id)) },
-//       },
-//       { $group: { _id: null, total: { $sum: "$amount" } } },
-//     ]);
-
-//     const responseData = {
-//       ...event,
-//       budget: budget || null,
-//       totalExpenses: expenses[0]?.total || 0,
-//       date: event.date?.toISOString(),
-//       createdAt: event.createdAt?.toISOString(),
-//       updatedAt: event.updatedAt?.toISOString(),
-//     };
-
-//     res.json(responseData);
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
 const getEventById = async (req, res) => {
   try {
-    // First get the basic event data
-    const event = await Event.findById(req.params.id).populate("client").lean();
+    // Find all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    // Only allow access if event was created by someone in the same organization
+    const event = await Event.findOne({
+      _id: req.params.id,
+      createdBy: { $in: organizationUserIds },
+    })
+      .populate("client")
+      .populate("createdBy", "firstName lastName")
+      .populate("updatedBy", "firstName lastName email")
+      .lean();
 
     if (!event) {
-      return res.status(404).json({ message: "Event not found" });
+      return res
+        .status(404)
+        .json({ message: "Event not found or access denied" });
     }
+
+    // Apply the "(Deleted)" label if client is deleted
+    // if (event.client && event.client.isDeleted) {
+    //   event.client.name = `${event.client.name} (Deleted)`;
+    // }
 
     // Get all expenses for this event to calculate totals and get vendors
     const expenses = await Expense.find({ eventId: req.params.id }).populate(
@@ -265,6 +268,32 @@ const getEventById = async (req, res) => {
 // Update an event
 const updateEvent = async (req, res) => {
   try {
+    // check if user has permission to update this event
+    const existingEvent = await Event.findOne({
+      _id: req.params.id,
+      $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
+    });
+
+    if (!existingEvent) {
+      return res
+        .status(404)
+        .json({ message: "Event not found or access denied" });
+    }
+
+    // If assigning a client, check if that client exists and is not deleted
+    // if (req.body.client) {
+    //   const client = await Client.findOne({
+    //     _id: req.body.client,
+    //     isDeleted: false,
+    //   });
+
+    //   if (!client) {
+    //     return res.status(400).json({
+    //       message: "Cannot assign a deleted or non-existent client to an event",
+    //     });
+    //   }
+    // }
+
     // Normalize the date if provided
     let eventDate;
     if (req.body.date) {
@@ -278,8 +307,13 @@ const updateEvent = async (req, res) => {
     }
 
     const updateData = req.body.date
-      ? { ...req.body, date: eventDate }
-      : req.body;
+      ? { ...req.body, date: eventDate, updatedBy: req.user._id }
+      : { ...req.body, updatedBy: req.user._id };
+
+    // SANITIZATION: Handle empty strings for ObjectId fields
+    if (updateData.client === "") {
+      updateData.client = null; // Convert empty string to null
+    }
 
     // name word limit
     const eventName = updateData.name || "";
@@ -312,7 +346,10 @@ const updateEvent = async (req, res) => {
         new: true,
         runValidators: true,
       }
-    );
+    )
+      .populate("createdBy", "firstName lastName email")
+      .populate("updatedBy", "firstName lastName email")
+      .populate("client");
 
     if (!updatedEvent) {
       return res.status(404).json({ message: "Event not found" });
