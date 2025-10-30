@@ -6,8 +6,8 @@ const addUserToOrganization = async (req, res) => {
   try {
     const { email, firstName, lastName, role, password } = req.body;
 
-    // Check if current user has permission (admin or owner)
-    if (!["owner", "admin"].includes(req.user.role)) {
+    // Check if current user has permission (admin or super admin)
+    if (!["super_admin", "admin"].includes(req.user.role)) {
       return res.status(403).json({
         message: "Only organization admins can add users",
       });
@@ -100,7 +100,7 @@ const removeUserFromOrganization = async (req, res) => {
     const { userId } = req.params;
 
     // Check permissions
-    if (!["owner", "admin"].includes(req.user.role)) {
+    if (!["super_admin", "admin"].includes(req.user.role)) {
       return res.status(403).json({
         message: "Only organization admins can remove users",
       });
@@ -125,10 +125,10 @@ const removeUserFromOrganization = async (req, res) => {
       });
     }
 
-    // Prevent removing organization owners
-    if (userToRemove.role === "owner") {
+    // Prevent removing organization super admin
+    if (userToRemove.role === "super_admin") {
       return res.status(403).json({
-        message: "Cannot remove organization owner",
+        message: "Cannot remove organization super admin",
       });
     }
 
@@ -149,7 +149,7 @@ const updateUserRole = async (req, res) => {
     const { role } = req.body;
 
     // Check permissions
-    if (!["owner", "admin"].includes(req.user.role)) {
+    if (!["super_admin", "admin"].includes(req.user.role)) {
       return res.status(403).json({
         message: "Only organization admins can update user roles",
       });
@@ -167,13 +167,13 @@ const updateUserRole = async (req, res) => {
       });
     }
 
-    // Prevent changing owner role (only owner can transfer ownership)
+    // Prevent changing super admins role (only super admins can transfer ownership)
     if (
-      userToUpdate.role === "owner" &&
-      req.user.role !== "owner"
+      userToUpdate.role === "super_admin" &&
+      req.user.role !== "super_admin"
     ) {
       return res.status(403).json({
-        message: "Only organization owner can change owner role",
+        message: "Only organization super admins can change super admins role",
       });
     }
 
