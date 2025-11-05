@@ -7,6 +7,7 @@ const {
   getOrganizationUsers,
   removeUserFromOrganization,
   updateUserRole,
+  getOrganizationDetails,
 } = require("../controllers/organizationController");
 
 router.use(protect); // All routes protected
@@ -22,5 +23,8 @@ router.delete("/users/:userId", removeUserFromOrganization);
 
 // update the role of a user within org
 router.patch("/users/:userId/role", updateUserRole);
+
+// get org details
+router.get("/", getOrganizationDetails);
 
 module.exports = router;
