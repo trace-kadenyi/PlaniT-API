@@ -65,19 +65,6 @@ const refreshTokenLimiter = rateLimit({
   },
 });
 
-// Apply refresh token limiter specifically to refresh-token endpoint
-app.use("/api/auth/refresh-token", refreshTokenLimiter);
-
-// General rate limiting for all other API routes
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: "Too many requests from this IP, please try again later.",
-  // Skip refresh-token since we have a separate limiter for it
-  skip: (req) => req.originalUrl === "/api/auth/refresh-token",
-});
-app.use("/api/", generalLimiter);
-
 // Aggressive rate limiting for sensitive auth routes
 const authLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // CHANGE TO 15 AFTER DEVELOPMENT
@@ -90,6 +77,55 @@ const authLimiter = rateLimit({
     });
   },
 });
+
+// Add this before your routes
+// let requestCounts = {};
+
+// app.use((req, res, next) => {
+//   const path = req.path;
+//   const ip = req.ip;
+
+//   if (!requestCounts[ip]) {
+//     requestCounts[ip] = {};
+//   }
+
+//   if (!requestCounts[ip][path]) {
+//     requestCounts[ip][path] = 0;
+//   }
+
+//   requestCounts[ip][path]++;
+
+//   // Log refresh token requests
+//   if (path.includes('refresh-token')) {
+//     console.log(`Refresh token request #${requestCounts[ip][path]} from ${ip} at ${new Date().toISOString()}`);
+//   }
+
+//   next();
+// });
+
+// Add a debug endpoint to see counts
+app.get("/api/debug/rate-limit-status", (req, res) => {
+  res.json({
+    requestCounts,
+    totalRefreshTokens: Object.values(requestCounts).reduce((acc, ipData) => {
+      return acc + (ipData["/api/auth/refresh-token"] || 0);
+    }, 0),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// General rate limiting for all other API routes
+// const generalLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: 100, // limit each IP to 100 requests per windowMs
+//   message: "Too many requests from this IP, please try again later.",
+//   // Skip refresh-token since we have a separate limiter for it
+//   skip: (req) => req.originalUrl === "/api/auth/refresh-token",
+// });
+// app.use("/api/", generalLimiter);
+
+// Apply refresh token limiter specifically to refresh-token endpoint
+app.use("/api/auth/refresh-token", refreshTokenLimiter);
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/signup", authLimiter);
 
