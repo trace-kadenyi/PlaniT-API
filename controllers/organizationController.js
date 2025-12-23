@@ -25,18 +25,6 @@ const addUserToOrganization = async (req, res) => {
       }
     }
 
-    // Check organization user limit
-    // const organization = await Organization.findById(req.user.organization);
-    // const currentUserCount = await User.countDocuments({
-    //   organization: req.user.organization,
-    // });
-
-    // if (currentUserCount >= organization.maxUsers) {
-    //   return res.status(400).json({
-    //     message: "Organization user limit reached",
-    //   });
-    // }
-
     // Check if user already exists in this organization
     const existingUser = await User.findOne({
       email: email.toLowerCase(),
