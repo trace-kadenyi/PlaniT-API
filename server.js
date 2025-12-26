@@ -27,6 +27,7 @@ const clientRoutes = require("./routes/clientRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
 const authRoutes = require("./routes/authRoutes");
 const organizationRoutes = require("./routes/organizationRoutes");
+const userRoutes = require("./routes/userRoutes");
 
 // connect to MongoDB
 mongoose.connect(process.env.DATABASE_URI);
@@ -166,6 +167,7 @@ app.use("/api/budget", budgetRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/vendors", vendorRoutes);
+app.use("/api/users", userRoutes);
 
 // ERROR HANDLING MIDDLEWARE (important for auth)
 app.use((error, req, res, next) => {
