@@ -8,7 +8,7 @@ const {
   updateUser,
   updateUserRole,
   deleteUser,
-} = require("../controllers/usersController");
+} = require("../controllers/userController");
 const { protect } = require("../controllers/authController");
 
 // All routes require authentication
