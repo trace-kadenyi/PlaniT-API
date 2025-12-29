@@ -384,6 +384,29 @@ const deleteEvent = async (req, res) => {
       Expense.deleteMany({ eventId: req.params.id }),
     ]);
 
+    // If event had a client, check if client should be hard-deleted
+    let clientHardDeleted = false;
+    let clientName = null;
+
+    if (deletedEvent.client) {
+      // Check if client is soft-deleted and has no other events
+      const client = await Client.findById(deletedEvent.client);
+
+      if (client && client.isDeleted) {
+        // Count remaining events for this client
+        const remainingEvents = await Event.countDocuments({
+          client: deletedEvent.client,
+        });
+
+        // If no more events, hard delete the client
+        if (remainingEvents === 0) {
+          await Client.findByIdAndDelete(deletedEvent.client);
+          clientHardDeleted = true;
+          clientName = client.name;
+        }
+      }
+    }
+
     res.json({ message: "Event and all related data deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
