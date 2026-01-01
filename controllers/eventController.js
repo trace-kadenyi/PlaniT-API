@@ -269,9 +269,14 @@ const getEventById = async (req, res) => {
 const updateEvent = async (req, res) => {
   try {
     // check if user has permission to update this event
-    const existingEvent = await Event.findOne({
+    // const existingEvent = await Event.findOne({
+    //   _id: req.params.id,
+    //   $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
+    // });
+
+     const existingEvent = await Event.findOne({
       _id: req.params.id,
-      $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
+      // $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
     });
 
     if (!existingEvent) {
