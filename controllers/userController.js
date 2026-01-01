@@ -74,7 +74,7 @@ const createUser = async (req, res) => {
       lastName,
       email: email.toLowerCase(),
       organization: req.user.organization,
-      role: role || "planner",
+      role: role || "viewer",
       password: password || "TempPass123!",
     });
 
