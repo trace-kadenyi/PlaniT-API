@@ -43,7 +43,7 @@ const addUserToOrganization = async (req, res) => {
       lastName,
       email: email.toLowerCase(),
       organization: req.user.organization,
-      role: role || "planner",
+      role: role || "viewer",
       password: password || "tempPassword123", // You might want to generate a random one (to be done)
     });
 
