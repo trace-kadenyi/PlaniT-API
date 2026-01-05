@@ -97,6 +97,50 @@ const createUser = async (req, res) => {
 };
 
 // Update user details
+// const updateUser = async (req, res) => {
+//   try {
+//     const { firstName, lastName, email, phone } = req.body;
+    
+//     // Find the target user
+//     const targetUser = await User.findOne({
+//       _id: req.params.userId,
+//       organization: req.user.organization,
+//     });
+
+//     if (!targetUser) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
+
+//     // Permission check: Admins can't edit super admins
+//     if (req.user.role === "admin" && targetUser.role === "super_admin") {
+//       return res.status(403).json({
+//         message: "Cannot edit super admins",
+//       });
+//     }
+
+//     // Update fields
+//     if (firstName) targetUser.firstName = firstName;
+//     if (lastName) targetUser.lastName = lastName;
+//     if (email) targetUser.email = email.toLowerCase();
+//     if (phone) targetUser.contact = { ...targetUser.contact, phone };
+
+//     await targetUser.save();
+
+//     const updatedUser = await User.findById(targetUser._id).select("-password -passwordResetToken -passwordResetExpires");
+
+//     res.json({
+//       message: "User updated successfully",
+//       user: updatedUser,
+//     });
+//   } catch (err) {
+//     if (err.code === 11000) {
+//       return res.status(400).json({ message: "Email already exists" });
+//     }
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
+// Update user details - allow self-updates
 const updateUser = async (req, res) => {
   try {
     const { firstName, lastName, email, phone } = req.body;
@@ -111,14 +155,26 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Permission check: Admins can't edit super admins
-    if (req.user.role === "admin" && targetUser.role === "super_admin") {
-      return res.status(403).json({
-        message: "Cannot edit super admins",
-      });
+    const isSelf = req.user._id.toString() === req.params.userId;
+    
+    // If editing someone else, check permissions
+    if (!isSelf) {
+      // Admins can't edit super admins
+      if (req.user.role === "admin" && targetUser.role === "super_admin") {
+        return res.status(403).json({
+          message: "Cannot edit super admins",
+        });
+      }
+      
+      // Check if user has permission to edit others
+      if (!["super_admin", "admin"].includes(req.user.role)) {
+        return res.status(403).json({
+          message: "Only admins can edit other users",
+        });
+      }
     }
 
-    // Update fields
+    // Update fields - self can update basic info
     if (firstName) targetUser.firstName = firstName;
     if (lastName) targetUser.lastName = lastName;
     if (email) targetUser.email = email.toLowerCase();
@@ -139,7 +195,6 @@ const updateUser = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
 // Update user role
 const updateUserRole = async (req, res) => {
   try {
