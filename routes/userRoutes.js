@@ -8,6 +8,7 @@ const {
   updateUser,
   updateUserRole,
   deleteUser,
+  getUserUpdateHistory,
 } = require("../controllers/userController");
 const { protect } = require("../controllers/authController");
 
@@ -19,6 +20,9 @@ router.get("/", getUsers);
 
 // Get single user
 router.get("/:userId", getUser);
+
+// Get user's update history
+router.get("/:userId/history", getUserUpdateHistory);
 
 // Add new user
 router.post("/", createUser);
