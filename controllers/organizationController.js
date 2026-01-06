@@ -1,5 +1,6 @@
 const Organization = require("../models/OrganizationSchema");
 const User = require("../models/UserSchema");
+const { PASSWORD_REGEX } = require("../constants/regex");
 
 // Add user to organization (admin function)
 const addUserToOrganization = async (req, res) => {
@@ -15,9 +16,7 @@ const addUserToOrganization = async (req, res) => {
 
     // validate password
     if (password) {
-      const passwordRegex =
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
-      if (!passwordRegex.test(password)) {
+      if (!PASSWORD_REGEX.test(password)) {
         return res.status(400).json({
           message:
             "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
