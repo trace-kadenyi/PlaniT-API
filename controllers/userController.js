@@ -822,7 +822,48 @@ const deleteUser = async (req, res) => {
 };
 
 // Get user update history
+const getUserUpdateHistory = async (req, res) => {
+  try {
+    // Check permissions
+    const isSelf = req.user._id.toString() === req.params.userId;
+    const isAdmin = ["super_admin", "admin"].includes(req.user.role);
 
+    // If not self and not admin, deny access
+    if (!isSelf && !isAdmin) {
+      return res.status(403).json({
+        message: "You don't have permission to view this history",
+      });
+    }
+
+    // Get the target user to check their role
+    const targetUser = await User.findOne({
+      _id: req.params.userId,
+      organization: req.user.organization,
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Prevent admins from viewing super admin history
+    if (req.user.role === "admin" && targetUser.role === "super_admin") {
+      return res.status(403).json({
+        message: "Admins cannot view super admin history",
+      });
+    }
+
+    const history = await UserUpdateHistory.find({
+      userId: req.params.userId,
+    })
+      .populate("updatedBy", "firstName lastName email role")
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    res.json(history);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 module.exports = {
   getUsers,
   getUser,
@@ -830,4 +871,5 @@ module.exports = {
   updateUser,
   updateUserRole,
   deleteUser,
+  getUserUpdateHistory,
 };
