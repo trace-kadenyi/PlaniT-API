@@ -10,6 +10,7 @@ const {
   getExpensesSummary,
   getAllExpenses,
   getBudgetStatusForAllEvents,
+  getDeletedPaidExpensesLog,
 } = require("../controllers/expenseController");
 const authController = require("../controllers/authController");
 
@@ -40,5 +41,12 @@ router.get("/:eventId/summary", authController.protect, getExpensesSummary);
 
 // get all expenses
 router.get("/", authController.protect, getAllExpenses);
+
+router.get(
+  "/deleted-paid-expenses/log",
+  authController.protect,
+  authController.restrictTo("super_admin"),
+  getDeletedPaidExpensesLog
+);
 
 module.exports = router;
