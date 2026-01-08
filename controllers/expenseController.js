@@ -436,6 +436,60 @@ const getBudgetStatusForAllEvents = async (req, res) => {
 };
 
 
+// get deleted paid expenses log
+const getDeletedPaidExpensesLog = async (req, res) => {
+  try {
+    const logs = await ExpenseAuditLog.find({
+      "expenseData.paymentStatus": "paid"
+    })
+      .populate("eventId", "name")
+      .populate("expenseData.vendor", "name services")
+      .populate("expenseData.createdBy", "firstName lastName email")
+      .populate("deletedBy", "firstName lastName email role")
+      .sort({ createdAt: -1 });
+
+    // Format for frontend
+    const formattedLogs = logs.map(log => ({
+      _id: log._id,
+      expenseId: log.expenseId,
+      event: {
+        _id: log.eventId._id,
+        name: log.eventId.name
+      },
+      expenseData: {
+        amount: log.expenseData.amount,
+        description: log.expenseData.description,
+        category: log.expenseData.category,
+        vendor: log.expenseData.vendor,
+        paymentStatus: log.expenseData.paymentStatus,
+        paymentDate: log.expenseData.paymentDate,
+        createdAt: log.expenseData.createdAt,
+        createdBy: log.expenseData.createdBy
+      },
+      deletedBy: {
+        _id: log.deletedBy._id,
+        name: `${log.deletedBy.firstName} ${log.deletedBy.lastName}`,
+        email: log.deletedBy.email,
+        role: log.deletedBy.role
+      },
+      deletedAt: log.createdAt,
+      reason: log.reason,
+      metadata: log.metadata
+    }));
+
+    res.json({
+      deletedPaidExpenses: formattedLogs,
+      count: formattedLogs.length
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Failed to fetch deleted expenses log",
+      error: err.message
+    });
+  }
+};
+
+
 
 module.exports = {
   createExpense,
