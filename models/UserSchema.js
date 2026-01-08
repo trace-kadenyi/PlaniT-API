@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 
+const { PASSWORD_REGEX, EMAIL_REGEX } = require("../constants/regex");
+
 const userSchema = new mongoose.Schema(
   {
     firstName: {
@@ -22,10 +24,7 @@ const userSchema = new mongoose.Schema(
       // unique: true,
       lowercase: true,
       trim: true,
-      match: [
-        /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-        "Please enter a valid email",
-      ],
+      match: [EMAIL_REGEX, "Please enter a valid email"],
     },
     organization: {
       type: mongoose.Schema.Types.ObjectId,
@@ -35,7 +34,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["super_admin", "admin", "planner", "viewer"],
-      default: "planner",
+      default: "viewer",
     },
     password: {
       type: String,
@@ -43,10 +42,7 @@ const userSchema = new mongoose.Schema(
       minlength: [8, "Password must be at least 8 characters"],
       validate: {
         validator: function (password) {
-          // At least one uppercase, one lowercase, one number, one special char
-          return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(
-            password
-          );
+          return PASSWORD_REGEX.test(password);
         },
         message:
           "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",

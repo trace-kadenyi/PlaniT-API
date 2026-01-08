@@ -269,9 +269,14 @@ const getEventById = async (req, res) => {
 const updateEvent = async (req, res) => {
   try {
     // check if user has permission to update this event
-    const existingEvent = await Event.findOne({
+    // const existingEvent = await Event.findOne({
+    //   _id: req.params.id,
+    //   $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
+    // });
+
+     const existingEvent = await Event.findOne({
       _id: req.params.id,
-      $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
+      // $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
     });
 
     if (!existingEvent) {
@@ -383,6 +388,29 @@ const deleteEvent = async (req, res) => {
       Budget.deleteOne({ eventId: req.params.id }),
       Expense.deleteMany({ eventId: req.params.id }),
     ]);
+
+    // If event had a client, check if client should be hard-deleted
+    let clientHardDeleted = false;
+    let clientName = null;
+
+    if (deletedEvent.client) {
+      // Check if client is soft-deleted and has no other events
+      const client = await Client.findById(deletedEvent.client);
+
+      if (client && client.isDeleted) {
+        // Count remaining events for this client
+        const remainingEvents = await Event.countDocuments({
+          client: deletedEvent.client,
+        });
+
+        // If no more events, hard delete the client
+        if (remainingEvents === 0) {
+          await Client.findByIdAndDelete(deletedEvent.client);
+          clientHardDeleted = true;
+          clientName = client.name;
+        }
+      }
+    }
 
     res.json({ message: "Event and all related data deleted" });
   } catch (err) {

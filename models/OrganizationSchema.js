@@ -28,7 +28,7 @@ const organizationSchema = new mongoose.Schema(
       defaultUserRole: {
         type: String,
         enum: ["admin", "planner", "viewer"],
-        default: "planner",
+        default: "viewer",
       },
     },
   },

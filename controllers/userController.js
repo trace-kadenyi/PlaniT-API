@@ -1,5 +1,7 @@
-// controllers/usersController.js
+const { PASSWORD_REGEX } = require("../constants/regex");
 const User = require("../models/UserSchema");
+const UserUpdateHistory = require("../models/UserUpdateHistory");
+const { generateDescription } = require("../utils/generateDescriptions");
 
 // Get all users in current user's organization
 const getUsers = async (req, res) => {
@@ -46,8 +48,9 @@ const createUser = async (req, res) => {
 
     // Validate password
     if (password) {
+      // In userController.js
       const passwordRegex =
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~])[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/;
       if (!passwordRegex.test(password)) {
         return res.status(400).json({
           message:
@@ -74,13 +77,15 @@ const createUser = async (req, res) => {
       lastName,
       email: email.toLowerCase(),
       organization: req.user.organization,
-      role: role || "planner",
+      role: role || "viewer",
       password: password || "TempPass123!",
     });
 
     await newUser.save();
 
-    const userResponse = await User.findById(newUser._id).select("-password -passwordResetToken -passwordResetExpires");
+    const userResponse = await User.findById(newUser._id).select(
+      "-password -passwordResetToken -passwordResetExpires"
+    );
 
     res.status(201).json({
       message: "User added successfully",
@@ -99,34 +104,171 @@ const createUser = async (req, res) => {
 // Update user details
 const updateUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, phone } = req.body;
-    
+    const { firstName, lastName, email, phone, newPassword, currentPassword } =
+      req.body;
+
     // Find the target user
     const targetUser = await User.findOne({
       _id: req.params.userId,
       organization: req.user.organization,
-    });
+    }).select("+password");
 
     if (!targetUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Permission check: Admins can't edit super admins
-    if (req.user.role === "admin" && targetUser.role === "super_admin") {
-      return res.status(403).json({
-        message: "Cannot edit super admins",
+    const isSelf = req.user._id.toString() === req.params.userId;
+
+    // If editing someone else, check permissions
+    if (!isSelf) {
+      // Admins can't edit super admins
+      if (req.user.role === "admin" && targetUser.role === "super_admin") {
+        return res.status(403).json({
+          message: "Cannot edit super admins",
+        });
+      }
+
+      // Check if user has permission to edit others
+      if (!["super_admin", "admin"].includes(req.user.role)) {
+        return res.status(403).json({
+          message: "Only admins can edit other users",
+        });
+      }
+    }
+
+    // Track changes BEFORE modifying
+    const changes = [];
+    let updateType = "profile_update";
+
+    // Check for changes BEFORE updating
+    if (firstName && firstName !== targetUser.firstName) {
+      changes.push({
+        field: "firstName",
+        oldValue: targetUser.firstName,
+        newValue: firstName,
       });
     }
 
-    // Update fields
+    if (lastName && lastName !== targetUser.lastName) {
+      changes.push({
+        field: "lastName",
+        oldValue: targetUser.lastName,
+        newValue: lastName,
+      });
+    }
+
+    if (email && email.toLowerCase() !== targetUser.email) {
+      changes.push({
+        field: "email",
+        oldValue: targetUser.email,
+        newValue: email.toLowerCase(),
+      });
+    }
+
+    if (phone && phone !== targetUser.contact?.phone) {
+      changes.push({
+        field: "phone",
+        oldValue: targetUser.contact?.phone || "",
+        newValue: phone,
+      });
+    }
+
+    // Handle password change
+    if (newPassword) {
+      // If changing own password, verify current password
+      if (isSelf) {
+        if (!currentPassword) {
+          return res.status(400).json({
+            message: "Current password is required to set a new password",
+          });
+        }
+
+        // Verify current password
+        const isPasswordCorrect = await targetUser.correctPassword(
+          currentPassword,
+          targetUser.password
+        );
+
+        if (!isPasswordCorrect) {
+          return res.status(401).json({
+            message: "Current password is incorrect",
+          });
+        }
+      }
+
+      // If admin changing someone else's password, no current password needed
+      // but they must have permission
+      else if (!["super_admin", "admin"].includes(req.user.role)) {
+        return res.status(403).json({
+          message: "Only admins can change other users' passwords",
+        });
+      }
+
+      // Validate new password
+      if (!PASSWORD_REGEX.test(newPassword)) {
+        return res.status(400).json({
+          message:
+            "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+        });
+      }
+
+      changes.push({
+        field: "password",
+        oldValue: "********",
+        newValue: "********",
+      });
+      updateType = "password_change";
+    }
+
+    // If no changes, return early
+    if (changes.length === 0) {
+      const currentUser = await User.findById(targetUser._id).select(
+        "-password -passwordResetToken -passwordResetExpires"
+      );
+      return res.json({
+        message: "No changes detected",
+        user: currentUser,
+      });
+    }
+
+    // Apply ALL changes at once
     if (firstName) targetUser.firstName = firstName;
     if (lastName) targetUser.lastName = lastName;
     if (email) targetUser.email = email.toLowerCase();
     if (phone) targetUser.contact = { ...targetUser.contact, phone };
+    if (newPassword) targetUser.password = newPassword;
 
     await targetUser.save();
 
-    const updatedUser = await User.findById(targetUser._id).select("-password -passwordResetToken -passwordResetExpires");
+    // Create update history entry
+    const updateHistory = new UserUpdateHistory({
+      userId: targetUser._id,
+      updatedBy: req.user._id,
+      updatedByRole: req.user.role,
+      changes,
+      type: updateType,
+      description: generateDescription(changes, targetUser, req.user, isSelf),
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    await updateHistory.save();
+
+    // Keep only last 50 updates
+    await UserUpdateHistory.deleteMany({
+      userId: targetUser._id,
+      _id: {
+        $nin: await UserUpdateHistory.find({ userId: targetUser._id })
+          .sort({ createdAt: -1 })
+          .limit(50)
+          .select("_id")
+          .then((records) => records.map((r) => r._id)),
+      },
+    });
+
+    const updatedUser = await User.findById(targetUser._id).select(
+      "-password -passwordResetToken -passwordResetExpires"
+    );
 
     res.json({
       message: "User updated successfully",
@@ -168,10 +310,35 @@ const updateUserRole = async (req, res) => {
       });
     }
 
+    // Track role change
+    const changes = [
+      {
+        field: "role",
+        oldValue: targetUser.role,
+        newValue: role,
+      },
+    ];
+
     targetUser.role = role;
     await targetUser.save();
 
-    const updatedUser = await User.findById(targetUser._id).select("-password -passwordResetToken -passwordResetExpires");
+    // Log the role change
+    const updateHistory = new UserUpdateHistory({
+      userId: targetUser._id,
+      updatedBy: req.user._id,
+      updatedByRole: req.user.role,
+      changes,
+      type: "role_change",
+      description: `${targetUser.firstName}'s role changed from ${changes[0].oldValue} to ${changes[0].newValue} by ${req.user.firstName} ${req.user.lastName}`,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    await updateHistory.save();
+
+    const updatedUser = await User.findById(targetUser._id).select(
+      "-password -passwordResetToken -passwordResetExpires"
+    );
 
     res.json({
       message: "User role updated successfully",
@@ -225,6 +392,49 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// Get user update history
+const getUserUpdateHistory = async (req, res) => {
+  try {
+    // Check permissions
+    const isSelf = req.user._id.toString() === req.params.userId;
+    const isAdmin = ["super_admin", "admin"].includes(req.user.role);
+
+    // If not self and not admin, deny access
+    if (!isSelf && !isAdmin) {
+      return res.status(403).json({
+        message: "You don't have permission to view this history",
+      });
+    }
+
+    // Get the target user to check their role
+    const targetUser = await User.findOne({
+      _id: req.params.userId,
+      organization: req.user.organization,
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Prevent admins from viewing super admin history
+    if (req.user.role === "admin" && targetUser.role === "super_admin") {
+      return res.status(403).json({
+        message: "Admins cannot view super admin history",
+      });
+    }
+
+    const history = await UserUpdateHistory.find({
+      userId: req.params.userId,
+    })
+      .populate("updatedBy", "firstName lastName email role")
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    res.json(history);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 module.exports = {
   getUsers,
   getUser,
@@ -232,4 +442,5 @@ module.exports = {
   updateUser,
   updateUserRole,
   deleteUser,
+  getUserUpdateHistory,
 };
