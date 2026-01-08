@@ -3,10 +3,15 @@ const mongoose = require("mongoose");
 const Event = require("../models/EventSchema");
 const Expense = require("../models/ExpenseSchema");
 const Budget = require("../models/BudgetSchema");
+const ExpenseAuditLog = require("../models/ExpenseAuditLog")
 const { getBudgetStatus } = require("../utils/budgetHelpers");
 
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
+
+// Helper function to log deleted paid expense
+
+
 
 // Create new expense
 const createExpense = async (req, res) => {
@@ -254,14 +259,46 @@ const deleteExpense = async (req, res) => {
       return res.status(404).json({ message: "Associated budget not found" });
     }
 
-    // Payment status check
-    if (expense.paymentStatus === "paid") {
-      return res.status(400).json({
-        message:
-          "For transparency, this expense cannot be deleted because it has already been paid and deducted from the budget.",
-        actionRequired: "Create a compensating expense instead",
-        contact: "accounting@example.com",
+    // NEW: Check if expense is paid and user is not super_admin
+    if (expense.paymentStatus === "paid" && req.user.role !== "super_admin") {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Only super administrators can delete paid expenses",
+        requiredRole: "super_admin",
+        userRole: req.user.role,
       });
+    }
+
+    // NEW: Log the deletion if it's a paid expense (only super_admin can reach here)
+    if (expense.paymentStatus === "paid") {
+      // Create audit log for deleted paid expense
+      await ExpenseAuditLog.create({
+    expenseId: expense._id,
+    eventId: expense.eventId,
+    deletedBy: req.user._id,
+    deletedByRole: req.user.role,
+    expenseData: {
+      amount: expense.amount,
+      description: expense.description,
+      category: expense.category,
+      vendor: expense.vendor,
+      paymentStatus: expense.paymentStatus,
+      paymentDate: expense.paymentDate,
+      dueDate: expense.dueDate,
+      notes: expense.notes,
+      receiptUrl: expense.receiptUrl,
+      createdBy: expense.createdBy,
+      createdAt: expense.createdAt,
+    },
+    reason: "Paid expense deleted by super administrator",
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent'],
+    metadata: {
+      budgetRemainingBefore: budgetStatus.remainingBudget,
+      budgetRemainingAfter: budgetStatus.remainingBudget + expense.amount,
+      eventStatus: event.status,
+    }
+  });
     }
 
     // Final deletion
@@ -277,6 +314,7 @@ const deleteExpense = async (req, res) => {
         category: deletedExpense.category,
         description: deletedExpense.description,
         date: deletedExpense.createdAt,
+        wasPaid: deletedExpense.paymentStatus === "paid"
       },
       newRemaining: updatedBudgetStatus.remainingBudget,
     });
@@ -367,6 +405,8 @@ const getBudgetStatusForAllEvents = async (req, res) => {
     });
   }
 };
+
+
 
 module.exports = {
   createExpense,
