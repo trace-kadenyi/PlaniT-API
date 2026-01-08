@@ -467,4 +467,5 @@ module.exports = {
   getExpensesSummary,
   getAllExpenses,
   getBudgetStatusForAllEvents,
+  getDeletedPaidExpensesLog
 };
