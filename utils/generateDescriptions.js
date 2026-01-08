@@ -1,7 +1,7 @@
 export function generateDescription(changes, targetUser, updater, isSelf) {
   const action = isSelf
     ? "updated their profile"
-    : `${updater.role} ${updater.firstName} updated ${targetUser.firstName}'s profile`;
+    : `${updater.firstName} ${updater.lastName} updated ${targetUser.firstName}'s profile`;
 
   const changeStrings = changes.map((change) => {
     if (change.field === "password") {
