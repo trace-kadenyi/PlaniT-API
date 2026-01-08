@@ -3,11 +3,35 @@ const mongoose = require("mongoose");
 const Event = require("../models/EventSchema");
 const Expense = require("../models/ExpenseSchema");
 const Budget = require("../models/BudgetSchema");
-const ExpenseAuditLog = require("../models/ExpenseAuditLog")
+const ExpenseAuditLog = require("../models/ExpenseAuditLog");
 const { getBudgetStatus } = require("../utils/budgetHelpers");
 
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
+
+// Helper function to safely populate fields
+const safePopulateLogs = async (logs) => {
+  return await Promise.all(
+    logs.map(async (log) => {
+      const populatedLog = log.toObject();
+
+      // Safely handle event population
+      if (populatedLog.eventId && typeof populatedLog.eventId === "object") {
+        populatedLog.event = {
+          _id: populatedLog.eventId._id,
+          name: populatedLog.eventId.name || "Unknown Event",
+        };
+      } else {
+        populatedLog.event = {
+          _id: populatedLog.eventId,
+          name: "Unknown Event",
+        };
+      }
+
+      return populatedLog;
+    })
+  );
+};
 
 // Create new expense
 const createExpense = async (req, res) => {
@@ -228,6 +252,101 @@ const updateExpense = async (req, res) => {
 };
 
 // Delete expense
+// const deleteExpense = async (req, res) => {
+//   try {
+//     const expense = await Expense.findById(req.params.id);
+//     if (!expense) {
+//       return res.status(404).json({ message: "Expense not found" });
+//     }
+
+//     // Get associated event
+//     const event = await Event.findById(expense.eventId);
+//     if (!event) {
+//       return res.status(404).json({ message: "Associated event not found" });
+//     }
+
+//     // Check if event is completed
+//     if (event.status === "Completed") {
+//       return res.status(400).json({
+//         message: "Cannot delete expenses for completed events",
+//         resolution: "Please reopen the event if changes are needed",
+//       });
+//     }
+
+//     // Budget validation
+//     const budgetStatus = await getBudgetStatus(expense.eventId);
+//     if (!budgetStatus) {
+//       return res.status(404).json({ message: "Associated budget not found" });
+//     }
+
+//     // NEW: Check if expense is paid and user is not super_admin
+//     if (expense.paymentStatus === "paid" && req.user.role !== "super_admin") {
+//       return res.status(403).json({
+//         error: "Forbidden",
+//         message: "Only super administrators can delete paid expenses",
+//         requiredRole: "super_admin",
+//         userRole: req.user.role,
+//       });
+//     }
+
+//     // NEW: Log the deletion if it's a paid expense (only super_admin can reach here)
+//     if (expense.paymentStatus === "paid") {
+//       // Create audit log for deleted paid expense
+//       await ExpenseAuditLog.create({
+//     expenseId: expense._id,
+//     eventId: expense.eventId,
+//     deletedBy: req.user._id,
+//     deletedByRole: req.user.role,
+//     expenseData: {
+//       amount: expense.amount,
+//       description: expense.description,
+//       category: expense.category,
+//       vendor: expense.vendor,
+//       paymentStatus: expense.paymentStatus,
+//       paymentDate: expense.paymentDate,
+//       dueDate: expense.dueDate,
+//       notes: expense.notes,
+//       receiptUrl: expense.receiptUrl,
+//       createdBy: expense.createdBy,
+//       createdAt: expense.createdAt,
+//     },
+//     reason: "Paid expense deleted by super administrator",
+//     ipAddress: req.ip,
+//     userAgent: req.headers['user-agent'],
+//     metadata: {
+//       budgetRemainingBefore: budgetStatus.remainingBudget,
+//       budgetRemainingAfter: budgetStatus.remainingBudget + expense.amount,
+//       eventStatus: event.status,
+//     }
+//   });
+//     }
+
+//     // Final deletion
+//     const deletedExpense = await Expense.findByIdAndDelete(req.params.id);
+//     const updatedBudgetStatus = await getBudgetStatus(expense.eventId);
+
+//     res.json({
+//       message: "Expense deleted successfully",
+//       budgetStatus: updatedBudgetStatus,
+//       deletedExpense: {
+//         _id: deletedExpense._id,
+//         amount: deletedExpense.amount,
+//         category: deletedExpense.category,
+//         description: deletedExpense.description,
+//         date: deletedExpense.createdAt,
+//         wasPaid: deletedExpense.paymentStatus === "paid"
+//       },
+//       newRemaining: updatedBudgetStatus.remainingBudget,
+//     });
+//   } catch (err) {
+//     res.status(500).json({
+//       message: "Failed to delete expense",
+//       systemMessage: err.message,
+//       errorCode: "EXPENSE_DELETION_FAILED",
+//     });
+//   }
+// };
+
 const deleteExpense = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id);
@@ -269,32 +388,32 @@ const deleteExpense = async (req, res) => {
     if (expense.paymentStatus === "paid") {
       // Create audit log for deleted paid expense
       await ExpenseAuditLog.create({
-    expenseId: expense._id,
-    eventId: expense.eventId,
-    deletedBy: req.user._id,
-    deletedByRole: req.user.role,
-    expenseData: {
-      amount: expense.amount,
-      description: expense.description,
-      category: expense.category,
-      vendor: expense.vendor,
-      paymentStatus: expense.paymentStatus,
-      paymentDate: expense.paymentDate,
-      dueDate: expense.dueDate,
-      notes: expense.notes,
-      receiptUrl: expense.receiptUrl,
-      createdBy: expense.createdBy,
-      createdAt: expense.createdAt,
-    },
-    reason: "Paid expense deleted by super administrator",
-    ipAddress: req.ip,
-    userAgent: req.headers['user-agent'],
-    metadata: {
-      budgetRemainingBefore: budgetStatus.remainingBudget,
-      budgetRemainingAfter: budgetStatus.remainingBudget + expense.amount,
-      eventStatus: event.status,
-    }
-  });
+        expenseId: expense._id,
+        eventId: expense.eventId,
+        deletedBy: req.user._id,
+        deletedByRole: req.user.role,
+        expenseData: {
+          amount: expense.amount,
+          description: expense.description,
+          category: expense.category,
+          vendor: expense.vendor,
+          paymentStatus: expense.paymentStatus,
+          paymentDate: expense.paymentDate,
+          dueDate: expense.dueDate,
+          notes: expense.notes,
+          receiptUrl: expense.receiptUrl,
+          createdBy: expense.createdBy,
+          createdAt: expense.createdAt,
+        },
+        reason: "Paid expense deleted by super administrator",
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"],
+        metadata: {
+          budgetRemainingBefore: budgetStatus.remainingBudget,
+          budgetRemainingAfter: budgetStatus.remainingBudget + expense.amount,
+          eventStatus: event.status,
+        },
+      });
     }
 
     // Final deletion
@@ -310,7 +429,7 @@ const deleteExpense = async (req, res) => {
         category: deletedExpense.category,
         description: deletedExpense.description,
         date: deletedExpense.createdAt,
-        wasPaid: deletedExpense.paymentStatus === "paid"
+        wasPaid: deletedExpense.paymentStatus === "paid",
       },
       newRemaining: updatedBudgetStatus.remainingBudget,
     });
@@ -402,12 +521,20 @@ const getBudgetStatusForAllEvents = async (req, res) => {
   }
 };
 
-
 // get deleted paid expenses log
 const getDeletedPaidExpensesLog = async (req, res) => {
   try {
+    if (req.user.role !== "super_admin") {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Only super administrators can view audit logs",
+        requiredRole: "super_admin",
+        userRole: req.user.role,
+      });
+    }
+
     const logs = await ExpenseAuditLog.find({
-      "expenseData.paymentStatus": "paid"
+      "expenseData.paymentStatus": "paid",
     })
       .populate("eventId", "name")
       .populate("expenseData.vendor", "name services")
@@ -416,12 +543,12 @@ const getDeletedPaidExpensesLog = async (req, res) => {
       .sort({ createdAt: -1 });
 
     // Format for frontend
-    const formattedLogs = logs.map(log => ({
+    const formattedLogs = logs.map((log) => ({
       _id: log._id,
       expenseId: log.expenseId,
       event: {
-        _id: log.eventId._id,
-        name: log.eventId.name
+        _id: log.eventId?._id || log.eventId,
+        name: log.eventId?.name || "Unknown Event",
       },
       expenseData: {
         amount: log.expenseData.amount,
@@ -431,32 +558,30 @@ const getDeletedPaidExpensesLog = async (req, res) => {
         paymentStatus: log.expenseData.paymentStatus,
         paymentDate: log.expenseData.paymentDate,
         createdAt: log.expenseData.createdAt,
-        createdBy: log.expenseData.createdBy
+        createdBy: log.expenseData.createdBy,
       },
       deletedBy: {
         _id: log.deletedBy._id,
         name: `${log.deletedBy.firstName} ${log.deletedBy.lastName}`,
         email: log.deletedBy.email,
-        role: log.deletedBy.role
+        role: log.deletedBy.role,
       },
       deletedAt: log.createdAt,
       reason: log.reason,
-      metadata: log.metadata
+      metadata: log.metadata,
     }));
 
     res.json({
       deletedPaidExpenses: formattedLogs,
-      count: formattedLogs.length
+      count: formattedLogs.length,
     });
   } catch (err) {
     res.status(500).json({
       message: "Failed to fetch deleted expenses log",
-      error: err.message
+      error: err.message,
     });
   }
 };
-
-
 
 module.exports = {
   createExpense,
@@ -467,5 +592,5 @@ module.exports = {
   getExpensesSummary,
   getAllExpenses,
   getBudgetStatusForAllEvents,
-  getDeletedPaidExpensesLog
+  getDeletedPaidExpensesLog,
 };
