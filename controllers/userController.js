@@ -758,7 +758,7 @@ const updateUserRole = async (req, res) => {
       updatedByRole: req.user.role,
       changes,
       type: "role_change",
-      description: `${targetUser.firstName}'s role changed from ${changes[0].oldValue} to ${changes[0].newValue} by ${req.user.role} ${req.user.firstName}`,
+      description: `${targetUser.firstName}'s role changed from ${changes[0].oldValue} to ${changes[0].newValue} by ${req.user.firstName} ${req.user.lastName}`,
       ipAddress: req.ip,
       userAgent: req.headers["user-agent"],
     });
