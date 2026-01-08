@@ -88,5 +88,6 @@ const expenseSchema = new mongoose.Schema(
 );
 
 expenseSchema.index({ eventId: 1, category: 1 });
+expenseSchema.index({ isVoided: 1 });
 
 module.exports = mongoose.model("Expense", expenseSchema);
