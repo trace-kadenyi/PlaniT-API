@@ -9,39 +9,6 @@ const { getBudgetStatus } = require("../utils/budgetHelpers");
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
 
-// Helper function to log deleted paid expense
-const logDeletedPaidExpense = async (expense, deletedBy) => {
-  try {
-    await UserUpdateHistory.create({
-      userId: expense.createdBy, // User who created the expense
-      updatedBy: deletedBy._id, // Super admin who deleted it
-      updatedByRole: deletedBy.role,
-      changes: [
-        {
-          field: "expense_deletion",
-          oldValue: {
-            _id: expense._id,
-            amount: expense.amount,
-            description: expense.description,
-            category: expense.category,
-            paymentStatus: expense.paymentStatus,
-            vendor: expense.vendor,
-            eventId: expense.eventId
-          },
-          newValue: null
-        }
-      ],
-      type: "deactivation", // Reusing existing type
-      description: `Deleted paid expense (${expense.description}) of $${expense.amount} from event ${expense.eventId}`,
-      ipAddress: req.ip, // You might need to pass req to the controller
-      userAgent: req.headers['user-agent']
-    });
-  } catch (err) {
-    console.error("Failed to log deleted paid expense:", err);
-  }
-};
-
-
 // Create new expense
 const createExpense = async (req, res) => {
   try {
