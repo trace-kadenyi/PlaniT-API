@@ -637,20 +637,17 @@ const updateUser = async (req, res) => {
 
     await updateHistory.save();
 
-    // Optional: Keep only last 5 updates
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const oldUpdates = await UserUpdateHistory.find({
+    // Keep only last 50 updates
+    await UserUpdateHistory.deleteMany({
       userId: targetUser._id,
-      createdAt: { $lt: thirtyDaysAgo },
-    })
-      .sort({ createdAt: 1 })
-      .limit(-6);
-
-    if (oldUpdates.length > 5) {
-      await UserUpdateHistory.deleteMany({
-        _id: { $in: oldUpdates.slice(0, -5).map((u) => u._id) },
-      });
-    }
+      _id: {
+        $nin: await UserUpdateHistory.find({ userId: targetUser._id })
+          .sort({ createdAt: -1 })
+          .limit(50)
+          .select("_id")
+          .then((records) => records.map((r) => r._id)),
+      },
+    });
 
     const updatedUser = await User.findById(targetUser._id).select(
       "-password -passwordResetToken -passwordResetExpires"
@@ -857,7 +854,7 @@ const getUserUpdateHistory = async (req, res) => {
     })
       .populate("updatedBy", "firstName lastName email role")
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(50);
 
     res.json(history);
   } catch (err) {
