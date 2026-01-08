@@ -8,6 +8,22 @@ const { getBudgetStatus } = require("../utils/budgetHelpers");
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
 
+// ============ HELPER: Filter active expenses ============
+const filterActiveExpenses = (expenses) => {
+  return expenses.filter((expense) => !expense.isVoided);
+};
+
+// ============ HELPER: Calculate active totals ============
+const calculateActiveTotals = (expenses) => {
+  const activeExpenses = filterActiveExpenses(expenses);
+  const totalAmount = activeExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const paidAmount = activeExpenses
+    .filter((exp) => exp.paymentStatus === "paid")
+    .reduce((sum, exp) => sum + exp.amount, 0);
+
+  return { totalAmount, paidAmount, activeCount: activeExpenses.length };
+};
+
 // Create new expense
 const createExpense = async (req, res) => {
   try {
@@ -86,30 +102,129 @@ const createExpense = async (req, res) => {
 };
 
 // Get all expenses
+// const getAllExpenses = async (req, res) => {
+//   try {
+//     const expenses = await Expense.find();
+//     res.json(expenses);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 const getAllExpenses = async (req, res) => {
   try {
-    const expenses = await Expense.find();
-    res.json(expenses);
+    const canSeeVoided =
+      req.user.role === "admin" || req.user.role === "super_admin";
+    const showVoided = req.query.showVoided === "true";
+
+    // Build filter
+    const filter = {};
+    if (!(canSeeVoided && showVoided)) {
+      filter.$or = [
+        { isVoided: false },
+        { isVoided: { $exists: false } }, // ← ADD THIS TOO
+      ];
+    }
+
+    const expenses = await Expense.find(filter)
+      .populate("createdBy", "firstName lastName")
+      .populate("voidedBy", "firstName lastName")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      expenses,
+      meta: {
+        total: expenses.length,
+        includeVoided: canSeeVoided && showVoided,
+        canViewVoided: canSeeVoided,
+        activeCount: expenses.filter((e) => !e.isVoided).length,
+        voidedCount: expenses.filter((e) => e.isVoided).length,
+      },
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
 // Get all expenses for an event
+// const getExpensesByEventId = async (req, res) => {
+//   try {
+//     const expenses = await Expense.find({ eventId: req.params.eventId })
+//       .populate("vendor", "name services isArchived")
+//       .populate("createdBy", "firstName lastName email")
+//       .populate("updatedBy", "firstName lastName email")
+//       .sort({ createdAt: -1 });
+
+//     const budgetStatus = await getBudgetStatus(req.params.eventId);
+
+//     // Always return success with empty array if no expenses exist
+//     res.json({
+//       expenses: expenses || [],
+//       budgetStatus,
+//     });
+//   } catch (err) {
+//     // Return empty state instead of error
+//     res.json({
+//       expenses: [],
+//       budgetStatus: {
+//         totalBudget: 0,
+//         totalExpenses: 0,
+//         remainingBudget: 0,
+//         budgetExists: false,
+//       },
+//     });
+//   }
+// };
+
 const getExpensesByEventId = async (req, res) => {
   try {
-    const expenses = await Expense.find({ eventId: req.params.eventId })
+    // Determine if user can see voided expenses
+    const canSeeVoided =
+      req.user.role === "admin" || req.user.role === "super_admin";
+    const showVoided = req.query.showVoided === "true";
+
+    // Build filter
+    const filter = { eventId: req.params.eventId };
+
+    if (!(canSeeVoided && showVoided)) {
+      // Show expenses that are NOT voided OR don't have isVoided field
+      filter.$or = [
+        { isVoided: false },
+        { isVoided: { $exists: false } }, // ← CRITICAL: Include expenses without isVoided field
+      ];
+    }
+
+    const expenses = await Expense.find(filter)
       .populate("vendor", "name services isArchived")
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email")
+      .populate("voidedBy", "firstName lastName email")
       .sort({ createdAt: -1 });
 
     const budgetStatus = await getBudgetStatus(req.params.eventId);
 
-    // Always return success with empty array if no expenses exist
+    // Calculate totals from ACTIVE expenses only (for budget purposes)
+    const activeExpenses = expenses.filter((exp) => !exp.isVoided);
+    const totals = {
+      totalAmount: activeExpenses.reduce((sum, exp) => sum + exp.amount, 0),
+      paidAmount: activeExpenses
+        .filter((exp) => exp.paymentStatus === "paid")
+        .reduce((sum, exp) => sum + exp.amount, 0),
+      activeCount: activeExpenses.length,
+      voidedCount: expenses.filter((exp) => exp.isVoided).length,
+    };
+
     res.json({
       expenses: expenses || [],
       budgetStatus,
+      totals,
+      permissions: {
+        canViewVoided: canSeeVoided,
+        includeVoided: canSeeVoided && showVoided,
+        canVoidExpenses:
+          req.user.role === "admin" || req.user.role === "super_admin",
+        canUnvoidExpenses: req.user.role === "super_admin",
+      },
     });
   } catch (err) {
     // Return empty state instead of error
@@ -121,21 +236,105 @@ const getExpensesByEventId = async (req, res) => {
         remainingBudget: 0,
         budgetExists: false,
       },
+      totals: {
+        totalAmount: 0,
+        paidAmount: 0,
+        activeCount: 0,
+        voidedCount: 0,
+      },
+      permissions: {
+        canViewVoided:
+          req.user.role === "admin" || req.user.role === "super_admin",
+        includeVoided: false,
+      },
     });
+  }
+};
+const getVoidedExpenses = async (req, res) => {
+  try {
+    // Check user role - only admins can see this dedicated view
+    if (req.user.role !== "admin" && req.user.role !== "super_admin") {
+      return res.status(403).json({
+        message: "Only Admins and Super Admins can view voided expenses",
+      });
+    }
+
+    // Optional event filter
+    const eventId = req.query.eventId;
+    const filter = { isVoided: true };
+    if (eventId) filter.eventId = eventId;
+
+    const expenses = await Expense.find(filter)
+      .populate("vendor", "name services")
+      .populate("createdBy", "firstName lastName email")
+      .populate("voidedBy", "firstName lastName email")
+      .sort({ voidedAt: -1 });
+
+    // Group by void reason for analysis
+    const voidReasons = expenses.reduce((acc, expense) => {
+      const reason = expense.voidReason || "No reason provided";
+      acc[reason] = (acc[reason] || 0) + 1;
+      return acc;
+    }, {});
+
+    res.json({
+      expenses: expenses || [],
+      summary: {
+        count: expenses.length,
+        totalVoidedAmount: expenses.reduce((sum, exp) => sum + exp.amount, 0),
+        voidReasons: voidReasons,
+        paidCount: expenses.filter((exp) => exp.paymentStatus === "paid")
+          .length,
+        pendingCount: expenses.filter((exp) => exp.paymentStatus === "pending")
+          .length,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
 // Get expense by ID
+// const getExpenseById = async (req, res) => {
+//   try {
+//     const expense = await Expense.findById(req.params.id)
+//       .populate("vendor", "name services")
+//       .populate("createdBy", "firstName lastName email")
+//       .populate("updatedBy", "firstName lastName email");
+
+//     if (!expense) {
+//       return res.status(404).json({ message: "Expense not found" });
+//     }
+//     res.json(expense);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 const getExpenseById = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id)
       .populate("vendor", "name services")
       .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firstName lastName email");
+      .populate("updatedBy", "firstName lastName email")
+      .populate("voidedBy", "firstName lastName email");
 
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
+
+    // If expense is voided, check if user has permission to see it
+    if (expense.isVoided) {
+      const canSeeVoided =
+        req.user.role === "admin" || req.user.role === "super_admin";
+      if (!canSeeVoided) {
+        return res.status(404).json({
+          message: "Expense not found",
+          hint: "This expense may have been voided. Only admins can view voided expenses.",
+        });
+      }
+    }
+
     res.json(expense);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -365,6 +564,185 @@ const getBudgetStatusForAllEvents = async (req, res) => {
   }
 };
 
+// ============ VOID EXPENSE ============
+const voidExpense = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id);
+    if (!expense) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
+
+    // Check if already voided
+    if (expense.isVoided) {
+      return res.status(400).json({
+        message: "Expense is already voided",
+        voidedAt: expense.voidedAt,
+        voidedBy: expense.voidedBy,
+      });
+    }
+
+    const userRole = req.user.role;
+    const isPaid = expense.paymentStatus === "paid";
+    const reason = req.body.reason?.trim() || "No reason provided";
+
+    // ============ PERMISSION CHECKS ============
+
+    // 1. PAID EXPENSES: Super Admin only
+    if (isPaid && userRole !== "super_admin") {
+      return res.status(403).json({
+        message: "Only Super Admins can void paid expenses",
+        requiredRole: "super_admin",
+        currentRole: userRole,
+        suggestion: "Contact a super admin for assistance",
+      });
+    }
+
+    // 2. PENDING EXPENSES: Admin+ only
+    if (!isPaid && userRole !== "admin" && userRole !== "super_admin") {
+      return res.status(403).json({
+        message: "Only Admins and Super Admins can void expenses",
+        requiredRole: "admin",
+        currentRole: userRole,
+      });
+    }
+
+    // 3. Reason required for paid expense voiding
+    if (isPaid && (!req.body.reason || req.body.reason.trim().length < 10)) {
+      return res.status(400).json({
+        message:
+          "Reason required for voiding paid expenses (minimum 10 characters)",
+        field: "reason",
+        currentLength: req.body.reason?.length || 0,
+      });
+    }
+
+    // Prepare void data
+    const voidData = {
+      isVoided: true,
+      voidedBy: req.user._id,
+      voidedAt: new Date(),
+      voidReason: reason,
+      // Add void notice to notes
+      notes: expense.notes
+        ? `${expense.notes}\n\n--- VOIDED ---\nVoided by: ${
+            req.user.firstName
+          } ${
+            req.user.lastName
+          }\nDate: ${new Date().toLocaleString()}\nReason: ${reason}`
+        : `--- VOIDED ---\nVoided by: ${req.user.firstName} ${
+            req.user.lastName
+          }\nDate: ${new Date().toLocaleString()}\nReason: ${reason}`,
+    };
+
+    // Update expense with void data
+    const voidedExpense = await Expense.findByIdAndUpdate(
+      req.params.id,
+      voidData,
+      { new: true }
+    )
+      .populate("vendor", "name services")
+      .populate("createdBy", "firstName lastName email")
+      .populate("voidedBy", "firstName lastName email");
+
+    // Log critical void operations
+    if (isPaid) {
+      console.warn(`CRITICAL: Paid expense voided`, {
+        expenseId: expense._id,
+        amount: expense.amount,
+        category: expense.category,
+        voidedBy: req.user._id,
+        voidedAt: new Date().toISOString(),
+        reason: reason,
+        userRole: userRole,
+      });
+    }
+
+    const updatedBudgetStatus = await getBudgetStatus(expense.eventId);
+
+    res.json({
+      message: "Expense voided successfully",
+      expense: voidedExpense,
+      budgetStatus: updatedBudgetStatus,
+      note: "Voided expenses remain in the system for audit purposes",
+      warning: isPaid
+        ? "Paid expense voiding has been logged for financial audit"
+        : undefined,
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Failed to void expense",
+      systemMessage: err.message,
+      errorCode: "EXPENSE_VOID_FAILED",
+    });
+  }
+};
+
+// ============ UNVOID EXPENSE (super admin only) ============
+const unvoidExpense = async (req, res) => {
+  try {
+    // Super admin only
+    if (req.user.role !== "super_admin") {
+      return res.status(403).json({
+        message: "Only Super Admins can unvoid expenses",
+      });
+    }
+
+    const expense = await Expense.findById(req.params.id);
+    if (!expense) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
+
+    if (!expense.isVoided) {
+      return res.status(400).json({ message: "Expense is not voided" });
+    }
+
+    // Unvoid the expense
+    const unvoidData = {
+      isVoided: false,
+      voidedBy: null,
+      voidedAt: null,
+      voidReason: null,
+      // Add unvoid notice to notes
+      notes: expense.notes
+        ? `${expense.notes}\n\n--- UNVOIDED ---\nUnvoided by: ${
+            req.user.firstName
+          } ${
+            req.user.lastName
+          }\nDate: ${new Date().toLocaleString()}\nReason: ${
+            req.body.reason || "No reason provided"
+          }`
+        : `--- UNVOIDED ---\nUnvoided by: ${req.user.firstName} ${
+            req.user.lastName
+          }\nDate: ${new Date().toLocaleString()}\nReason: ${
+            req.body.reason || "No reason provided"
+          }`,
+    };
+
+    const unvoidedExpense = await Expense.findByIdAndUpdate(
+      req.params.id,
+      unvoidData,
+      { new: true }
+    )
+      .populate("vendor", "name services")
+      .populate("createdBy", "firstName lastName email");
+
+    console.warn(`CRITICAL: Expense unvoided by Super Admin`, {
+      expenseId: expense._id,
+      amount: expense.amount,
+      unvoidedBy: req.user._id,
+      unvoidedAt: new Date().toISOString(),
+    });
+
+    res.json({
+      message: "Expense unvoided successfully",
+      expense: unvoidedExpense,
+      budgetStatus: await getBudgetStatus(expense.eventId),
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   createExpense,
   getExpensesByEventId,
@@ -374,4 +752,7 @@ module.exports = {
   getExpensesSummary,
   getAllExpenses,
   getBudgetStatusForAllEvents,
+  voidExpense,
+  unvoidExpense,
+  getVoidedExpenses,
 };

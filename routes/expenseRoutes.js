@@ -10,6 +10,9 @@ const {
   getExpensesSummary,
   getAllExpenses,
   getBudgetStatusForAllEvents,
+  voidExpense,
+  unvoidExpense,
+  getVoidedExpenses,
 } = require("../controllers/expenseController");
 const authController = require("../controllers/authController");
 
@@ -40,5 +43,10 @@ router.get("/:eventId/summary", authController.protect, getExpensesSummary);
 
 // get all expenses
 router.get("/", authController.protect, getAllExpenses);
+
+// void routes
+router.post("/:id/void", authController.protect, voidExpense);
+router.post("/:id/unvoid", authController.protect, unvoidExpense);
+router.get("/voided/all", authController.protect, getVoidedExpenses);
 
 module.exports = router;
