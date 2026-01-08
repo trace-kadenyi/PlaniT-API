@@ -152,6 +152,8 @@ const updateExpense = async (req, res) => {
         message: "Expense not found",
       });
     }
+
+    // budget status
     const budgetStatus = await getBudgetStatus(existingExpense.eventId);
 
     // Calculate potential new total if this update is applied
@@ -193,8 +195,9 @@ const updateExpense = async (req, res) => {
     }
 
     // Add updatedBy to the update data
+    const { createdBy, ...safeUpdateData } = req.body; // Remove createdBy from request body
     const updateData = {
-      ...req.body,
+      ...safeUpdateData, // Spread everything EXCEPT createdBy
       updatedBy: req.user._id, // Set the user who made the update
     };
 
