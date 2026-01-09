@@ -3,35 +3,11 @@ const mongoose = require("mongoose");
 const Event = require("../models/EventSchema");
 const Expense = require("../models/ExpenseSchema");
 const Budget = require("../models/BudgetSchema");
-const ExpenseAuditLog = require("../models/ExpenseAuditLog");
+const ExpenseAuditLog = require("../models/ExpenseAuditLogSchema");
 const { getBudgetStatus } = require("../utils/budgetHelpers");
 
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
-
-// Helper function to safely populate fields
-const safePopulateLogs = async (logs) => {
-  return await Promise.all(
-    logs.map(async (log) => {
-      const populatedLog = log.toObject();
-
-      // Safely handle event population
-      if (populatedLog.eventId && typeof populatedLog.eventId === "object") {
-        populatedLog.event = {
-          _id: populatedLog.eventId._id,
-          name: populatedLog.eventId.name || "Unknown Event",
-        };
-      } else {
-        populatedLog.event = {
-          _id: populatedLog.eventId,
-          name: "Unknown Event",
-        };
-      }
-
-      return populatedLog;
-    })
-  );
-};
 
 // Create new expense
 const createExpense = async (req, res) => {
