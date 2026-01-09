@@ -9,22 +9,15 @@ const { getBudgetStatus } = require("../utils/budgetHelpers");
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
 
-
 // ============= PERMISSION HELPERS =============
 const canPerformExpenseAction = (user, expense, action) => {
-  // All users can VIEW
   if (action === "view") return true;
-
-  // VIEWERS cannot perform any write actions
   if (user.role === "viewer") return false;
 
-  // For DELETE actions involving PAID expenses
   if (action === "delete" && expense && expense.paymentStatus === "paid") {
-    return user.role === "super_admin"; // Only super admins can delete paid expenses
+    return user.role === "super_admin";
   }
 
-  // For all other write actions (CREATE, UPDATE, DELETE of unpaid expenses)
-  // Planners, admins, and super admins can perform
   return ["planner", "admin", "super_admin"].includes(user.role);
 };
 
@@ -36,23 +29,30 @@ const canViewAuditLogs = (user) => {
 const getChangedFields = (oldExpense, newExpense) => {
   const changes = [];
   if (!oldExpense || !newExpense) return changes;
-  
+
   const fields = [
-    'amount', 'description', 'category', 'vendor', 
-    'paymentStatus', 'paymentDate', 'dueDate', 'notes', 'receiptUrl'
+    "amount",
+    "description",
+    "category",
+    "vendor",
+    "paymentStatus",
+    "paymentDate",
+    "dueDate",
+    "notes",
+    "receiptUrl",
   ];
-  
-  fields.forEach(field => {
+
+  fields.forEach((field) => {
     const oldValue = oldExpense[field];
     const newValue = newExpense[field];
-    
-    if (field === 'vendor') {
+
+    if (field === "vendor") {
       const oldVendorId = oldValue ? oldValue.toString() : null;
       const newVendorId = newValue ? newValue.toString() : null;
       if (oldVendorId !== newVendorId) {
         changes.push({ field, oldValue: oldVendorId, newValue: newVendorId });
       }
-    } else if (field === 'paymentDate' || field === 'dueDate') {
+    } else if (field === "paymentDate" || field === "dueDate") {
       const oldDate = oldValue ? oldValue.toISOString() : null;
       const newDate = newValue ? newValue.toISOString() : null;
       if (oldDate !== newDate) {
@@ -62,20 +62,15 @@ const getChangedFields = (oldExpense, newExpense) => {
       changes.push({ field, oldValue, newValue });
     }
   });
-  
+
   return changes;
 };
 
 const determineActionType = (changes, isCreate, isDelete) => {
   if (isCreate) return "CREATE";
   if (isDelete) return "DELETE";
-  
-  const amountChange = changes.find(c => c.field === 'amount');
-  const statusChange = changes.find(c => c.field === 'paymentStatus');
-  
-  if (amountChange) return "AMOUNT_CHANGE";
-  if (statusChange) return "STATUS_CHANGE";
-  
+  if (changes.find((c) => c.field === "amount")) return "AMOUNT_CHANGE";
+  if (changes.find((c) => c.field === "paymentStatus")) return "STATUS_CHANGE";
   return "UPDATE";
 };
 
@@ -91,8 +86,10 @@ const logExpenseAction = async ({
   req,
 }) => {
   try {
-    const changes = previousExpense ? getChangedFields(previousExpense, expense) : [];
-    
+    const changes = previousExpense
+      ? getChangedFields(previousExpense, expense)
+      : [];
+
     const logData = {
       expenseId: expense._id,
       eventId: expense.eventId,
@@ -103,38 +100,53 @@ const logExpenseAction = async ({
       reason,
       description,
       ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-      isAmountChange: changes.some(c => c.field === 'amount'),
-      isPaymentStatusChange: changes.some(c => c.field === 'paymentStatus'),
-      isVendorChange: changes.some(c => c.field === 'vendor'),
-      isDeleted: actionType === "DELETE",
+      userAgent: req.headers["user-agent"],
+      isAmountChange: changes.some((c) => c.field === "amount"),
+      isPaymentStatusChange: changes.some((c) => c.field === "paymentStatus"),
+      isVendorChange: changes.some((c) => c.field === "vendor"),
     };
-    
-    // Store data snapshots
+
+    // FIXED: Safe population with null checks
+    const safePopulate = async (expenseDoc) => {
+      if (!expenseDoc || !expenseDoc._id) return expenseDoc;
+      try {
+        const populated = await Expense.findById(expenseDoc._id)
+          .populate("vendor", "name services")
+          .populate("createdBy", "firstName lastName role");
+        return populated ? populated.toObject() : expenseDoc;
+      } catch (err) {
+        console.error("Population error, using original:", err.message);
+        return expenseDoc;
+      }
+    };
+
     if (previousExpense) {
-      logData.previousData = previousExpense.toObject ? previousExpense.toObject() : previousExpense;
+      const populatedPrev = await safePopulate(previousExpense);
+      logData.previousData = populatedPrev || previousExpense;
     }
-    
+
     if (actionType !== "DELETE") {
-      logData.newData = expense.toObject ? expense.toObject() : expense;
+      const populatedCurrent = await safePopulate(expense);
+      logData.newData = populatedCurrent || expense;
     } else {
-      logData.deletedData = expense.toObject ? expense.toObject() : expense;
+      const populatedDeleted = await safePopulate(expense);
+      logData.deletedData = populatedDeleted || expense;
     }
-    
-    // Add budget impact if available
+
     if (budgetStatusBefore || budgetStatusAfter) {
       logData.budgetImpact = {
         before: budgetStatusBefore || {},
         after: budgetStatusAfter || {},
       };
     }
-    
+
     await ExpenseAuditLog.create(logData);
   } catch (error) {
     console.error("Failed to create audit log:", error);
-    // Don't throw - audit logging shouldn't break main functionality
   }
 };
+
+// ============= CONTROLLER FUNCTIONS =============
 
 // Create new expense
 const createExpense = async (req, res) => {
@@ -206,6 +218,21 @@ const createExpense = async (req, res) => {
     const populatedExpense = await Expense.findById(expense._id)
       .populate("vendor", "name services")
       .populate("createdBy", "firstName lastName email");
+
+    // NOTE: You said you don't want to log creation yet
+    // If you change your mind, uncomment this:
+    /*
+    await logExpenseAction({
+      actionType: "CREATE",
+      expense: populatedExpense,
+      user: req.user,
+      reason: "New expense created",
+      description: `Created expense: ${populatedExpense.description} for $${populatedExpense.amount}`,
+      budgetStatusBefore: budgetStatus,
+      budgetStatusAfter: await getBudgetStatus(req.body.eventId),
+      req,
+    });
+    */
 
     res.status(201).json({
       expense: populatedExpense,
@@ -403,101 +430,6 @@ const updateExpense = async (req, res) => {
 };
 
 // Delete expense
-// const deleteExpense = async (req, res) => {
-//   try {
-//     const expense = await Expense.findById(req.params.id);
-//     if (!expense) {
-//       return res.status(404).json({ message: "Expense not found" });
-//     }
-
-//     // Get associated event
-//     const event = await Event.findById(expense.eventId);
-//     if (!event) {
-//       return res.status(404).json({ message: "Associated event not found" });
-//     }
-
-//     // Check if event is completed
-//     if (event.status === "Completed") {
-//       return res.status(400).json({
-//         message: "Cannot delete expenses for completed events",
-//         resolution: "Please reopen the event if changes are needed",
-//       });
-//     }
-
-//     // Budget validation
-//     const budgetStatus = await getBudgetStatus(expense.eventId);
-//     if (!budgetStatus) {
-//       return res.status(404).json({ message: "Associated budget not found" });
-//     }
-
-//     // NEW: Check if expense is paid and user is not super_admin
-//     if (expense.paymentStatus === "paid" && req.user.role !== "super_admin") {
-//       return res.status(403).json({
-//         error: "Forbidden",
-//         message: "Only super administrators can delete paid expenses",
-//         requiredRole: "super_admin",
-//         userRole: req.user.role,
-//       });
-//     }
-
-//     // NEW: Log the deletion if it's a paid expense (only super_admin can reach here)
-//     if (expense.paymentStatus === "paid") {
-//       // Create audit log for deleted paid expense
-//       await ExpenseAuditLog.create({
-//     expenseId: expense._id,
-//     eventId: expense.eventId,
-//     deletedBy: req.user._id,
-//     deletedByRole: req.user.role,
-//     expenseData: {
-//       amount: expense.amount,
-//       description: expense.description,
-//       category: expense.category,
-//       vendor: expense.vendor,
-//       paymentStatus: expense.paymentStatus,
-//       paymentDate: expense.paymentDate,
-//       dueDate: expense.dueDate,
-//       notes: expense.notes,
-//       receiptUrl: expense.receiptUrl,
-//       createdBy: expense.createdBy,
-//       createdAt: expense.createdAt,
-//     },
-//     reason: "Paid expense deleted by super administrator",
-//     ipAddress: req.ip,
-//     userAgent: req.headers['user-agent'],
-//     metadata: {
-//       budgetRemainingBefore: budgetStatus.remainingBudget,
-//       budgetRemainingAfter: budgetStatus.remainingBudget + expense.amount,
-//       eventStatus: event.status,
-//     }
-//   });
-//     }
-
-//     // Final deletion
-//     const deletedExpense = await Expense.findByIdAndDelete(req.params.id);
-//     const updatedBudgetStatus = await getBudgetStatus(expense.eventId);
-
-//     res.json({
-//       message: "Expense deleted successfully",
-//       budgetStatus: updatedBudgetStatus,
-//       deletedExpense: {
-//         _id: deletedExpense._id,
-//         amount: deletedExpense.amount,
-//         category: deletedExpense.category,
-//         description: deletedExpense.description,
-//         date: deletedExpense.createdAt,
-//         wasPaid: deletedExpense.paymentStatus === "paid"
-//       },
-//       newRemaining: updatedBudgetStatus.remainingBudget,
-//     });
-//   } catch (err) {
-//     res.status(500).json({
-//       message: "Failed to delete expense",
-//       systemMessage: err.message,
-//       errorCode: "EXPENSE_DELETION_FAILED",
-//     });
-//   }
-// };
-
 const deleteExpense = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id);
@@ -505,13 +437,11 @@ const deleteExpense = async (req, res) => {
       return res.status(404).json({ message: "Expense not found" });
     }
 
-    // Get associated event
     const event = await Event.findById(expense.eventId);
     if (!event) {
       return res.status(404).json({ message: "Associated event not found" });
     }
 
-    // Check if event is completed
     if (event.status === "Completed") {
       return res.status(400).json({
         message: "Cannot delete expenses for completed events",
@@ -519,15 +449,13 @@ const deleteExpense = async (req, res) => {
       });
     }
 
-    // Budget validation
     const budgetStatus = await getBudgetStatus(expense.eventId);
     if (!budgetStatus) {
       return res.status(404).json({ message: "Associated budget not found" });
     }
 
-     // Check if user can delete this expense
-    if (!canPerformExpenseAction(req.user, expense, 'delete')) {
-      if (expense.paymentStatus === 'paid') {
+    if (!canPerformExpenseAction(req.user, expense, "delete")) {
+      if (expense.paymentStatus === "paid") {
         return res.status(403).json({
           error: "Forbidden",
           message: "Only super administrators can delete paid expenses",
@@ -544,23 +472,20 @@ const deleteExpense = async (req, res) => {
       }
     }
 
-
-
-    // ALWAYS log before deletion
     await logExpenseAction({
       actionType: "DELETE",
       expense,
       user: req.user,
-      reason: expense.paymentStatus === "paid" 
-        ? "Paid expense deleted by super administrator" 
-        : "Expense deleted",
+      reason:
+        expense.paymentStatus === "paid"
+          ? "Paid expense deleted by super administrator"
+          : "Expense deleted",
       description: `Deleted expense: ${expense.description} (${expense.paymentStatus}, $${expense.amount})`,
       budgetStatusBefore: budgetStatus,
-      budgetStatusAfter: await getBudgetStatus(expense.eventId, true),
+      budgetStatusAfter: await getBudgetStatus(expense.eventId),
       req,
     });
 
-    // Final deletion
     const deletedExpense = await Expense.findByIdAndDelete(req.params.id);
     const updatedBudgetStatus = await getBudgetStatus(expense.eventId);
 
@@ -573,7 +498,7 @@ const deleteExpense = async (req, res) => {
         category: deletedExpense.category,
         description: deletedExpense.description,
         date: deletedExpense.createdAt,
-        wasPaid: deletedExpense.paymentStatus === 'paid',
+        wasPaid: deletedExpense.paymentStatus === "paid",
         deletedBy: {
           id: req.user._id,
           name: `${req.user.firstName} ${req.user.lastName}`,
@@ -670,10 +595,9 @@ const getBudgetStatusForAllEvents = async (req, res) => {
   }
 };
 
-// get expense audit logs
+// Get expense audit logs
 const getExpenseAuditLogs = async (req, res) => {
   try {
-    // Check if user can view audit logs
     if (!canViewAuditLogs(req.user)) {
       return res.status(403).json({
         error: "Forbidden",
@@ -683,78 +607,107 @@ const getExpenseAuditLogs = async (req, res) => {
       });
     }
 
-    // Get query parameters
-    const { eventId, actionType, startDate, endDate, limit = 100, userId } = req.query;
-    
-    // Build query
+    const {
+      eventId,
+      actionType,
+      startDate,
+      endDate,
+      limit = 100,
+      userId,
+    } = req.query;
     let query = {};
-    
-    // Non-super admins can only see logs for events they have access to
-    if (req.user.role !== 'super_admin') {
-      // For admins/planners, they can only see logs for events they're associated with
-      // You might need to add event access logic here
-      // For now, let's assume they can see logs for any event they have permission to view
-    }
-    
-    // Filter by event if provided
-    if (eventId) {
-      if (!mongoose.Types.ObjectId.isValid(eventId)) {
-        return res.status(400).json({
-          message: "Invalid event ID format",
-          error: "ValidationError",
-        });
-      }
+
+    // FIXED: Proper event filtering
+    if (eventId && mongoose.Types.ObjectId.isValid(eventId)) {
       query.eventId = eventId;
     }
-    
-    // Filter by action type if provided
-    if (actionType) {
-      query.actionType = actionType;
-    }
-    
-    // Filter by performer if provided (only super admins can filter by other users)
-    if (userId && req.user.role === 'super_admin') {
-      query.performedBy = userId;
-    }
-    
-    // Filter by date range if provided
+
+    if (actionType) query.actionType = actionType;
+    if (userId && req.user.role === "super_admin") query.performedBy = userId;
+
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
-    
-    // Query logs
+
+    // FIXED: Simplified query - populate only what's needed
     const logs = await ExpenseAuditLog.find(query)
       .populate("eventId", "name")
       .populate("performedBy", "firstName lastName email role")
-      .populate("expenseId", "description amount category")
+      .populate("expenseId", "description amount category paymentStatus")
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
 
+    // FIXED: Format for frontend compatibility
+    const formattedLogs = logs.map((log) => {
+      // Determine which data to use
+      const expenseData =
+        log.actionType === "DELETE"
+          ? log.deletedData
+          : log.newData || log.previousData || {};
+
+      return {
+        _id: log._id,
+        expenseId: log.expenseId?._id || log.expenseId,
+        expenseData: {
+          description: expenseData.description || log.expenseId?.description,
+          amount: expenseData.amount || log.expenseId?.amount,
+          category: expenseData.category || log.expenseId?.category,
+          vendor: expenseData.vendor || log.expenseId?.vendor,
+          paymentStatus:
+            expenseData.paymentStatus || log.expenseId?.paymentStatus,
+          paymentDate: expenseData.paymentDate,
+          dueDate: expenseData.dueDate,
+          notes: expenseData.notes,
+          receiptUrl: expenseData.receiptUrl,
+          createdAt: expenseData.createdAt || log.expenseId?.createdAt,
+          createdBy: expenseData.createdBy || log.expenseId?.createdBy,
+        },
+        event: {
+          _id: log.eventId?._id || log.eventId,
+          name: log.eventId?.name || "Unknown Event",
+        },
+        deletedBy: {
+          _id: log.performedBy?._id,
+          name: log.performedBy
+            ? `${log.performedBy.firstName} ${log.performedBy.lastName}`
+            : "Unknown User",
+          email: log.performedBy?.email,
+          role: log.performedByRole || log.performedBy?.role,
+        },
+        deletedAt: log.createdAt,
+        reason: log.reason,
+        metadata: log.budgetImpact
+          ? {
+              budgetRemainingBefore: log.budgetImpact.before?.remainingBudget,
+              budgetRemainingAfter: log.budgetImpact.after?.remainingBudget,
+            }
+          : {},
+        actionType: log.actionType,
+        changes: log.changes || [],
+      };
+    });
+
+    // FIXED: Return what frontend expects
     res.json({
-      auditLogs: logs,
-      count: logs.length,
-      filters: {
-        eventId,
-        actionType,
-        startDate,
-        endDate,
-        userId,
-      },
+      deletedPaidExpenses: formattedLogs, // Frontend uses this key
+      auditLogs: formattedLogs,
+      count: formattedLogs.length,
+      filters: { eventId, actionType, startDate, endDate, userId },
       userPermissions: {
         role: req.user.role,
-        canViewAll: req.user.role === 'super_admin',
+        canViewAll: req.user.role === "super_admin",
       },
     });
   } catch (err) {
+    console.error("Audit log error:", err);
     res.status(500).json({
       message: "Failed to fetch expense audit logs",
       error: err.message,
     });
   }
 };
-
 module.exports = {
   createExpense,
   getExpensesByEventId,
@@ -763,5 +716,6 @@ module.exports = {
   deleteExpense,
   getExpensesSummary,
   getAllExpenses,
-  getBudgetStatusForAllEvents, getExpenseAuditLogs
+  getBudgetStatusForAllEvents,
+  getExpenseAuditLogs,
 };
