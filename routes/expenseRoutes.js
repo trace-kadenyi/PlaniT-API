@@ -15,24 +15,32 @@ const {
 const authController = require("../controllers/authController");
 
 // create expense
-router.post("/", authController.protect, createExpense);
+// router.post("/", authController.protect, createExpense);
+// create expense - planners, admins, super_admins only
+router.post(
+  "/",
+  authController.protect,
+  authController.restrictTo("planner", "admin", "super_admin"),
+  createExpense
+);
 
-// get budget status
+// get budget status - all authenticated users
 router.get(
   "/budget-status",
   authController.protect,
   getBudgetStatusForAllEvents
 );
 
-// get expenses by event id
+// get expenses by event id - all authenticated users
 router.get("/event/:eventId", authController.protect, getExpensesByEventId);
 
-// get single expense
+// get single expense - all authenticated users
 router.get("/:id", authController.protect, getExpenseById);
 
 // update expense
 // router.put("/:id", authController.protect, updateExpense);
 
+// update expense - planners, admins, super_admins only
 router.put(
   "/:id",
   authController.protect,
@@ -42,6 +50,7 @@ router.put(
 
 // delete expense
 // router.delete("/:id", authController.protect, deleteExpense);
+// delete expense - planners, admins, super_admins only
 router.delete(
   "/:id",
   authController.protect,
@@ -49,10 +58,10 @@ router.delete(
   deleteExpense
 );
 
-// expenses summary
+// expenses summary - all authenticated users
 router.get("/:eventId/summary", authController.protect, getExpensesSummary);
 
-// get all expenses
+// get all expenses - all authenticated users
 router.get("/", authController.protect, getAllExpenses);
 
 // Audit logs - only admins and super admins can view
