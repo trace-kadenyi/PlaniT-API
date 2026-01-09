@@ -538,7 +538,7 @@ const getDeletedPaidExpensesLog = async (req, res) => {
     })
       .populate("eventId", "name")
       .populate("expenseData.vendor", "name services")
-      .populate("expenseData.createdBy", "firstName lastName email")
+      .populate("expenseData.createdBy", "firstName lastName email role")
       .populate("deletedBy", "firstName lastName email role")
       .sort({ createdAt: -1 });
 
