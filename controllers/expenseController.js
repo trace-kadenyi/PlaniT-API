@@ -11,26 +11,26 @@ const MAX_NOTES = 200;
 
 const canPerformExpenseAction = (user, expense, action) => {
   // All users can VIEW
-  if (action === 'view') return true;
-  
+  if (action === "view") return true;
+
   // VIEWERS cannot perform any write actions
-  if (user.role === 'viewer') return false;
-  
+  if (user.role === "viewer") return false;
+
   // For DELETE actions involving PAID expenses
-  if (action === 'delete' && expense.paymentStatus === 'paid') {
-    return user.role === 'super_admin'; // Only super admins can delete paid expenses
+  if (action === "delete" && expense.paymentStatus === "paid") {
+    return user.role === "super_admin"; // Only super admins can delete paid expenses
   }
-  
+
   // For all other write actions (CREATE, UPDATE, DELETE of unpaid expenses)
   // Planners, admins, and super admins can perform
-  return ['planner', 'admin', 'super_admin'].includes(user.role);
+  return ["planner", "admin", "super_admin"].includes(user.role);
 };
 
 // Create new expense
 const createExpense = async (req, res) => {
   try {
     // Check if user can create expenses
-    if (!canPerformExpenseAction(req.user, null, 'create')) {
+    if (!canPerformExpenseAction(req.user, null, "create")) {
       return res.status(403).json({
         error: "Forbidden",
         message: "You do not have permission to create expenses",
@@ -38,7 +38,7 @@ const createExpense = async (req, res) => {
         userRole: req.user.role,
       });
     }
-    
+
     const budgetStatus = await getBudgetStatus(req.body.eventId);
 
     // Enhanced validation
@@ -181,6 +181,29 @@ const updateExpense = async (req, res) => {
       });
     }
 
+    // Check if user can update this expense
+    if (!canPerformExpenseAction(req.user, existingExpense, "update")) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You do not have permission to update expenses",
+        requiredRole: ["planner", "admin", "super_admin"],
+        userRole: req.user.role,
+      });
+    }
+
+    // If trying to mark as paid, verify permissions
+    if (req.body.paymentStatus === "paid" && req.user.role === "viewer") {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Viewers cannot mark expenses as paid",
+        requiredRole: ["planner", "admin", "super_admin"],
+        userRole: req.user.role,
+      });
+    }
+
+    // Get budget status BEFORE update for logging
+    const budgetStatusBefore = await getBudgetStatus(existingExpense.eventId);
+
     // budget status
     const budgetStatus = await getBudgetStatus(existingExpense.eventId);
 
@@ -237,6 +260,21 @@ const updateExpense = async (req, res) => {
       .populate("vendor", "name services")
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email");
+
+    // ALWAYS log the update
+    const changes = getChangedFields(existingExpense, updatedExpense);
+
+    await logExpenseAction({
+      actionType: determineActionType(changes, false, false),
+      expense: updatedExpense,
+      previousExpense: existingExpense,
+      user: req.user,
+      reason: "Expense updated",
+      description: `Updated expense: ${updatedExpense.description} (${changes.length} fields changed)`,
+      budgetStatusBefore,
+      budgetStatusAfter: await getBudgetStatus(existingExpense.eventId),
+      req,
+    });
 
     res.json({
       expense: updatedExpense,
