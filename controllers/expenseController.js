@@ -9,6 +9,8 @@ const { getBudgetStatus } = require("../utils/budgetHelpers");
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
 
+
+// ============= PERMISSION HELPERS =============
 const canPerformExpenseAction = (user, expense, action) => {
   // All users can VIEW
   if (action === "view") return true;
@@ -17,13 +19,121 @@ const canPerformExpenseAction = (user, expense, action) => {
   if (user.role === "viewer") return false;
 
   // For DELETE actions involving PAID expenses
-  if (action === "delete" && expense.paymentStatus === "paid") {
+  if (action === "delete" && expense && expense.paymentStatus === "paid") {
     return user.role === "super_admin"; // Only super admins can delete paid expenses
   }
 
   // For all other write actions (CREATE, UPDATE, DELETE of unpaid expenses)
   // Planners, admins, and super admins can perform
   return ["planner", "admin", "super_admin"].includes(user.role);
+};
+
+const canViewAuditLogs = (user) => {
+  return ["admin", "super_admin"].includes(user.role);
+};
+
+// ============= AUDIT LOG HELPERS =============
+const getChangedFields = (oldExpense, newExpense) => {
+  const changes = [];
+  if (!oldExpense || !newExpense) return changes;
+  
+  const fields = [
+    'amount', 'description', 'category', 'vendor', 
+    'paymentStatus', 'paymentDate', 'dueDate', 'notes', 'receiptUrl'
+  ];
+  
+  fields.forEach(field => {
+    const oldValue = oldExpense[field];
+    const newValue = newExpense[field];
+    
+    if (field === 'vendor') {
+      const oldVendorId = oldValue ? oldValue.toString() : null;
+      const newVendorId = newValue ? newValue.toString() : null;
+      if (oldVendorId !== newVendorId) {
+        changes.push({ field, oldValue: oldVendorId, newValue: newVendorId });
+      }
+    } else if (field === 'paymentDate' || field === 'dueDate') {
+      const oldDate = oldValue ? oldValue.toISOString() : null;
+      const newDate = newValue ? newValue.toISOString() : null;
+      if (oldDate !== newDate) {
+        changes.push({ field, oldValue: oldDate, newValue: newDate });
+      }
+    } else if (oldValue !== newValue) {
+      changes.push({ field, oldValue, newValue });
+    }
+  });
+  
+  return changes;
+};
+
+const determineActionType = (changes, isCreate, isDelete) => {
+  if (isCreate) return "CREATE";
+  if (isDelete) return "DELETE";
+  
+  const amountChange = changes.find(c => c.field === 'amount');
+  const statusChange = changes.find(c => c.field === 'paymentStatus');
+  
+  if (amountChange) return "AMOUNT_CHANGE";
+  if (statusChange) return "STATUS_CHANGE";
+  
+  return "UPDATE";
+};
+
+const logExpenseAction = async ({
+  actionType,
+  expense,
+  previousExpense = null,
+  user,
+  reason = "",
+  description = "",
+  budgetStatusBefore,
+  budgetStatusAfter,
+  req,
+}) => {
+  try {
+    const changes = previousExpense ? getChangedFields(previousExpense, expense) : [];
+    
+    const logData = {
+      expenseId: expense._id,
+      eventId: expense.eventId,
+      actionType,
+      performedBy: user._id,
+      performedByRole: user.role,
+      changes,
+      reason,
+      description,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      isAmountChange: changes.some(c => c.field === 'amount'),
+      isPaymentStatusChange: changes.some(c => c.field === 'paymentStatus'),
+      isVendorChange: changes.some(c => c.field === 'vendor'),
+      isDeleted: actionType === "DELETE",
+    };
+    
+    // Store data snapshots
+    if (previousExpense) {
+      logData.previousData = previousExpense.toObject ? previousExpense.toObject() : previousExpense;
+    }
+    
+    if (actionType !== "DELETE") {
+      logData.newData = expense.toObject ? expense.toObject() : expense;
+    } else {
+      logData.deletedData = expense.toObject ? expense.toObject() : expense;
+    }
+    
+    // Add budget impact if available
+    if (budgetStatusBefore || budgetStatusAfter) {
+      logData.budgetImpact = {
+        before: budgetStatusBefore || {},
+        after: budgetStatusAfter || {},
+      };
+    }
+    
+    await ExpenseAuditLog.create(logData);
+  } catch (error) {
+    console.error("Failed to create audit log:", error);
+    // Don't throw - audit logging shouldn't break main functionality
+  }
 };
 
 // Create new expense
