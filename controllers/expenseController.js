@@ -9,9 +9,36 @@ const { getBudgetStatus } = require("../utils/budgetHelpers");
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
 
+const canPerformExpenseAction = (user, expense, action) => {
+  // All users can VIEW
+  if (action === 'view') return true;
+  
+  // VIEWERS cannot perform any write actions
+  if (user.role === 'viewer') return false;
+  
+  // For DELETE actions involving PAID expenses
+  if (action === 'delete' && expense.paymentStatus === 'paid') {
+    return user.role === 'super_admin'; // Only super admins can delete paid expenses
+  }
+  
+  // For all other write actions (CREATE, UPDATE, DELETE of unpaid expenses)
+  // Planners, admins, and super admins can perform
+  return ['planner', 'admin', 'super_admin'].includes(user.role);
+};
+
 // Create new expense
 const createExpense = async (req, res) => {
   try {
+    // Check if user can create expenses
+    if (!canPerformExpenseAction(req.user, null, 'create')) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You do not have permission to create expenses",
+        requiredRole: ["planner", "admin", "super_admin"],
+        userRole: req.user.role,
+      });
+    }
+    
     const budgetStatus = await getBudgetStatus(req.body.eventId);
 
     // Enhanced validation
