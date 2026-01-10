@@ -47,16 +47,36 @@ const getChangedFields = (oldExpense, newExpense) => {
     const newValue = newExpense[field];
 
     if (field === "vendor") {
-      const oldVendorId = oldValue ? oldValue.toString() : null;
-      const newVendorId = newValue ? newValue.toString() : null;
+      // Extract IDs from both values for comparison
+      const getVendorId = (value) => {
+        if (!value) return null;
+        if (typeof value === "string") return value;
+        if (value._id) return value._id.toString();
+        if (value.toString) return value.toString();
+        return null;
+      };
+
+      const oldVendorId = getVendorId(oldValue);
+      const newVendorId = getVendorId(newValue);
+
       if (oldVendorId !== newVendorId) {
-        changes.push({ field, oldValue: oldVendorId, newValue: newVendorId });
+        changes.push({
+          field,
+          oldValue: oldVendorId,
+          newValue: newVendorId,
+        });
       }
     } else if (field === "paymentDate" || field === "dueDate") {
-      const oldDate = oldValue ? oldValue.toISOString() : null;
-      const newDate = newValue ? newValue.toISOString() : null;
+      // Handle date comparisons properly
+      const oldDate = oldValue ? new Date(oldValue).toISOString() : null;
+      const newDate = newValue ? new Date(newValue).toISOString() : null;
+
       if (oldDate !== newDate) {
-        changes.push({ field, oldValue: oldDate, newValue: newDate });
+        changes.push({
+          field,
+          oldValue: oldValue ? new Date(oldValue).toISOString() : null,
+          newValue: newValue ? new Date(newValue).toISOString() : null,
+        });
       }
     } else if (oldValue !== newValue) {
       changes.push({ field, oldValue, newValue });
