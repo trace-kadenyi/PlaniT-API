@@ -338,7 +338,7 @@ const updateExpense = async (req, res) => {
       });
     }
 
-    // PREVENT EDITING OF PAID EXPENSES
+     // PREVENT EDITING OF PAID EXPENSES
     if (existingExpense.paymentStatus === "paid") {
       return res.status(400).json({
         error: "CannotEditPaidExpense",
