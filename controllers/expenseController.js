@@ -338,6 +338,15 @@ const updateExpense = async (req, res) => {
       });
     }
 
+    // PREVENT EDITING OF PAID EXPENSES
+    if (existingExpense.paymentStatus === "paid") {
+      return res.status(400).json({
+        error: "CannotEditPaidExpense",
+        message: "Paid expenses cannot be edited",
+        resolution: "If changes are needed, delete and recreate the expense",
+      });
+    }
+
     // Check if user can update this expense
     if (!canPerformExpenseAction(req.user, existingExpense, "update")) {
       return res.status(403).json({
