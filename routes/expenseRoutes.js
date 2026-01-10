@@ -14,6 +14,14 @@ const {
 } = require("../controllers/expenseController");
 const authController = require("../controllers/authController");
 
+// Audit logs - only admins and super admins can view
+router.get(
+  "/audit-logs",
+  authController.protect,
+  authController.restrictTo("admin", "super_admin"),
+  getExpenseAuditLogs
+);
+
 // create expense
 // router.post("/", authController.protect, createExpense);
 // create expense - planners, admins, super_admins only
@@ -63,13 +71,5 @@ router.get("/:eventId/summary", authController.protect, getExpensesSummary);
 
 // get all expenses - all authenticated users
 router.get("/", authController.protect, getAllExpenses);
-
-// Audit logs - only admins and super admins can view
-router.get(
-  "/audit-logs",
-  authController.protect,
-  authController.restrictTo("admin", "super_admin"),
-  getExpenseAuditLogs
-);
 
 module.exports = router;
