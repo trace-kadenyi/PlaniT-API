@@ -235,6 +235,17 @@ const createExpense = async (req, res) => {
     const expense = new Expense(expenseData);
     await expense.save();
 
+    // mutate budget
+    const budget = await Budget.findOne({ eventId: expense.eventId });
+
+    if (expense.paymentStatus === "paid") {
+      budget.spentAmount += expense.amount;
+    } else {
+      budget.reservedAmount += expense.amount;
+    }
+
+    await budget.save();
+
     const populatedExpense = await Expense.findById(expense._id)
       .populate("vendor", "name services")
       .populate("createdBy", "firstName lastName email");
@@ -338,7 +349,7 @@ const updateExpense = async (req, res) => {
       });
     }
 
-     // PREVENT EDITING OF PAID EXPENSES
+    // PREVENT EDITING OF PAID EXPENSES
     if (existingExpense.paymentStatus === "paid") {
       return res.status(400).json({
         error: "CannotEditPaidExpense",
@@ -374,19 +385,21 @@ const updateExpense = async (req, res) => {
     const budgetStatus = await getBudgetStatus(existingExpense.eventId);
 
     // Calculate potential new total if this update is applied
-    const potentialAmount = req.body.amount || existingExpense.amount;
-    const otherExpensesTotal =
-      budgetStatus.totalExpenses - existingExpense.amount;
-    const potentialRemaining =
-      budgetStatus.totalBudget - (otherExpensesTotal + potentialAmount);
+    const budget = await Budget.findOne({ eventId: existingExpense.eventId });
 
-    if (potentialRemaining < 0) {
-      return res.status(400).json({
-        message: `Update would exceed budget by $${-potentialRemaining.toFixed(
-          2
-        )}. Please work within the available budget or increase it.`,
-        maxAllowed: budgetStatus.totalBudget - otherExpensesTotal,
-      });
+    const oldAmount = existingExpense.amount;
+    const newAmount = req.body.amount ?? oldAmount;
+    const delta = newAmount - oldAmount;
+
+    if (existingExpense.paymentStatus === "pending") {
+      if (budget.remainingBudget < delta) {
+        return res.status(400).json({
+          message: `Update would exceed remaining budget by $${delta.toFixed(
+            2
+          )}. Please work within the available budget or increase it.`,
+          remainingBudget: budget.remainingBudget,
+        });
+      }
     }
 
     // Check description length if provided in update
@@ -427,6 +440,22 @@ const updateExpense = async (req, res) => {
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email");
 
+    // budget handling
+    if (existingExpense.paymentStatus === "pending") {
+      budget.reservedAmount -= oldAmount;
+      budget.reservedAmount += newAmount;
+    }
+
+    if (
+      existingExpense.paymentStatus === "pending" &&
+      updatedExpense.paymentStatus === "paid"
+    ) {
+      budget.reservedAmount -= updatedExpense.amount;
+      budget.spentAmount += updatedExpense.amount;
+    }
+
+    await budget.save();
+
     // ALWAYS log the update
     const changes = getChangedFields(existingExpense, updatedExpense);
 
@@ -458,6 +487,8 @@ const updateExpense = async (req, res) => {
   }
 };
 
+
+
 // Delete expense
 const deleteExpense = async (req, res) => {
   try {
@@ -478,29 +509,41 @@ const deleteExpense = async (req, res) => {
       });
     }
 
-    const budgetStatus = await getBudgetStatus(expense.eventId);
-    if (!budgetStatus) {
+    if (!canPerformExpenseAction(req.user, expense, "delete")) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message:
+          expense.paymentStatus === "paid"
+            ? "Only super administrators can delete paid expenses"
+            : "You do not have permission to delete expenses",
+        userRole: req.user.role,
+      });
+    }
+
+    const budget = await Budget.findOne({ eventId: expense.eventId });
+    if (!budget) {
       return res.status(404).json({ message: "Associated budget not found" });
     }
 
-    if (!canPerformExpenseAction(req.user, expense, "delete")) {
-      if (expense.paymentStatus === "paid") {
-        return res.status(403).json({
-          error: "Forbidden",
-          message: "Only super administrators can delete paid expenses",
-          requiredRole: "super_admin",
-          userRole: req.user.role,
-        });
-      } else {
-        return res.status(403).json({
-          error: "Forbidden",
-          message: "You do not have permission to delete expenses",
-          requiredRole: ["planner", "admin", "super_admin"],
-          userRole: req.user.role,
-        });
-      }
+    const budgetStatusBefore = await getBudgetStatus(expense.eventId);
+
+    // 🔄 Mutate budget safely
+    if (expense.paymentStatus === "pending") {
+      budget.reservedAmount -= expense.amount;
     }
 
+    if (expense.paymentStatus === "paid") {
+      budget.deletedPaidTotal += expense.amount;
+    }
+
+    await budget.save();
+
+    // 🧾 Delete expense
+    const deletedExpense = await Expense.findByIdAndDelete(req.params.id);
+
+    const budgetStatusAfter = await getBudgetStatus(expense.eventId);
+
+    // 📝 Log AFTER mutation
     await logExpenseAction({
       actionType: "DELETE",
       expense,
@@ -510,17 +553,14 @@ const deleteExpense = async (req, res) => {
           ? "Paid expense deleted by super administrator"
           : "Expense deleted",
       description: `Deleted expense: ${expense.description} (${expense.paymentStatus}, $${expense.amount})`,
-      budgetStatusBefore: budgetStatus,
-      budgetStatusAfter: await getBudgetStatus(expense.eventId),
+      budgetStatusBefore,
+      budgetStatusAfter,
       req,
     });
 
-    const deletedExpense = await Expense.findByIdAndDelete(req.params.id);
-    const updatedBudgetStatus = await getBudgetStatus(expense.eventId);
-
     res.json({
       message: "Expense deleted successfully",
-      budgetStatus: updatedBudgetStatus,
+      budgetStatus: budgetStatusAfter,
       deletedExpense: {
         _id: deletedExpense._id,
         amount: deletedExpense.amount,
@@ -534,7 +574,6 @@ const deleteExpense = async (req, res) => {
           role: req.user.role,
         },
       },
-      newRemaining: updatedBudgetStatus.remainingBudget,
     });
   } catch (err) {
     res.status(500).json({
@@ -576,44 +615,18 @@ const getExpensesSummary = async (req, res) => {
 // get budget status for all events
 const getBudgetStatusForAllEvents = async (req, res) => {
   try {
-    // 1. Get all events with their basic info
-    const events = await Event.find().select("_id name");
+    const budgets = await Budget.find().populate("eventId", "name");
 
-    // 2. Get all budgets
-    const budgets = await Budget.find().select("eventId totalBudget");
-
-    // 3. Get all expenses grouped by event
-    const expensesByEvent = await Expense.aggregate([
-      {
-        $group: {
-          _id: "$eventId",
-          totalExpenses: { $sum: "$amount" },
-        },
+    const response = budgets.map((b) => ({
+      eventId: b.eventId._id,
+      eventName: b.eventId.name,
+      budgetStatus: {
+        totalBudget: b.totalBudget,
+        spentAmount: b.spentAmount,
+        reservedAmount: b.reservedAmount,
+        remainingBudget: b.remainingBudget,
       },
-    ]);
-
-    // 4. Create response with accurate budget data
-    const response = events.map((event) => {
-      const eventBudget = budgets.find(
-        (b) => b.eventId.toString() === event._id.toString()
-      );
-      const eventExpense = expensesByEvent.find(
-        (e) => e._id.toString() === event._id.toString()
-      );
-
-      const totalBudget = eventBudget?.totalBudget || 0;
-      const totalExpenses = eventExpense?.totalExpenses || 0;
-
-      return {
-        eventId: event._id,
-        eventName: event.name,
-        budgetStatus: {
-          totalBudget,
-          totalExpenses,
-          remainingBudget: totalBudget - totalExpenses,
-        },
-      };
-    });
+    }));
 
     res.json(response);
   } catch (err) {
