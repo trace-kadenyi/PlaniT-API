@@ -4,6 +4,8 @@ const Event = require("../models/EventSchema");
 const Expense = require("../models/ExpenseSchema");
 const Budget = require("../models/BudgetSchema");
 const ExpenseAuditLog = require("../models/ExpenseAuditLogSchema");
+const User = require("../models/UserSchema");
+const Vendor = require("../models/VendorSchema");
 const { getBudgetStatus } = require("../utils/budgetHelpers");
 
 const MAX_DESCRIPTION = 150;
@@ -487,8 +489,6 @@ const updateExpense = async (req, res) => {
   }
 };
 
-
-
 // Delete expense
 const deleteExpense = async (req, res) => {
   try {
@@ -673,7 +673,6 @@ const getExpenseAuditLogs = async (req, res) => {
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
 
-    // FIXED: Simplified query - populate only what's needed
     const logs = await ExpenseAuditLog.find(query)
       .populate("eventId", "name")
       .populate("performedBy", "firstName lastName email role")
@@ -681,30 +680,91 @@ const getExpenseAuditLogs = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
 
-    // FIXED: Format for frontend compatibility
-    const formattedLogs = logs.map((log) => {
-      // Determine which data to use
-      const expenseData =
-        log.actionType === "DELETE"
-          ? log.deletedData
-          : log.newData || log.previousData || {};
+    const populatedLogs = await Promise.all(
+      logs.map(async (log) => {
+        // Create a copy of the log
+        const logObj = log.toObject();
 
+        // Determine which data to use
+        let expenseData = {};
+        if (log.actionType === "DELETE" && log.deletedData) {
+          expenseData = { ...log.deletedData };
+        } else if (log.newData) {
+          expenseData = { ...log.newData };
+        } else if (log.previousData) {
+          expenseData = { ...log.previousData };
+        }
+
+        // MANUALLY populate createdBy if it's an ObjectId
+        if (
+          expenseData.createdBy &&
+          mongoose.Types.ObjectId.isValid(expenseData.createdBy)
+        ) {
+          try {
+            const user = await User.findById(
+              expenseData.createdBy,
+              "firstName lastName email role"
+            );
+            expenseData.createdBy = user || {
+              _id: expenseData.createdBy,
+              firstName: "Unknown",
+            };
+          } catch (err) {
+            console.error("Error populating createdBy:", err.message);
+            expenseData.createdBy = {
+              _id: expenseData.createdBy,
+              firstName: "Unknown",
+            };
+          }
+        }
+
+        // MANUALLY populate vendor if it's an ObjectId
+        if (
+          expenseData.vendor &&
+          mongoose.Types.ObjectId.isValid(expenseData.vendor)
+        ) {
+          try {
+            const vendor = await Vendor.findById(
+              expenseData.vendor,
+              "name services email phone"
+            );
+            expenseData.vendor = vendor || {
+              _id: expenseData.vendor,
+              name: "Unknown Vendor",
+            };
+          } catch (err) {
+            console.error("Error populating vendor:", err.message);
+            expenseData.vendor = {
+              _id: expenseData.vendor,
+              name: "Unknown Vendor",
+            };
+          }
+        }
+
+        return {
+          ...logObj,
+          expenseData: expenseData,
+        };
+      })
+    );
+
+    // Format for frontend
+    const formattedLogs = populatedLogs.map((log) => {
       return {
         _id: log._id,
         expenseId: log.expenseId?._id || log.expenseId,
         expenseData: {
-          description: expenseData.description || log.expenseId?.description,
-          amount: expenseData.amount || log.expenseId?.amount,
-          category: expenseData.category || log.expenseId?.category,
-          vendor: expenseData.vendor || log.expenseId?.vendor,
-          paymentStatus:
-            expenseData.paymentStatus || log.expenseId?.paymentStatus,
-          paymentDate: expenseData.paymentDate,
-          dueDate: expenseData.dueDate,
-          notes: expenseData.notes,
-          receiptUrl: expenseData.receiptUrl,
-          createdAt: expenseData.createdAt || log.expenseId?.createdAt,
-          createdBy: expenseData.createdBy || log.expenseId?.createdBy,
+          description: log.expenseData?.description,
+          amount: log.expenseData?.amount,
+          category: log.expenseData?.category,
+          vendor: log.expenseData?.vendor,
+          paymentStatus: log.expenseData?.paymentStatus,
+          paymentDate: log.expenseData?.paymentDate,
+          dueDate: log.expenseData?.dueDate,
+          notes: log.expenseData?.notes,
+          receiptUrl: log.expenseData?.receiptUrl,
+          createdAt: log.expenseData?.createdAt,
+          createdBy: log.expenseData?.createdBy,
         },
         event: {
           _id: log.eventId?._id || log.eventId,
@@ -731,9 +791,8 @@ const getExpenseAuditLogs = async (req, res) => {
       };
     });
 
-    // FIXED: Return what frontend expects
     res.json({
-      deletedPaidExpenses: formattedLogs, // Frontend uses this key
+      deletedPaidExpenses: formattedLogs,
       auditLogs: formattedLogs,
       count: formattedLogs.length,
       filters: { eventId, actionType, startDate, endDate, userId },
@@ -750,6 +809,7 @@ const getExpenseAuditLogs = async (req, res) => {
     });
   }
 };
+
 module.exports = {
   createExpense,
   getExpensesByEventId,
