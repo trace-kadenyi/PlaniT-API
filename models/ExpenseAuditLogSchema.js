@@ -27,10 +27,14 @@ const expenseAuditLogSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    performedByRole: {
-      type: String,
-      enum: ["super_admin", "admin", "planner", "viewer"],
-      required: true,
+    performedBySnapshot: {
+      _id: {
+        type: mongoose.Schema.Types.ObjectId,
+      },
+      firstName: String,
+      lastName: String,
+      email: String,
+      role: String,
     },
 
     // Track specific changes
