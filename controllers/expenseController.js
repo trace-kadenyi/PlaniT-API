@@ -80,6 +80,14 @@ const createExpense = async (req, res) => {
     const expenseData = {
       ...req.body,
       createdBy: req.user._id,
+
+      createdBySnapshot: {
+        _id: req.user._id,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        email: req.user.email,
+        role: req.user.role,
+      },
     };
 
     const expense = new Expense(expenseData);
@@ -199,6 +207,14 @@ const updateExpense = async (req, res) => {
       });
     }
 
+    // cache event id
+    const eventId = existingExpense.eventId;
+
+    const [budget, budgetStatusBefore] = await Promise.all([
+      Budget.findOne({ eventId }), // may be null
+      getBudgetStatus(eventId),
+    ]);
+
     // PREVENT EDITING OF PAID EXPENSES
     if (existingExpense.paymentStatus === "paid") {
       return res.status(400).json({
@@ -228,17 +244,12 @@ const updateExpense = async (req, res) => {
       });
     }
 
-    // Get budget status BEFORE update for logging
-    const budgetStatusBefore = await getBudgetStatus(existingExpense.eventId);
-
-    // Calculate potential new total if this update is applied
-    const budget = await Budget.findOne({ eventId: existingExpense.eventId });
-
+    // 4️⃣ Budget math (only if budget exists)
     const oldAmount = existingExpense.amount;
     const newAmount = req.body.amount ?? oldAmount;
     const delta = newAmount - oldAmount;
 
-    if (existingExpense.paymentStatus === "pending") {
+    if (budget && existingExpense.paymentStatus === "pending") {
       if (budget.remainingBudget < delta) {
         return res.status(400).json({
           message: `Update would exceed remaining budget by $${delta.toFixed(
@@ -288,25 +299,27 @@ const updateExpense = async (req, res) => {
       .populate("updatedBy", "firstName lastName email");
 
     // budget handling
-    if (existingExpense.paymentStatus === "pending") {
+    if (budget && existingExpense.paymentStatus === "pending") {
       budget.reservedAmount -= oldAmount;
       budget.reservedAmount += newAmount;
     }
 
     if (
+      budget &&
       existingExpense.paymentStatus === "pending" &&
       updatedExpense.paymentStatus === "paid"
     ) {
       budget.reservedAmount -= updatedExpense.amount;
       budget.spentAmount += updatedExpense.amount;
     }
-
-    await budget.save();
-
+    if (budget) {
+      await budget.save();
+    }
     // ALWAYS log the update
     const changes = getChangedFields(existingExpense, updatedExpense);
+    const budgetStatusAfter = await getBudgetStatus(eventId);
 
-    await logExpenseAction({
+    logExpenseAction({
       actionType: determineActionType(changes, false, false),
       expense: updatedExpense,
       previousExpense: existingExpense,
@@ -314,13 +327,13 @@ const updateExpense = async (req, res) => {
       reason: "Expense updated",
       description: `Updated expense: ${updatedExpense.description} (${changes.length} fields changed)`,
       budgetStatusBefore,
-      budgetStatusAfter: await getBudgetStatus(existingExpense.eventId),
+      budgetStatusAfter,
       req,
     });
 
     res.json({
       expense: updatedExpense,
-      budgetStatus: await getBudgetStatus(existingExpense.eventId),
+      budgetStatus: budgetStatusAfter,
     });
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -540,28 +553,7 @@ const getExpenseAuditLogs = async (req, res) => {
           expenseData = { ...log.previousData };
         }
 
-        // MANUALLY populate createdBy if it's an ObjectId
-        if (
-          expenseData.createdBy &&
-          mongoose.Types.ObjectId.isValid(expenseData.createdBy)
-        ) {
-          try {
-            const user = await User.findById(
-              expenseData.createdBy,
-              "firstName lastName email role"
-            );
-            expenseData.createdBy = user || {
-              _id: expenseData.createdBy,
-              firstName: "Unknown",
-            };
-          } catch (err) {
-            console.error("Error populating createdBy:", err.message);
-            expenseData.createdBy = {
-              _id: expenseData.createdBy,
-              firstName: "Unknown",
-            };
-          }
-        }
+        expenseData.createdBy = expenseData.createdBySnapshot;
 
         // MANUALLY populate vendor if it's an ObjectId
         if (
@@ -598,6 +590,9 @@ const getExpenseAuditLogs = async (req, res) => {
       return {
         _id: log._id,
         expenseId: log.expenseId?._id || log.expenseId,
+        performedBy: log.performedBy,
+        performedBySnapshot: log.performedBySnapshot,
+        createdAt: log.createdAt,
         expenseData: {
           description: log.expenseData?.description,
           amount: log.expenseData?.amount,
@@ -610,20 +605,15 @@ const getExpenseAuditLogs = async (req, res) => {
           receiptUrl: log.expenseData?.receiptUrl,
           createdAt: log.expenseData?.createdAt,
           createdBy: log.expenseData?.createdBy,
+          createdBySnapshot: log.expenseData?.createdBySnapshot,
         },
         event: {
           _id: log.eventId?._id || log.eventId,
           name: log.eventId?.name || "Unknown Event",
         },
-        deletedBy: {
-          _id: log.performedBy?._id,
-          name: log.performedBy
-            ? `${log.performedBy.firstName} ${log.performedBy.lastName}`
-            : "Unknown User",
-          email: log.performedBy?.email,
-          role: log.performedByRole || log.performedBy?.role,
-        },
-        deletedAt: log.createdAt,
+        deletedBy:
+          log.actionType === "DELETE" ? log.performedBySnapshot : undefined,
+        deletedAt: log.actionType === "DELETE" ? log.createdAt : undefined,
         reason: log.reason,
         metadata: log.budgetImpact
           ? {
