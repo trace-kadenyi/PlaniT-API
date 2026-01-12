@@ -61,6 +61,16 @@ const expenseSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    createdBySnapshot: {
+      _id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      firstName: String,
+      lastName: String,
+      email: String,
+      role: String,
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
