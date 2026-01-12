@@ -142,9 +142,15 @@ const logExpenseAction = async ({
     }
 
     if (actionType !== "DELETE") {
-      logData.newData = expense.toObject?.() ?? expense;
+      logData.newData = {
+        ...expenseObj,
+        createdBySnapshot: expenseObj.createdBySnapshot ?? createdBySnapshot,
+      };
     } else {
-      logData.deletedData = expense.toObject?.() ?? expense;
+      logData.deletedData = {
+        ...expenseObj,
+        createdBySnapshot: expenseObj.createdBySnapshot ?? createdBySnapshot,
+      };
     }
 
     if (budgetStatusBefore || budgetStatusAfter) {
