@@ -231,9 +231,6 @@ const updateExpense = async (req, res) => {
     // Get budget status BEFORE update for logging
     const budgetStatusBefore = await getBudgetStatus(existingExpense.eventId);
 
-    // budget status
-    const budgetStatus = await getBudgetStatus(existingExpense.eventId);
-
     // Calculate potential new total if this update is applied
     const budget = await Budget.findOne({ eventId: existingExpense.eventId });
 
