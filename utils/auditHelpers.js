@@ -102,12 +102,31 @@ const logExpenseAction = async ({
       ? getChangedFields(previousExpense, expense)
       : [];
 
+    const expenseObj = expense.toObject?.() ?? expense;
+
+    const createdBySnapshot = expenseObj.createdBySnapshot ?? {
+      _id: expenseObj.createdBy?._id ?? expenseObj.createdBy,
+      firstName: expenseObj.createdBy?.firstName,
+      lastName: expenseObj.createdBy?.lastName,
+      email: expenseObj.createdBy?.email,
+      role: expenseObj.createdBy?.role,
+    };
+
     const logData = {
       expenseId: expense._id,
       eventId: expense.eventId,
       actionType,
       performedBy: user._id,
-      performedByRole: user.role,
+      performedBySnapshot: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+      },
+      createdBy: expenseObj.createdBy?._id ?? expenseObj.createdBy,
+      createdBySnapshot,
+
       changes,
       reason,
       description,
@@ -118,31 +137,14 @@ const logExpenseAction = async ({
       isVendorChange: changes.some((c) => c.field === "vendor"),
     };
 
-    // FIXED: Safe population with null checks
-    const safePopulate = async (expenseDoc) => {
-      if (!expenseDoc || !expenseDoc._id) return expenseDoc;
-      try {
-        const populated = await Expense.findById(expenseDoc._id)
-          .populate("vendor", "name services")
-          .populate("createdBy", "firstName lastName role");
-        return populated ? populated.toObject() : expenseDoc;
-      } catch (err) {
-        console.error("Population error, using original:", err.message);
-        return expenseDoc;
-      }
-    };
-
     if (previousExpense) {
-      const populatedPrev = await safePopulate(previousExpense);
-      logData.previousData = populatedPrev || previousExpense;
+      logData.previousData = previousExpense.toObject?.() ?? previousExpense;
     }
 
     if (actionType !== "DELETE") {
-      const populatedCurrent = await safePopulate(expense);
-      logData.newData = populatedCurrent || expense;
+      logData.newData = expense.toObject?.() ?? expense;
     } else {
-      const populatedDeleted = await safePopulate(expense);
-      logData.deletedData = populatedDeleted || expense;
+      logData.deletedData = expense.toObject?.() ?? expense;
     }
 
     if (budgetStatusBefore || budgetStatusAfter) {
