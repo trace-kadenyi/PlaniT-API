@@ -18,8 +18,6 @@ const {
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
 
-// ============= CONTROLLER FUNCTIONS =============
-
 // Create new expense
 const createExpense = async (req, res) => {
   try {
