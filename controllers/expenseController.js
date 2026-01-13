@@ -355,7 +355,12 @@ const deleteExpense = async (req, res) => {
       return res.status(404).json({ message: "Expense not found" });
     }
 
-    const event = await Event.findById(expense.eventId);
+    // 2️⃣ Fetch event + budget in parallel
+    const [event, budget] = await Promise.all([
+      Event.findById(expense.eventId),
+      Budget.findOne({ eventId: expense.eventId }),
+    ]);
+
     if (!event) {
       return res.status(404).json({ message: "Associated event not found" });
     }
@@ -365,6 +370,10 @@ const deleteExpense = async (req, res) => {
         message: "Cannot delete expenses for completed events",
         resolution: "Please reopen the event if changes are needed",
       });
+    }
+
+    if (!budget) {
+      return res.status(404).json({ message: "Associated budget not found" });
     }
 
     if (!canPerformExpenseAction(req.user, expense, "delete")) {
@@ -378,11 +387,7 @@ const deleteExpense = async (req, res) => {
       });
     }
 
-    const budget = await Budget.findOne({ eventId: expense.eventId });
-    if (!budget) {
-      return res.status(404).json({ message: "Associated budget not found" });
-    }
-
+    // 4️⃣ Budget snapshot BEFORE mutation
     const budgetStatusBefore = await getBudgetStatus(expense.eventId);
 
     // 🔄 Mutate budget safely
@@ -394,15 +399,17 @@ const deleteExpense = async (req, res) => {
       budget.deletedPaidTotal += expense.amount;
     }
 
-    await budget.save();
+    // 6️⃣ Save budget + delete expense in parallel
+    const [_, deletedExpense] = await Promise.all([
+      budget.save(),
+      Expense.findByIdAndDelete(expense._id),
+    ]);
 
-    // 🧾 Delete expense
-    const deletedExpense = await Expense.findByIdAndDelete(req.params.id);
-
+    // 7️⃣ Budget snapshot AFTER mutation
     const budgetStatusAfter = await getBudgetStatus(expense.eventId);
 
     // 📝 Log AFTER mutation
-    await logExpenseAction({
+    logExpenseAction({
       actionType: "DELETE",
       expense,
       user: req.user,
