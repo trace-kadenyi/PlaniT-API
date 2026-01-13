@@ -43,19 +43,4 @@ const clientSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Add middleware to handle population of deleted clients
-// clientSchema.post("find", function (docs) {
-//   docs.forEach((doc) => {
-//     if (doc.isDeleted) {
-//       doc.name = `${doc.name} (Deleted)`;
-//     }
-//   });
-// });
-
-// clientSchema.post("findOne", function (doc) {
-//   if (doc && doc.isDeleted) {
-//     doc.name = `${doc.name} (Deleted)`;
-//   }
-// });
-
 module.exports = mongoose.model("Client", clientSchema);
