@@ -39,7 +39,7 @@ const budgetSchema = new mongoose.Schema(
     notes: {
       type: String,
       trim: true,
-      maxlength: 300,
+      maxlength: [300, "Notes must be 300 characters or fewer"],
     },
   },
   {
