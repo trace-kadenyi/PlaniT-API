@@ -3,7 +3,17 @@ const mongoose = require("mongoose");
 const Event = require("../models/EventSchema");
 const Expense = require("../models/ExpenseSchema");
 const Budget = require("../models/BudgetSchema");
+const ExpenseAuditLog = require("../models/ExpenseAuditLogSchema");
+const User = require("../models/UserSchema");
+const Vendor = require("../models/VendorSchema");
 const { getBudgetStatus } = require("../utils/budgetHelpers");
+const {
+  canPerformExpenseAction,
+  canViewAuditLogs,
+  getChangedFields,
+  determineActionType,
+  logExpenseAction,
+} = require("../utils/auditHelpers");
 
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
@@ -11,6 +21,16 @@ const MAX_NOTES = 200;
 // Create new expense
 const createExpense = async (req, res) => {
   try {
+    // Check if user can create expenses
+    if (!canPerformExpenseAction(req.user, null, "create")) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You do not have permission to create expenses",
+        requiredRole: ["planner", "admin", "super_admin"],
+        userRole: req.user.role,
+      });
+    }
+
     const budgetStatus = await getBudgetStatus(req.body.eventId);
 
     // Enhanced validation
@@ -60,14 +80,48 @@ const createExpense = async (req, res) => {
     const expenseData = {
       ...req.body,
       createdBy: req.user._id,
+
+      createdBySnapshot: {
+        _id: req.user._id,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        email: req.user.email,
+        role: req.user.role,
+      },
     };
 
     const expense = new Expense(expenseData);
     await expense.save();
 
+    // mutate budget
+    const budget = await Budget.findOne({ eventId: expense.eventId });
+
+    if (expense.paymentStatus === "paid") {
+      budget.spentAmount += expense.amount;
+    } else {
+      budget.reservedAmount += expense.amount;
+    }
+
+    await budget.save();
+
     const populatedExpense = await Expense.findById(expense._id)
       .populate("vendor", "name services")
       .populate("createdBy", "firstName lastName email");
+
+    // NOTE: You said you don't want to log creation yet
+    // If you change your mind, uncomment this:
+    /*
+    await logExpenseAction({
+      actionType: "CREATE",
+      expense: populatedExpense,
+      user: req.user,
+      reason: "New expense created",
+      description: `Created expense: ${populatedExpense.description} for $${populatedExpense.amount}`,
+      budgetStatusBefore: budgetStatus,
+      budgetStatusAfter: await getBudgetStatus(req.body.eventId),
+      req,
+    });
+    */
 
     res.status(201).json({
       expense: populatedExpense,
@@ -153,23 +207,57 @@ const updateExpense = async (req, res) => {
       });
     }
 
-    // budget status
-    const budgetStatus = await getBudgetStatus(existingExpense.eventId);
+    // cache event id
+    const eventId = existingExpense.eventId;
 
-    // Calculate potential new total if this update is applied
-    const potentialAmount = req.body.amount || existingExpense.amount;
-    const otherExpensesTotal =
-      budgetStatus.totalExpenses - existingExpense.amount;
-    const potentialRemaining =
-      budgetStatus.totalBudget - (otherExpensesTotal + potentialAmount);
+    const [budget, budgetStatusBefore] = await Promise.all([
+      Budget.findOne({ eventId }), // may be null
+      getBudgetStatus(eventId),
+    ]);
 
-    if (potentialRemaining < 0) {
+    // PREVENT EDITING OF PAID EXPENSES
+    if (existingExpense.paymentStatus === "paid") {
       return res.status(400).json({
-        message: `Update would exceed budget by $${-potentialRemaining.toFixed(
-          2
-        )}. Please work within the available budget or increase it.`,
-        maxAllowed: budgetStatus.totalBudget - otherExpensesTotal,
+        error: "CannotEditPaidExpense",
+        message: "Paid expenses cannot be edited",
+        resolution: "If changes are needed, delete and recreate the expense",
       });
+    }
+
+    // Check if user can update this expense
+    if (!canPerformExpenseAction(req.user, existingExpense, "update")) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You do not have permission to update expenses",
+        requiredRole: ["planner", "admin", "super_admin"],
+        userRole: req.user.role,
+      });
+    }
+
+    // If trying to mark as paid, verify permissions
+    if (req.body.paymentStatus === "paid" && req.user.role === "viewer") {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Viewers cannot mark expenses as paid",
+        requiredRole: ["planner", "admin", "super_admin"],
+        userRole: req.user.role,
+      });
+    }
+
+    // 4️⃣ Budget math (only if budget exists)
+    const oldAmount = existingExpense.amount;
+    const newAmount = req.body.amount ?? oldAmount;
+    const delta = newAmount - oldAmount;
+
+    if (budget && existingExpense.paymentStatus === "pending") {
+      if (budget.remainingBudget < delta) {
+        return res.status(400).json({
+          message: `Update would exceed remaining budget by $${delta.toFixed(
+            2
+          )}. Please work within the available budget or increase it.`,
+          remainingBudget: budget.remainingBudget,
+        });
+      }
     }
 
     // Check description length if provided in update
@@ -210,9 +298,42 @@ const updateExpense = async (req, res) => {
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email");
 
+    // budget handling
+    if (budget && existingExpense.paymentStatus === "pending") {
+      budget.reservedAmount -= oldAmount;
+      budget.reservedAmount += newAmount;
+    }
+
+    if (
+      budget &&
+      existingExpense.paymentStatus === "pending" &&
+      updatedExpense.paymentStatus === "paid"
+    ) {
+      budget.reservedAmount -= updatedExpense.amount;
+      budget.spentAmount += updatedExpense.amount;
+    }
+    if (budget) {
+      await budget.save();
+    }
+    // ALWAYS log the update
+    const changes = getChangedFields(existingExpense, updatedExpense);
+    const budgetStatusAfter = await getBudgetStatus(eventId);
+
+    logExpenseAction({
+      actionType: determineActionType(changes, false, false),
+      expense: updatedExpense,
+      previousExpense: existingExpense,
+      user: req.user,
+      reason: "Expense updated",
+      description: `Updated expense: ${updatedExpense.description} (${changes.length} fields changed)`,
+      budgetStatusBefore,
+      budgetStatusAfter,
+      req,
+    });
+
     res.json({
       expense: updatedExpense,
-      budgetStatus: await getBudgetStatus(existingExpense.eventId),
+      budgetStatus: budgetStatusAfter,
     });
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -234,13 +355,16 @@ const deleteExpense = async (req, res) => {
       return res.status(404).json({ message: "Expense not found" });
     }
 
-    // Get associated event
-    const event = await Event.findById(expense.eventId);
+    // 2️⃣ Fetch event + budget in parallel
+    const [event, budget] = await Promise.all([
+      Event.findById(expense.eventId),
+      Budget.findOne({ eventId: expense.eventId }),
+    ]);
+
     if (!event) {
       return res.status(404).json({ message: "Associated event not found" });
     }
 
-    // Check if event is completed
     if (event.status === "Completed") {
       return res.status(400).json({
         message: "Cannot delete expenses for completed events",
@@ -248,37 +372,73 @@ const deleteExpense = async (req, res) => {
       });
     }
 
-    // Budget validation
-    const budgetStatus = await getBudgetStatus(expense.eventId);
-    if (!budgetStatus) {
+    if (!budget) {
       return res.status(404).json({ message: "Associated budget not found" });
     }
 
-    // Payment status check
-    if (expense.paymentStatus === "paid") {
-      return res.status(400).json({
+    if (!canPerformExpenseAction(req.user, expense, "delete")) {
+      return res.status(403).json({
+        error: "Forbidden",
         message:
-          "For transparency, this expense cannot be deleted because it has already been paid and deducted from the budget.",
-        actionRequired: "Create a compensating expense instead",
-        contact: "accounting@example.com",
+          expense.paymentStatus === "paid"
+            ? "Only super administrators can delete paid expenses"
+            : "You do not have permission to delete expenses",
+        userRole: req.user.role,
       });
     }
 
-    // Final deletion
-    const deletedExpense = await Expense.findByIdAndDelete(req.params.id);
-    const updatedBudgetStatus = await getBudgetStatus(expense.eventId);
+    // 4️⃣ Budget snapshot BEFORE mutation
+    const budgetStatusBefore = await getBudgetStatus(expense.eventId);
+
+    // 🔄 Mutate budget safely
+    if (expense.paymentStatus === "pending") {
+      budget.reservedAmount -= expense.amount;
+    }
+
+    if (expense.paymentStatus === "paid") {
+      budget.deletedPaidTotal += expense.amount;
+    }
+
+    // 6️⃣ Save budget + delete expense in parallel
+    const [_, deletedExpense] = await Promise.all([
+      budget.save(),
+      Expense.findByIdAndDelete(expense._id),
+    ]);
+
+    // 7️⃣ Budget snapshot AFTER mutation
+    const budgetStatusAfter = await getBudgetStatus(expense.eventId);
+
+    // 📝 Log AFTER mutation
+    logExpenseAction({
+      actionType: "DELETE",
+      expense,
+      user: req.user,
+      reason:
+        expense.paymentStatus === "paid"
+          ? "Paid expense deleted by super administrator"
+          : "Expense deleted",
+      description: `Deleted expense: ${expense.description} (${expense.paymentStatus}, $${expense.amount})`,
+      budgetStatusBefore,
+      budgetStatusAfter,
+      req,
+    });
 
     res.json({
       message: "Expense deleted successfully",
-      budgetStatus: updatedBudgetStatus,
+      budgetStatus: budgetStatusAfter,
       deletedExpense: {
         _id: deletedExpense._id,
         amount: deletedExpense.amount,
         category: deletedExpense.category,
         description: deletedExpense.description,
         date: deletedExpense.createdAt,
+        wasPaid: deletedExpense.paymentStatus === "paid",
+        deletedBy: {
+          id: req.user._id,
+          name: `${req.user.firstName} ${req.user.lastName}`,
+          role: req.user.role,
+        },
       },
-      newRemaining: updatedBudgetStatus.remainingBudget,
     });
   } catch (err) {
     res.status(500).json({
@@ -320,49 +480,173 @@ const getExpensesSummary = async (req, res) => {
 // get budget status for all events
 const getBudgetStatusForAllEvents = async (req, res) => {
   try {
-    // 1. Get all events with their basic info
-    const events = await Event.find().select("_id name");
+    const budgets = await Budget.find().populate("eventId", "name");
 
-    // 2. Get all budgets
-    const budgets = await Budget.find().select("eventId totalBudget");
-
-    // 3. Get all expenses grouped by event
-    const expensesByEvent = await Expense.aggregate([
-      {
-        $group: {
-          _id: "$eventId",
-          totalExpenses: { $sum: "$amount" },
-        },
+    const response = budgets.map((b) => ({
+      eventId: b.eventId._id,
+      eventName: b.eventId.name,
+      budgetStatus: {
+        totalBudget: b.totalBudget,
+        spentAmount: b.spentAmount,
+        reservedAmount: b.reservedAmount,
+        remainingBudget: b.remainingBudget,
       },
-    ]);
-
-    // 4. Create response with accurate budget data
-    const response = events.map((event) => {
-      const eventBudget = budgets.find(
-        (b) => b.eventId.toString() === event._id.toString()
-      );
-      const eventExpense = expensesByEvent.find(
-        (e) => e._id.toString() === event._id.toString()
-      );
-
-      const totalBudget = eventBudget?.totalBudget || 0;
-      const totalExpenses = eventExpense?.totalExpenses || 0;
-
-      return {
-        eventId: event._id,
-        eventName: event.name,
-        budgetStatus: {
-          totalBudget,
-          totalExpenses,
-          remainingBudget: totalBudget - totalExpenses,
-        },
-      };
-    });
+    }));
 
     res.json(response);
   } catch (err) {
     res.status(500).json({
       message: "Failed to get budget status",
+      error: err.message,
+    });
+  }
+};
+
+// Get expense audit logs
+const getExpenseAuditLogs = async (req, res) => {
+  try {
+    if (!canViewAuditLogs(req.user)) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Only administrators can view audit logs",
+        requiredRole: ["admin", "super_admin"],
+        userRole: req.user.role,
+      });
+    }
+
+    const {
+      eventId,
+      actionType,
+      startDate,
+      endDate,
+      limit = 100,
+      userId,
+    } = req.query;
+    let query = {};
+
+    // FIXED: Proper event filtering
+    if (eventId && mongoose.Types.ObjectId.isValid(eventId)) {
+      query.eventId = eventId;
+    }
+
+    if (actionType) query.actionType = actionType;
+    if (userId && req.user.role === "super_admin") query.performedBy = userId;
+
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    const logs = await ExpenseAuditLog.find(query)
+      .populate("eventId", "name")
+      .populate("performedBy", "firstName lastName email role")
+      .populate("expenseId", "description amount category paymentStatus")
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    const populatedLogs = await Promise.all(
+      logs.map(async (log) => {
+        // Create a copy of the log
+        const logObj = log.toObject();
+
+        // Determine which data to use
+        let expenseData = {};
+        if (log.actionType === "DELETE" && log.deletedData) {
+          expenseData = { ...log.deletedData };
+        } else if (log.newData) {
+          expenseData = { ...log.newData };
+        } else if (log.previousData) {
+          expenseData = { ...log.previousData };
+        }
+
+        expenseData.createdBy = expenseData.createdBySnapshot;
+
+        // MANUALLY populate vendor if it's an ObjectId
+        if (
+          expenseData.vendor &&
+          mongoose.Types.ObjectId.isValid(expenseData.vendor)
+        ) {
+          try {
+            const vendor = await Vendor.findById(
+              expenseData.vendor,
+              "name services email phone"
+            );
+            expenseData.vendor = vendor || {
+              _id: expenseData.vendor,
+              name: "Unknown Vendor",
+            };
+          } catch (err) {
+            console.error("Error populating vendor:", err.message);
+            expenseData.vendor = {
+              _id: expenseData.vendor,
+              name: "Unknown Vendor",
+            };
+          }
+        }
+
+        return {
+          ...logObj,
+          expenseData: expenseData,
+        };
+      })
+    );
+
+    // Format for frontend
+    const formattedLogs = populatedLogs.map((log) => {
+      return {
+        _id: log._id,
+        expenseId: log.expenseId?._id || log.expenseId,
+        performedBy: log.performedBy,
+        performedBySnapshot: log.performedBySnapshot,
+        createdAt: log.createdAt,
+        expenseData: {
+          description: log.expenseData?.description,
+          amount: log.expenseData?.amount,
+          category: log.expenseData?.category,
+          vendor: log.expenseData?.vendor,
+          paymentStatus: log.expenseData?.paymentStatus,
+          paymentDate: log.expenseData?.paymentDate,
+          dueDate: log.expenseData?.dueDate,
+          notes: log.expenseData?.notes,
+          receiptUrl: log.expenseData?.receiptUrl,
+          createdAt: log.expenseData?.createdAt,
+          createdBy: log.expenseData?.createdBy,
+          createdBySnapshot: log.expenseData?.createdBySnapshot,
+        },
+        event: {
+          _id: log.eventId?._id || log.eventId,
+          name: log.eventId?.name || "Unknown Event",
+        },
+        deletedBy:
+          log.actionType === "DELETE" ? log.performedBySnapshot : undefined,
+        deletedAt: log.actionType === "DELETE" ? log.createdAt : undefined,
+        reason: log.reason,
+        metadata: log.budgetImpact
+          ? {
+              budgetRemainingBefore: log.budgetImpact.before?.remainingBudget,
+              budgetRemainingAfter: log.budgetImpact.after?.remainingBudget,
+            }
+          : {},
+        actionType: log.actionType,
+        changes: log.changes || [],
+      };
+    });
+
+    res.json({
+      deletedPaidExpenses: formattedLogs,
+      auditLogs: formattedLogs,
+      count: formattedLogs.length,
+      filters: { eventId, actionType, startDate, endDate, userId },
+      userPermissions: {
+        role: req.user.role,
+        canViewAll: req.user.role === "super_admin",
+      },
+    });
+  } catch (err) {
+    console.error("Audit log error:", err);
+    res.status(500).json({
+      message: "Failed to fetch expense audit logs",
       error: err.message,
     });
   }
@@ -377,4 +661,5 @@ module.exports = {
   getExpensesSummary,
   getAllExpenses,
   getBudgetStatusForAllEvents,
+  getExpenseAuditLogs,
 };
