@@ -85,36 +85,6 @@ const getAllClients = async (req, res) => {
 };
 
 // Get a single client and their events
-// const getClientWithEvents = async (req, res) => {
-//   try {
-//     // Get all users in the same organization
-//     const organizationUsers = await User.find({
-//       organization: req.user.organization,
-//     }).select("_id");
-
-//     const organizationUserIds = organizationUsers.map((user) => user._id);
-
-//     const client = await Client.findOne({
-//       _id: req.params.id,
-//       createdBy: { $in: organizationUserIds }, // ← Only clients from same org
-//     });
-//     if (!client) {
-//       return res.status(404).json({ error: "Client not found" });
-//     }
-
-//     const events = await Event.find({ client: req.params.id });
-
-//     const clientData = client.toObject();
-//     if (client.isDeleted) {
-//       clientData.name = `${client.name} (Deleted)`;
-//     }
-
-//     res.json({ client: clientData, events });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
 const getClientWithEvents = async (req, res) => {
   try {
     const client = await Client.findOne({
