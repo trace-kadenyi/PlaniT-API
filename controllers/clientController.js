@@ -278,25 +278,6 @@ const deleteClient = async (req, res) => {
 };
 
 // Delete all clients completely
-// const deleteAllClients = async (req, res) => {
-//   try {
-//     const result = await Client.updateMany(
-//       { isDeleted: false }, // Only delete clients that aren't already deleted
-//       {
-//         isDeleted: true,
-//         deletedAt: new Date(),
-//       }
-//     );
-
-//     res.json({
-//       message: "All clients permanently deleted successfully",
-//       deletedCount: result.modifiedCount,
-//     });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
 const deleteAllClients = async (req, res) => {
   try {
     const clients = await Client.find({
