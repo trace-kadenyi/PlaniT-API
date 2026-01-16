@@ -283,7 +283,9 @@ const deleteVendor = async (req, res) => {
 const deleteAllVendors = async (req, res) => {
   try {
     // Delete all vendors
-    const deletedVendors = await Vendor.deleteMany({});
+    const deletedVendors = await Vendor.deleteMany({
+      organizationId: req.user.organization,
+    });
 
     res.json({
       message: "All vendors deleted successfully",
