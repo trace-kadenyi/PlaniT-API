@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 
 const Client = require("../models/ClientSchema");
 const Event = require("../models/EventSchema");
-const User = require("../models/UserSchema");
 
 const MAX_NOTES = 200;
 const MAX_PREFERENCES = 150;
