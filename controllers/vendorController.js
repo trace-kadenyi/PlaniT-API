@@ -40,19 +40,42 @@ const createVendor = async (req, res) => {
 };
 
 // Get all vendors
+// const getAllVendors = async (req, res) => {
+//   try {
+//     const { service, archived } = req.query;
+
+//     // Get all users in the same organization
+//     const organizationUsers = await User.find({
+//       organization: req.user.organization,
+//     }).select("_id");
+
+//     const organizationUserIds = organizationUsers.map((user) => user._id);
+
+//     const filter = {
+//       createdBy: { $in: organizationUserIds },
+//     };
+
+//     if (service) {
+//       filter.services = service;
+//     }
+//     if (archived !== undefined) {
+//       filter.isArchived = archived === "true";
+//     }
+
+//     const vendors = await Vendor.find(filter).sort({ name: 1 });
+//     res.json(vendors);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 const getAllVendors = async (req, res) => {
   try {
     const { service, archived } = req.query;
 
-    // Get all users in the same organization
-    const organizationUsers = await User.find({
-      organization: req.user.organization,
-    }).select("_id");
-
-    const organizationUserIds = organizationUsers.map((user) => user._id);
-
+    // filter by org
     const filter = {
-      createdBy: { $in: organizationUserIds },
+      organizationId: req.user.organization,
     };
 
     if (service) {
