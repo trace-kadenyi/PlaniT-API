@@ -68,6 +68,12 @@ const eventSchema = new mongoose.Schema(
         ref: "Vendor",
       },
     ],
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

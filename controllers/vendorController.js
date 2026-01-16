@@ -20,6 +20,7 @@ const createVendor = async (req, res) => {
 
     const vendorData = {
       ...req.body,
+      organizationId: req.user.organization,
       createdBy: req.user._id,
     };
 
@@ -39,19 +40,42 @@ const createVendor = async (req, res) => {
 };
 
 // Get all vendors
+// const getAllVendors = async (req, res) => {
+//   try {
+//     const { service, archived } = req.query;
+
+//     // Get all users in the same organization
+//     const organizationUsers = await User.find({
+//       organization: req.user.organization,
+//     }).select("_id");
+
+//     const organizationUserIds = organizationUsers.map((user) => user._id);
+
+//     const filter = {
+//       createdBy: { $in: organizationUserIds },
+//     };
+
+//     if (service) {
+//       filter.services = service;
+//     }
+//     if (archived !== undefined) {
+//       filter.isArchived = archived === "true";
+//     }
+
+//     const vendors = await Vendor.find(filter).sort({ name: 1 });
+//     res.json(vendors);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 const getAllVendors = async (req, res) => {
   try {
     const { service, archived } = req.query;
 
-    // Get all users in the same organization
-    const organizationUsers = await User.find({
-      organization: req.user.organization,
-    }).select("_id");
-
-    const organizationUserIds = organizationUsers.map((user) => user._id);
-
+    // filter by org
     const filter = {
-      createdBy: { $in: organizationUserIds },
+      organizationId: req.user.organization,
     };
 
     if (service) {
@@ -69,18 +93,33 @@ const getAllVendors = async (req, res) => {
 };
 
 // Get vendor by ID
+// const getVendorById = async (req, res) => {
+//   try {
+//     // Get all users in the same organization
+//     const organizationUsers = await User.find({
+//       organization: req.user.organization,
+//     }).select("_id");
+
+//     const organizationUserIds = organizationUsers.map((user) => user._id);
+
+//     const vendor = await Vendor.findOne({
+//       _id: req.params.id,
+//       createdBy: { $in: organizationUserIds },
+//     });
+
+//     if (!vendor) {
+//       return res.status(404).json({ message: "Vendor not found" });
+//     }
+//     res.json(vendor);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
 const getVendorById = async (req, res) => {
   try {
-    // Get all users in the same organization
-    const organizationUsers = await User.find({
-      organization: req.user.organization,
-    }).select("_id");
-
-    const organizationUserIds = organizationUsers.map((user) => user._id);
-
     const vendor = await Vendor.findOne({
       _id: req.params.id,
-      createdBy: { $in: organizationUserIds },
+      organizationId: req.user.organization,
     });
 
     if (!vendor) {
@@ -93,6 +132,42 @@ const getVendorById = async (req, res) => {
 };
 
 // Update vendor
+// const updateVendor = async (req, res) => {
+//   try {
+//     // Check notes length if provided in update
+//     if (req.body.notes && req.body.notes.length > MAX_NOTES) {
+//       return res.status(400).json({
+//         error: "ValidationError",
+//         message: `Notes cannot exceed ${MAX_NOTES} characters`,
+//         field: "notes",
+//         maxLength: MAX_NOTES,
+//         currentLength: req.body.notes.length,
+//       });
+//     }
+
+//     const updatedVendor = await Vendor.findByIdAndUpdate(
+//       req.params.id,
+//       req.body,
+//       { new: true, runValidators: true }
+//     );
+
+//     if (!updatedVendor) {
+//       return res.status(404).json({ message: "Vendor not found" });
+//     }
+
+//     res.json(updatedVendor);
+//   } catch (err) {
+//     if (err.name === "ValidationError") {
+//       return res.status(400).json({
+//         message: Object.values(err.errors)
+//           .map((e) => e.message)
+//           .join(", "),
+//       });
+//     }
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 const updateVendor = async (req, res) => {
   try {
     // Check notes length if provided in update
@@ -106,8 +181,11 @@ const updateVendor = async (req, res) => {
       });
     }
 
-    const updatedVendor = await Vendor.findByIdAndUpdate(
-      req.params.id,
+    const updatedVendor = await Vendor.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        organizationId: req.user.organization,
+      },
       req.body,
       { new: true, runValidators: true }
     );
@@ -132,7 +210,11 @@ const updateVendor = async (req, res) => {
 // Archive/unarchive vendor
 const toggleVendorArchive = async (req, res) => {
   try {
-    const vendor = await Vendor.findById(req.params.id);
+    const vendor = await Vendor.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    });
+
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
@@ -154,17 +236,10 @@ const toggleVendorArchive = async (req, res) => {
 // Get vendor statistics
 const getVendorStats = async (req, res) => {
   try {
-    // Get all users in the same organization
-    const organizationUsers = await User.find({
-      organization: req.user.organization,
-    }).select("_id");
-
-    const organizationUserIds = organizationUsers.map((user) => user._id);
-
     const stats = await Vendor.aggregate([
       {
         $match: {
-          createdBy: { $in: organizationUserIds },
+          organizationId: req.user.organization,
         },
       },
       {
@@ -186,7 +261,10 @@ const getVendorStats = async (req, res) => {
 // Delete vendor completely
 const deleteVendor = async (req, res) => {
   try {
-    const vendor = await Vendor.findByIdAndDelete(req.params.id);
+    const vendor = await Vendor.findOneAndDelete({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    });
 
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
@@ -205,7 +283,9 @@ const deleteVendor = async (req, res) => {
 const deleteAllVendors = async (req, res) => {
   try {
     // Delete all vendors
-    const deletedVendors = await Vendor.deleteMany({});
+    const deletedVendors = await Vendor.deleteMany({
+      organizationId: req.user.organization,
+    });
 
     res.json({
       message: "All vendors deleted successfully",

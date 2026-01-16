@@ -22,6 +22,12 @@ const clientSchema = new mongoose.Schema(
       type: String,
       default: "Individual",
     },
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
     isArchived: {
       type: Boolean,
       default: false,

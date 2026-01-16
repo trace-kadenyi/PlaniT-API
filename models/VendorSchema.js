@@ -23,6 +23,12 @@ const vendorSchema = new mongoose.Schema(
       ],
       required: true,
     },
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
     contact: {
       email: { type: String, trim: true },
       phone: { type: String, trim: true },
