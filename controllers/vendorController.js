@@ -261,7 +261,10 @@ const getVendorStats = async (req, res) => {
 // Delete vendor completely
 const deleteVendor = async (req, res) => {
   try {
-    const vendor = await Vendor.findByIdAndDelete(req.params.id);
+    const vendor = await Vendor.findOneAndDelete({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    });
 
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
