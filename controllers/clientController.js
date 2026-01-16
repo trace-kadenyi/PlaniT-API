@@ -221,67 +221,6 @@ const restoreClient = async (req, res) => {
 
 // HANDLE CLIENT DELETE
 // Permanent soft delete only
-// const deleteClient = async (req, res) => {
-//   try {
-//     // Validate that the ID is a valid ObjectId
-//     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-//       return res.status(400).json({ error: "Invalid client ID" });
-//     }
-
-//     // Check if client has any associated events
-//     const eventCount = await Event.countDocuments({
-//       client: new mongoose.Types.ObjectId(String(req.params.id)),
-//     });
-
-//     if (eventCount > 0) {
-//       // Client has events - SOFT DELETE
-//       const client = await Client.findByIdAndUpdate(
-//         req.params.id,
-//         {
-//           isDeleted: true,
-//           deletedAt: new Date(),
-//           isArchived: true, // Also archive if not already
-//         },
-//         { new: true }
-//       );
-
-//       if (!client) {
-//         return res.status(404).json({ error: "Client not found" });
-//       }
-
-//       return res.json({
-//         message:
-//           "Client permanently deleted (records preserved for existing events)",
-//         client: {
-//           _id: client._id,
-//           name: `${client.name} (Deleted)`,
-//           isDeleted: true,
-//           deletedAt: client.deletedAt,
-//           hasEvents: true,
-//           eventCount,
-//         },
-//       });
-//     } else {
-//       // Client has NO events - HARD DELETE
-//       const client = await Client.findByIdAndDelete(req.params.id);
-
-//       if (!client) {
-//         return res.status(404).json({ error: "Client not found" });
-//       }
-
-//       return res.json({
-//         message: "Client permanently deleted (no associated events)",
-//         deletedClient: client,
-//         hasEvents: false,
-//         eventCount: 0,
-//       });
-//     }
-//   } catch (err) {
-//     console.error("Delete client error:", err);
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
 const deleteClient = async (req, res) => {
   try {
     // Validate that the ID is a valid ObjectId
