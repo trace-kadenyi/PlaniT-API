@@ -236,17 +236,10 @@ const toggleVendorArchive = async (req, res) => {
 // Get vendor statistics
 const getVendorStats = async (req, res) => {
   try {
-    // Get all users in the same organization
-    const organizationUsers = await User.find({
-      organization: req.user.organization,
-    }).select("_id");
-
-    const organizationUserIds = organizationUsers.map((user) => user._id);
-
     const stats = await Vendor.aggregate([
       {
         $match: {
-          createdBy: { $in: organizationUserIds },
+          organizationId: req.user.organization,
         },
       },
       {
