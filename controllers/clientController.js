@@ -34,6 +34,7 @@ const createClient = async (req, res) => {
 
     const clientData = {
       ...req.body,
+      organizationId: req.user.organizationId,
       createdBy: req.user._id,
     };
 
