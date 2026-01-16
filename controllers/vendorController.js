@@ -1,6 +1,4 @@
-const mongoose = require("mongoose");
 const Vendor = require("../models/VendorSchema");
-const User = require("../models/UserSchema");
 
 const MAX_NOTES = 200;
 
