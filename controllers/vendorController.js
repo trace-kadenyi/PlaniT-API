@@ -93,18 +93,33 @@ const getAllVendors = async (req, res) => {
 };
 
 // Get vendor by ID
+// const getVendorById = async (req, res) => {
+//   try {
+//     // Get all users in the same organization
+//     const organizationUsers = await User.find({
+//       organization: req.user.organization,
+//     }).select("_id");
+
+//     const organizationUserIds = organizationUsers.map((user) => user._id);
+
+//     const vendor = await Vendor.findOne({
+//       _id: req.params.id,
+//       createdBy: { $in: organizationUserIds },
+//     });
+
+//     if (!vendor) {
+//       return res.status(404).json({ message: "Vendor not found" });
+//     }
+//     res.json(vendor);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
 const getVendorById = async (req, res) => {
   try {
-    // Get all users in the same organization
-    const organizationUsers = await User.find({
-      organization: req.user.organization,
-    }).select("_id");
-
-    const organizationUserIds = organizationUsers.map((user) => user._id);
-
     const vendor = await Vendor.findOne({
       _id: req.params.id,
-      createdBy: { $in: organizationUserIds },
+      organizationId: req.user.organization,
     });
 
     if (!vendor) {
