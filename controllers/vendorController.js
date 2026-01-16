@@ -210,7 +210,11 @@ const updateVendor = async (req, res) => {
 // Archive/unarchive vendor
 const toggleVendorArchive = async (req, res) => {
   try {
-    const vendor = await Vendor.findById(req.params.id);
+    const vendor = await Vendor.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    });
+
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
