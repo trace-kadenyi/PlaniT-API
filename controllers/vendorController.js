@@ -20,6 +20,7 @@ const createVendor = async (req, res) => {
 
     const vendorData = {
       ...req.body,
+      organizationId: req.user.organization,
       createdBy: req.user._id,
     };
 
