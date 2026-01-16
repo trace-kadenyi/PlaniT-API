@@ -113,45 +113,6 @@ const getClientWithEvents = async (req, res) => {
 };
 
 // Update a client
-// const updateClient = async (req, res) => {
-//   // Check notes length if provided
-//   if (req.body.notes && req.body.notes.length > MAX_NOTES) {
-//     return res.status(400).json({
-//       error: "ValidationError",
-//       message: `Client notes cannot exceed ${MAX_NOTES} characters`,
-//       field: "notes",
-//       maxLength: MAX_NOTES,
-//       currentLength: req.body.notes.length,
-//     });
-//   }
-
-//   // Check prereferences length if provided
-//   if (req.body.preferences && req.body.preferences.length > MAX_PREFERENCES) {
-//     return res.status(400).json({
-//       error: "ValidationError",
-//       message: `Client preferences cannot exceed ${MAX_PREFERENCES} characters`,
-//       field: "preferences",
-//       maxLength: MAX_PREFERENCES,
-//       currentLength: req.body.preferences.length,
-//     });
-//   }
-//   try {
-//     const client = await Client.findByIdAndUpdate(
-//       req.params.id,
-//       { $set: req.body },
-//       { new: true, runValidators: true }
-//     );
-
-//     if (!client) {
-//       return res.status(404).json({ error: "Client not found" });
-//     }
-
-//     res.json(client);
-//   } catch (err) {
-//     res.status(400).json({ error: err.message });
-//   }
-// };
-
 const updateClient = async (req, res) => {
   try {
     // Check notes length if provided
