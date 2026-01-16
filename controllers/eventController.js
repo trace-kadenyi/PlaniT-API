@@ -55,6 +55,7 @@ const createEvent = async (req, res) => {
 
     const eventData = {
       ...req.body,
+      organizationId: req.user.organization,
       date: eventDate,
       createdBy: req.user._id,
     };
@@ -274,7 +275,7 @@ const updateEvent = async (req, res) => {
     //   $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
     // });
 
-     const existingEvent = await Event.findOne({
+    const existingEvent = await Event.findOne({
       _id: req.params.id,
       // $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
     });
