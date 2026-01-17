@@ -255,15 +255,8 @@ const getEventById = async (req, res) => {
 // Update an event
 const updateEvent = async (req, res) => {
   try {
-    // check if user has permission to update this event
-    // const existingEvent = await Event.findOne({
-    //   _id: req.params.id,
-    //   $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
-    // });
-
     const existingEvent = await Event.findOne({
       _id: req.params.id,
-      // $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
     });
 
     if (!existingEvent) {
@@ -271,20 +264,6 @@ const updateEvent = async (req, res) => {
         .status(404)
         .json({ message: "Event not found or access denied" });
     }
-
-    // If assigning a client, check if that client exists and is not deleted
-    // if (req.body.client) {
-    //   const client = await Client.findOne({
-    //     _id: req.body.client,
-    //     isDeleted: false,
-    //   });
-
-    //   if (!client) {
-    //     return res.status(400).json({
-    //       message: "Cannot assign a deleted or non-existent client to an event",
-    //     });
-    //   }
-    // }
 
     // Normalize the date if provided
     let eventDate;
