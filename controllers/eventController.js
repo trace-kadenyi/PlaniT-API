@@ -120,30 +120,15 @@ const createEvent = async (req, res) => {
 // Get all events
 const getAllEvents = async (req, res) => {
   try {
-    // Find all users in the same organization
-    const organizationUsers = await User.find({
-      organization: req.user.organization,
-    }).select("_id");
-
-    const organizationUserIds = organizationUsers.map((user) => user._id);
-
     // Show events created by ANY user in the same organization
     const events = await Event.find({
-      createdBy: { $in: organizationUserIds },
+      organizationId: req.user.organization,
     })
       .populate("client")
       .populate("createdBy", "firstName lastName")
       .populate("updatedBy", "firstName lastName email")
       .sort({ createdAt: -1 })
       .lean();
-
-    // Apply the "(Deleted)" label to client names if they are deleted
-    // const eventsWithProperClients = events.map((event) => {
-    //   if (event.client && event.client.isDeleted) {
-    //     event.client.name = `${event.client.name} (Deleted)`;
-    //   }
-    //   return event;
-    // });
 
     // Get all expenses grouped by event
     const expensesByEvent = await Expense.aggregate([
