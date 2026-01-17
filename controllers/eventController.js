@@ -184,17 +184,10 @@ const getAllEvents = async (req, res) => {
 // Get event by ID
 const getEventById = async (req, res) => {
   try {
-    // Find all users in the same organization
-    const organizationUsers = await User.find({
-      organization: req.user.organization,
-    }).select("_id");
-
-    const organizationUserIds = organizationUsers.map((user) => user._id);
-
     // Only allow access if event was created by someone in the same organization
     const event = await Event.findOne({
       _id: req.params.id,
-      createdBy: { $in: organizationUserIds },
+      organizationId: req.user.organization,
     })
       .populate("client")
       .populate("createdBy", "firstName lastName")
