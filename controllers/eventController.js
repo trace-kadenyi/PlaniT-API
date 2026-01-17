@@ -33,6 +33,7 @@ const createEvent = async (req, res) => {
     if (req.body.client) {
       const client = await Client.findOne({
         _id: req.body.client,
+        organizationId: req.user.organization,
         isDeleted: false,
       });
 
