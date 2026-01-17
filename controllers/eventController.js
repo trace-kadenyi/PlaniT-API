@@ -257,6 +257,7 @@ const updateEvent = async (req, res) => {
   try {
     const existingEvent = await Event.findOne({
       _id: req.params.id,
+      organizationId: req.user.organization,
     });
 
     if (!existingEvent) {
@@ -310,13 +311,13 @@ const updateEvent = async (req, res) => {
       });
     }
 
-    const updatedEvent = await Event.findByIdAndUpdate(
-      req.params.id,
-      updateData, // Use normalized data
+    const updatedEvent = await Event.findOneAndUpdate(
       {
-        new: true,
-        runValidators: true,
-      }
+        _id: req.params.id,
+        organizationId: req.user.organization,
+      },
+      updateData,
+      { new: true, runValidators: true }
     )
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email")
