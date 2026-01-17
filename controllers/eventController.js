@@ -331,7 +331,10 @@ const updateEvent = async (req, res) => {
 // Delete an event
 const deleteEvent = async (req, res) => {
   try {
-    const deletedEvent = await Event.findByIdAndDelete(req.params.id);
+    const deletedEvent = await Event.findOneAndDelete({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    });
 
     if (!deletedEvent) {
       return res.status(404).json({ message: "Event not found" });
@@ -356,6 +359,7 @@ const deleteEvent = async (req, res) => {
         // Count remaining events for this client
         const remainingEvents = await Event.countDocuments({
           client: deletedEvent.client,
+          organizationId: req.user.organization,
         });
 
         // If no more events, hard delete the client
