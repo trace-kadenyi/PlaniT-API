@@ -34,13 +34,13 @@ const userUpdateHistorySchema = new mongoose.Schema(
       ],
       default: "profile_update",
     },
-    description: String, // Human readable summary
+    description: String,
     ipAddress: String,
     userAgent: String,
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Index for faster queries
