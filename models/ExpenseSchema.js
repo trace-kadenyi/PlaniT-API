@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const expenseSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
     eventId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Event",
@@ -78,9 +84,10 @@ const expenseSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 expenseSchema.index({ eventId: 1, category: 1 });
+expenseSchema.index({ organizationId: 1, eventId: 1 });
 
 module.exports = mongoose.model("Expense", expenseSchema);
