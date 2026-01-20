@@ -50,10 +50,6 @@ const createExpense = async (req, res) => {
       });
     }
 
-    if (!budget) {
-      throw new Error("Budget missing after validation");
-    }
-
     // Enhanced validation
     if (budgetStatus.totalBudget === 0) {
       return res.status(404).json({
@@ -117,6 +113,10 @@ const createExpense = async (req, res) => {
 
     // mutate budget
     const budget = await Budget.findOne({ eventId: expense.eventId });
+
+    if (!budget) {
+      throw new Error("Budget missing after validation");
+    }
 
     if (expense.paymentStatus === "paid") {
       budget.spentAmount += expense.amount;
@@ -549,7 +549,9 @@ const getExpenseAuditLogs = async (req, res) => {
       limit = 100,
       userId,
     } = req.query;
-    let query = {};
+    let query = {
+      organizationId: req.user.organization,
+    };
 
     // FIXED: Proper event filtering
     if (eventId && mongoose.Types.ObjectId.isValid(eventId)) {
