@@ -221,7 +221,11 @@ const getExpenseById = async (req, res) => {
 // Update expense
 const updateExpense = async (req, res) => {
   try {
-    const existingExpense = await Expense.findById(req.params.id);
+    const existingExpense = await Expense.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    });
+
     if (!existingExpense) {
       return res.status(404).json({
         error: "NotFound",
