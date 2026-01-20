@@ -84,7 +84,7 @@ const createUser = async (req, res) => {
     await newUser.save();
 
     const userResponse = await User.findById(newUser._id).select(
-      "-password -passwordResetToken -passwordResetExpires"
+      "-password -passwordResetToken -passwordResetExpires",
     );
 
     res.status(201).json({
@@ -186,7 +186,7 @@ const updateUser = async (req, res) => {
         // Verify current password
         const isPasswordCorrect = await targetUser.correctPassword(
           currentPassword,
-          targetUser.password
+          targetUser.password,
         );
 
         if (!isPasswordCorrect) {
@@ -222,9 +222,11 @@ const updateUser = async (req, res) => {
 
     // If no changes, return early
     if (changes.length === 0) {
-      const currentUser = await User.findById(targetUser._id).select(
-        "-password -passwordResetToken -passwordResetExpires"
-      );
+      const currentUser = await User.findOne({
+        _id: targetUser._id,
+        organization: req.user.organization,
+      }).select("-password -passwordResetToken -passwordResetExpires");
+
       return res.json({
         message: "No changes detected",
         user: currentUser,
@@ -243,6 +245,7 @@ const updateUser = async (req, res) => {
     // Create update history entry
     const updateHistory = new UserUpdateHistory({
       userId: targetUser._id,
+      organization: req.user.organization,
       updatedBy: req.user._id,
       updatedByRole: req.user.role,
       changes,
@@ -257,8 +260,12 @@ const updateUser = async (req, res) => {
     // Keep only last 50 updates
     await UserUpdateHistory.deleteMany({
       userId: targetUser._id,
+      organization: req.user.organization,
       _id: {
-        $nin: await UserUpdateHistory.find({ userId: targetUser._id })
+        $nin: await UserUpdateHistory.find({
+          userId: targetUser._id,
+          organization: req.user.organization,
+        })
           .sort({ createdAt: -1 })
           .limit(50)
           .select("_id")
@@ -267,7 +274,7 @@ const updateUser = async (req, res) => {
     });
 
     const updatedUser = await User.findById(targetUser._id).select(
-      "-password -passwordResetToken -passwordResetExpires"
+      "-password -passwordResetToken -passwordResetExpires",
     );
 
     res.json({
@@ -325,6 +332,7 @@ const updateUserRole = async (req, res) => {
     // Log the role change
     const updateHistory = new UserUpdateHistory({
       userId: targetUser._id,
+      organization: req.user.organization,
       updatedBy: req.user._id,
       updatedByRole: req.user.role,
       changes,
@@ -337,7 +345,7 @@ const updateUserRole = async (req, res) => {
     await updateHistory.save();
 
     const updatedUser = await User.findById(targetUser._id).select(
-      "-password -passwordResetToken -passwordResetExpires"
+      "-password -passwordResetToken -passwordResetExpires",
     );
 
     res.json({
@@ -425,6 +433,7 @@ const getUserUpdateHistory = async (req, res) => {
 
     const history = await UserUpdateHistory.find({
       userId: req.params.userId,
+      organization: req.user.organization,
     })
       .populate("updatedBy", "firstName lastName email role")
       .sort({ createdAt: -1 })
