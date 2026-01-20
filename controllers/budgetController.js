@@ -72,7 +72,7 @@ const updateBudget = async (req, res) => {
     const budget = await Budget.findOne({
       eventId: req.params.eventId,
       organizationId: req.user.organization,
-    }).lean();
+    });
 
     if (!budget) {
       return res.status(404).json({ message: "Budget not found" });
@@ -91,6 +91,7 @@ const updateBudget = async (req, res) => {
         { $group: { _id: null, total: { $sum: "$amount" } } },
       ]);
 
+      // 3️⃣ Validate new totalBudget
       const totalExpenses = expenses[0]?.total || 0;
       if (req.body.totalBudget < totalExpenses) {
         return res.status(400).json({
@@ -99,6 +100,7 @@ const updateBudget = async (req, res) => {
       }
     }
 
+    // 4️⃣ Update + save
     const { totalBudget, notes } = req.body;
     Object.assign(budget, { totalBudget, notes });
     await budget.save();
