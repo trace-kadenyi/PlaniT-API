@@ -21,8 +21,8 @@ const normalizeEventDate = (date) => {
       d.getUTCMonth(),
       d.getUTCDate(),
       d.getUTCHours(),
-      d.getUTCMinutes()
-    )
+      d.getUTCMinutes(),
+    ),
   );
 };
 
@@ -91,6 +91,7 @@ const createEvent = async (req, res) => {
     // Create associated budget
     const budget = new Budget({
       eventId: savedEvent._id,
+      organizationId: req.user.organization,
       totalBudget: req.body.initialBudget || 0,
       notes: req.body.budgetNotes || "",
     });
@@ -133,6 +134,11 @@ const getAllEvents = async (req, res) => {
     // Get all expenses grouped by event
     const expensesByEvent = await Expense.aggregate([
       {
+        $match: {
+          organizationId: req.user.organization,
+        },
+      },
+      {
         $group: {
           _id: "$eventId",
           expenseIds: { $push: "$_id" },
@@ -144,7 +150,7 @@ const getAllEvents = async (req, res) => {
     const eventsWithVendors = await Promise.all(
       events.map(async (event) => {
         const eventExpenses = expensesByEvent.find(
-          (e) => e._id.toString() === event._id.toString()
+          (e) => e._id.toString() === event._id.toString(),
         );
 
         let vendors = [];
@@ -172,7 +178,7 @@ const getAllEvents = async (req, res) => {
           createdAt: event.createdAt?.toISOString(),
           updatedAt: event.updatedAt?.toISOString(),
         };
-      })
+      }),
     );
 
     res.json(eventsWithVendors);
@@ -201,15 +207,15 @@ const getEventById = async (req, res) => {
     }
 
     // Get all expenses for this event to calculate totals and get vendors
-    const expenses = await Expense.find({ eventId: req.params.id }).populate(
-      "vendor",
-      "name services isArchived"
-    );
+    const expenses = await Expense.find({
+      eventId: req.params.id,
+      organizationId: req.user.organization,
+    }).populate("vendor", "name services isArchived");
 
     // Calculate total expenses
     const totalExpenses = expenses.reduce(
       (sum, expense) => sum + expense.amount,
-      0
+      0,
     );
 
     // Get unique vendors from expenses
@@ -222,7 +228,10 @@ const getEventById = async (req, res) => {
     const vendors = Array.from(vendorMap.values());
 
     // Get budget
-    const budget = await Budget.findOne({ eventId: req.params.id }).lean();
+    const budget = await Budget.findOne({
+      eventId: req.params.id,
+      organizationId: req.user.organization,
+    }).lean();
 
     const responseData = {
       ...event,
@@ -305,7 +314,7 @@ const updateEvent = async (req, res) => {
         organizationId: req.user.organization,
       },
       updateData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     )
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email")
@@ -343,8 +352,14 @@ const deleteEvent = async (req, res) => {
     // Cascade delete all related documents
     await Promise.all([
       Task.deleteMany({ eventId: req.params.id }),
-      Budget.deleteOne({ eventId: req.params.id }),
-      Expense.deleteMany({ eventId: req.params.id }),
+      Budget.deleteOne({
+        eventId: req.params.id,
+        organizationId: req.user.organization,
+      }),
+      Expense.deleteMany({
+        eventId: req.params.id,
+        organizationId: req.user.organization,
+      }),
     ]);
 
     // If event had a client, check if client should be hard-deleted
