@@ -115,6 +115,7 @@ const logExpenseAction = async ({
     const logData = {
       expenseId: expense._id,
       eventId: expense.eventId,
+      organizationId: user.organization,
       actionType,
       performedBy: user._id,
       performedBySnapshot: {

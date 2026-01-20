@@ -31,6 +31,7 @@ const createClient = async (req, res) => {
       });
     }
 
+    // client data
     const clientData = {
       ...req.body,
       organizationId: req.user.organization,
@@ -123,7 +124,7 @@ const updateClient = async (req, res) => {
         isDeleted: false,
       },
       { $set: req.body },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!client) {
@@ -149,7 +150,7 @@ const archiveClient = async (req, res) => {
         isArchived: true,
         archivedAt: new Date(),
       },
-      { new: true }
+      { new: true },
     );
 
     if (!client) {
@@ -180,7 +181,7 @@ const restoreClient = async (req, res) => {
         isArchived: false,
         archivedAt: null,
       },
-      { new: true }
+      { new: true },
     );
 
     if (!client) {

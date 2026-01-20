@@ -1,12 +1,31 @@
 const Budget = require("../models/BudgetSchema");
 const Expense = require("../models/ExpenseSchema");
+const Event = require("../models/EventSchema");
 
 const mongoose = require("mongoose");
 
 // Get budget by event ID
 const getBudgetByEventId = async (req, res) => {
   try {
-    const budget = await Budget.findOne({ eventId: req.params.eventId }).lean();
+    // 1️⃣ Validate event ownership FIRST
+    const event = await Event.findOne({
+      _id: req.params.eventId,
+      organizationId: req.user.organization,
+    }).select("_id");
+
+    if (!event) {
+      return res.status(404).json({
+        error: "EventNotFound",
+        message: "Event not found or does not belong to your organization",
+      });
+    }
+
+    // 2️⃣ Fetch budget (org-scoped)
+    const budget = await Budget.findOne({
+      eventId: req.params.eventId,
+      organizationId: req.user.organization,
+    }).lean();
+
     if (!budget) {
       return res.status(404).json({ message: "Budget not found" });
     }
@@ -16,6 +35,9 @@ const getBudgetByEventId = async (req, res) => {
       {
         $match: {
           eventId: new mongoose.Types.ObjectId(String(req.params.eventId)),
+          organizationId: new mongoose.Types.ObjectId(
+            String(req.user.organization),
+          ),
         },
       },
       { $group: { _id: null, total: { $sum: "$amount" } } },
@@ -34,7 +56,25 @@ const getBudgetByEventId = async (req, res) => {
 // Update budget
 const updateBudget = async (req, res) => {
   try {
-    const budget = await Budget.findOne({ eventId: req.params.eventId });
+    // 1️⃣ Validate event ownership FIRST
+    const event = await Event.findOne({
+      _id: req.params.eventId,
+      organizationId: req.user.organization,
+    }).select("_id");
+
+    if (!event) {
+      return res.status(404).json({
+        error: "EventNotFound",
+        message: "Event not found or does not belong to your organization",
+      });
+    }
+
+    // 2️⃣ Fetch budget
+    const budget = await Budget.findOne({
+      eventId: req.params.eventId,
+      organizationId: req.user.organization,
+    });
+
     if (!budget) {
       return res.status(404).json({ message: "Budget not found" });
     }
@@ -44,11 +84,15 @@ const updateBudget = async (req, res) => {
         {
           $match: {
             eventId: new mongoose.Types.ObjectId(String(req.params.eventId)),
+            organizationId: new mongoose.Types.ObjectId(
+              String(req.user.organization),
+            ),
           },
         },
         { $group: { _id: null, total: { $sum: "$amount" } } },
       ]);
 
+      // 3️⃣ Validate new totalBudget
       const totalExpenses = expenses[0]?.total || 0;
       if (req.body.totalBudget < totalExpenses) {
         return res.status(400).json({
@@ -57,6 +101,7 @@ const updateBudget = async (req, res) => {
       }
     }
 
+    // 4️⃣ Update + save
     const { totalBudget, notes } = req.body;
     Object.assign(budget, { totalBudget, notes });
     await budget.save();

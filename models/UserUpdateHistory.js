@@ -7,6 +7,12 @@ const userUpdateHistorySchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -34,13 +40,13 @@ const userUpdateHistorySchema = new mongoose.Schema(
       ],
       default: "profile_update",
     },
-    description: String, // Human readable summary
+    description: String,
     ipAddress: String,
     userAgent: String,
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Index for faster queries

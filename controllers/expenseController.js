@@ -31,7 +31,24 @@ const createExpense = async (req, res) => {
       });
     }
 
-    const budgetStatus = await getBudgetStatus(req.body.eventId);
+    const eventId = req.body.eventId;
+
+    // 2️⃣ Fetch event + budget status IN PARALLEL
+    const [event, budgetStatus] = await Promise.all([
+      Event.findOne({
+        _id: eventId,
+        organizationId: req.user.organization,
+      }),
+      getBudgetStatus(eventId, req.user.organization),
+    ]);
+
+    // 3️⃣ Event validation
+    if (!event) {
+      return res.status(404).json({
+        error: "EventNotFound",
+        message: "Event not found or does not belong to your organization",
+      });
+    }
 
     // Enhanced validation
     if (budgetStatus.totalBudget === 0) {
@@ -67,7 +84,7 @@ const createExpense = async (req, res) => {
     if (req.body.amount > budgetStatus.remainingBudget) {
       return res.status(400).json({
         message: `Expense exceeds remaining budget ($${budgetStatus.remainingBudget.toFixed(
-          2
+          2,
         )} available). Top up your overall budget with $${(
           req.body.amount - budgetStatus.remainingBudget
         ).toFixed(2)} to add this expense.`,
@@ -79,6 +96,7 @@ const createExpense = async (req, res) => {
     // Add createdBy from authenticated user
     const expenseData = {
       ...req.body,
+      organizationId: event.organizationId,
       createdBy: req.user._id,
 
       createdBySnapshot: {
@@ -94,7 +112,14 @@ const createExpense = async (req, res) => {
     await expense.save();
 
     // mutate budget
-    const budget = await Budget.findOne({ eventId: expense.eventId });
+    const budget = await Budget.findOne({
+      eventId: expense.eventId,
+      organizationId: expense.organizationId,
+    });
+
+    if (!budget) {
+      throw new Error("Budget missing after validation");
+    }
 
     if (expense.paymentStatus === "paid") {
       budget.spentAmount += expense.amount;
@@ -108,24 +133,12 @@ const createExpense = async (req, res) => {
       .populate("vendor", "name services")
       .populate("createdBy", "firstName lastName email");
 
-    // NOTE: You said you don't want to log creation yet
-    // If you change your mind, uncomment this:
-    /*
-    await logExpenseAction({
-      actionType: "CREATE",
-      expense: populatedExpense,
-      user: req.user,
-      reason: "New expense created",
-      description: `Created expense: ${populatedExpense.description} for $${populatedExpense.amount}`,
-      budgetStatusBefore: budgetStatus,
-      budgetStatusAfter: await getBudgetStatus(req.body.eventId),
-      req,
-    });
-    */
-
     res.status(201).json({
       expense: populatedExpense,
-      budgetStatus: await getBudgetStatus(req.body.eventId),
+      budgetStatus: await getBudgetStatus(
+        req.body.eventId,
+        req.user.organization,
+      ),
     });
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -142,7 +155,10 @@ const createExpense = async (req, res) => {
 // Get all expenses
 const getAllExpenses = async (req, res) => {
   try {
-    const expenses = await Expense.find();
+    const expenses = await Expense.find({
+      organizationId: req.user.organization,
+    });
+
     res.json(expenses);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -152,13 +168,19 @@ const getAllExpenses = async (req, res) => {
 // Get all expenses for an event
 const getExpensesByEventId = async (req, res) => {
   try {
-    const expenses = await Expense.find({ eventId: req.params.eventId })
+    const expenses = await Expense.find({
+      eventId: req.params.eventId,
+      organizationId: req.user.organization,
+    })
       .populate("vendor", "name services isArchived")
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email")
       .sort({ createdAt: -1 });
 
-    const budgetStatus = await getBudgetStatus(req.params.eventId);
+    const budgetStatus = await getBudgetStatus(
+      req.params.eventId,
+      req.user.organization,
+    );
 
     // Always return success with empty array if no expenses exist
     res.json({
@@ -182,7 +204,10 @@ const getExpensesByEventId = async (req, res) => {
 // Get expense by ID
 const getExpenseById = async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id)
+    const expense = await Expense.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    })
       .populate("vendor", "name services")
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email");
@@ -199,7 +224,11 @@ const getExpenseById = async (req, res) => {
 // Update expense
 const updateExpense = async (req, res) => {
   try {
-    const existingExpense = await Expense.findById(req.params.id);
+    const existingExpense = await Expense.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    });
+
     if (!existingExpense) {
       return res.status(404).json({
         error: "NotFound",
@@ -211,8 +240,11 @@ const updateExpense = async (req, res) => {
     const eventId = existingExpense.eventId;
 
     const [budget, budgetStatusBefore] = await Promise.all([
-      Budget.findOne({ eventId }), // may be null
-      getBudgetStatus(eventId),
+      Budget.findOne({
+        eventId,
+        organizationId: req.user.organization,
+      }), // may be null
+      getBudgetStatus(eventId, req.user.organization),
     ]);
 
     // PREVENT EDITING OF PAID EXPENSES
@@ -253,7 +285,7 @@ const updateExpense = async (req, res) => {
       if (budget.remainingBudget < delta) {
         return res.status(400).json({
           message: `Update would exceed remaining budget by $${delta.toFixed(
-            2
+            2,
           )}. Please work within the available budget or increase it.`,
           remainingBudget: budget.remainingBudget,
         });
@@ -292,7 +324,7 @@ const updateExpense = async (req, res) => {
     const updatedExpense = await Expense.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     )
       .populate("vendor", "name services")
       .populate("createdBy", "firstName lastName email")
@@ -317,7 +349,10 @@ const updateExpense = async (req, res) => {
     }
     // ALWAYS log the update
     const changes = getChangedFields(existingExpense, updatedExpense);
-    const budgetStatusAfter = await getBudgetStatus(eventId);
+    const budgetStatusAfter = await getBudgetStatus(
+      eventId,
+      req.user.organization,
+    );
 
     logExpenseAction({
       actionType: determineActionType(changes, false, false),
@@ -350,15 +385,25 @@ const updateExpense = async (req, res) => {
 // Delete expense
 const deleteExpense = async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id);
+    const expense = await Expense.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    });
+
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
 
     // 2️⃣ Fetch event + budget in parallel
     const [event, budget] = await Promise.all([
-      Event.findById(expense.eventId),
-      Budget.findOne({ eventId: expense.eventId }),
+      Event.findOne({
+        _id: expense.eventId,
+        organizationId: req.user.organization,
+      }),
+      Budget.findOne({
+        eventId: expense.eventId,
+        organizationId: req.user.organization,
+      }),
     ]);
 
     if (!event) {
@@ -388,7 +433,10 @@ const deleteExpense = async (req, res) => {
     }
 
     // 4️⃣ Budget snapshot BEFORE mutation
-    const budgetStatusBefore = await getBudgetStatus(expense.eventId);
+    const budgetStatusBefore = await getBudgetStatus(
+      expense.eventId,
+      req.user.organization,
+    );
 
     // 🔄 Mutate budget safely
     if (expense.paymentStatus === "pending") {
@@ -406,7 +454,10 @@ const deleteExpense = async (req, res) => {
     ]);
 
     // 7️⃣ Budget snapshot AFTER mutation
-    const budgetStatusAfter = await getBudgetStatus(expense.eventId);
+    const budgetStatusAfter = await getBudgetStatus(
+      expense.eventId,
+      req.user.organization,
+    );
 
     // 📝 Log AFTER mutation
     logExpenseAction({
@@ -456,6 +507,9 @@ const getExpensesSummary = async (req, res) => {
       {
         $match: {
           eventId: new mongoose.Types.ObjectId(String(req.params.eventId)),
+          organizationId: new mongoose.Types.ObjectId(
+            String(req.user.organization),
+          ),
         },
       },
       {
@@ -470,7 +524,10 @@ const getExpensesSummary = async (req, res) => {
 
     res.json({
       categories: summary,
-      budgetStatus: await getBudgetStatus(req.params.eventId),
+      budgetStatus: await getBudgetStatus(
+        req.params.eventId,
+        req.user.organization,
+      ),
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -480,7 +537,9 @@ const getExpensesSummary = async (req, res) => {
 // get budget status for all events
 const getBudgetStatusForAllEvents = async (req, res) => {
   try {
-    const budgets = await Budget.find().populate("eventId", "name");
+    const budgets = await Budget.find({
+      organizationId: req.user.organization,
+    }).populate("eventId", "name");
 
     const response = budgets.map((b) => ({
       eventId: b.eventId._id,
@@ -522,7 +581,9 @@ const getExpenseAuditLogs = async (req, res) => {
       limit = 100,
       userId,
     } = req.query;
-    let query = {};
+    let query = {
+      organizationId: req.user.organization,
+    };
 
     // FIXED: Proper event filtering
     if (eventId && mongoose.Types.ObjectId.isValid(eventId)) {
@@ -570,7 +631,7 @@ const getExpenseAuditLogs = async (req, res) => {
           try {
             const vendor = await Vendor.findById(
               expenseData.vendor,
-              "name services email phone"
+              "name services email phone",
             );
             expenseData.vendor = vendor || {
               _id: expenseData.vendor,
@@ -589,7 +650,7 @@ const getExpenseAuditLogs = async (req, res) => {
           ...logObj,
           expenseData: expenseData,
         };
-      })
+      }),
     );
 
     // Format for frontend

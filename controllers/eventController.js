@@ -21,8 +21,8 @@ const normalizeEventDate = (date) => {
       d.getUTCMonth(),
       d.getUTCDate(),
       d.getUTCHours(),
-      d.getUTCMinutes()
-    )
+      d.getUTCMinutes(),
+    ),
   );
 };
 
@@ -33,6 +33,7 @@ const createEvent = async (req, res) => {
     if (req.body.client) {
       const client = await Client.findOne({
         _id: req.body.client,
+        organizationId: req.user.organization,
         isDeleted: false,
       });
 
@@ -90,6 +91,7 @@ const createEvent = async (req, res) => {
     // Create associated budget
     const budget = new Budget({
       eventId: savedEvent._id,
+      organizationId: req.user.organization,
       totalBudget: req.body.initialBudget || 0,
       notes: req.body.budgetNotes || "",
     });
@@ -119,16 +121,9 @@ const createEvent = async (req, res) => {
 // Get all events
 const getAllEvents = async (req, res) => {
   try {
-    // Find all users in the same organization
-    const organizationUsers = await User.find({
-      organization: req.user.organization,
-    }).select("_id");
-
-    const organizationUserIds = organizationUsers.map((user) => user._id);
-
     // Show events created by ANY user in the same organization
     const events = await Event.find({
-      createdBy: { $in: organizationUserIds },
+      organizationId: req.user.organization,
     })
       .populate("client")
       .populate("createdBy", "firstName lastName")
@@ -136,16 +131,13 @@ const getAllEvents = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Apply the "(Deleted)" label to client names if they are deleted
-    // const eventsWithProperClients = events.map((event) => {
-    //   if (event.client && event.client.isDeleted) {
-    //     event.client.name = `${event.client.name} (Deleted)`;
-    //   }
-    //   return event;
-    // });
-
     // Get all expenses grouped by event
     const expensesByEvent = await Expense.aggregate([
+      {
+        $match: {
+          organizationId: req.user.organization,
+        },
+      },
       {
         $group: {
           _id: "$eventId",
@@ -158,7 +150,7 @@ const getAllEvents = async (req, res) => {
     const eventsWithVendors = await Promise.all(
       events.map(async (event) => {
         const eventExpenses = expensesByEvent.find(
-          (e) => e._id.toString() === event._id.toString()
+          (e) => e._id.toString() === event._id.toString(),
         );
 
         let vendors = [];
@@ -186,7 +178,7 @@ const getAllEvents = async (req, res) => {
           createdAt: event.createdAt?.toISOString(),
           updatedAt: event.updatedAt?.toISOString(),
         };
-      })
+      }),
     );
 
     res.json(eventsWithVendors);
@@ -198,17 +190,10 @@ const getAllEvents = async (req, res) => {
 // Get event by ID
 const getEventById = async (req, res) => {
   try {
-    // Find all users in the same organization
-    const organizationUsers = await User.find({
-      organization: req.user.organization,
-    }).select("_id");
-
-    const organizationUserIds = organizationUsers.map((user) => user._id);
-
     // Only allow access if event was created by someone in the same organization
     const event = await Event.findOne({
       _id: req.params.id,
-      createdBy: { $in: organizationUserIds },
+      organizationId: req.user.organization,
     })
       .populate("client")
       .populate("createdBy", "firstName lastName")
@@ -221,21 +206,16 @@ const getEventById = async (req, res) => {
         .json({ message: "Event not found or access denied" });
     }
 
-    // Apply the "(Deleted)" label if client is deleted
-    // if (event.client && event.client.isDeleted) {
-    //   event.client.name = `${event.client.name} (Deleted)`;
-    // }
-
     // Get all expenses for this event to calculate totals and get vendors
-    const expenses = await Expense.find({ eventId: req.params.id }).populate(
-      "vendor",
-      "name services isArchived"
-    );
+    const expenses = await Expense.find({
+      eventId: req.params.id,
+      organizationId: req.user.organization,
+    }).populate("vendor", "name services isArchived");
 
     // Calculate total expenses
     const totalExpenses = expenses.reduce(
       (sum, expense) => sum + expense.amount,
-      0
+      0,
     );
 
     // Get unique vendors from expenses
@@ -248,7 +228,10 @@ const getEventById = async (req, res) => {
     const vendors = Array.from(vendorMap.values());
 
     // Get budget
-    const budget = await Budget.findOne({ eventId: req.params.id }).lean();
+    const budget = await Budget.findOne({
+      eventId: req.params.id,
+      organizationId: req.user.organization,
+    }).lean();
 
     const responseData = {
       ...event,
@@ -269,15 +252,9 @@ const getEventById = async (req, res) => {
 // Update an event
 const updateEvent = async (req, res) => {
   try {
-    // check if user has permission to update this event
-    // const existingEvent = await Event.findOne({
-    //   _id: req.params.id,
-    //   $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
-    // });
-
     const existingEvent = await Event.findOne({
       _id: req.params.id,
-      // $or: [{ createdBy: req.user._id }, { assignedUsers: req.user._id }],
+      organizationId: req.user.organization,
     });
 
     if (!existingEvent) {
@@ -285,20 +262,6 @@ const updateEvent = async (req, res) => {
         .status(404)
         .json({ message: "Event not found or access denied" });
     }
-
-    // If assigning a client, check if that client exists and is not deleted
-    // if (req.body.client) {
-    //   const client = await Client.findOne({
-    //     _id: req.body.client,
-    //     isDeleted: false,
-    //   });
-
-    //   if (!client) {
-    //     return res.status(400).json({
-    //       message: "Cannot assign a deleted or non-existent client to an event",
-    //     });
-    //   }
-    // }
 
     // Normalize the date if provided
     let eventDate;
@@ -345,13 +308,13 @@ const updateEvent = async (req, res) => {
       });
     }
 
-    const updatedEvent = await Event.findByIdAndUpdate(
-      req.params.id,
-      updateData, // Use normalized data
+    const updatedEvent = await Event.findOneAndUpdate(
       {
-        new: true,
-        runValidators: true,
-      }
+        _id: req.params.id,
+        organizationId: req.user.organization,
+      },
+      updateData,
+      { new: true, runValidators: true },
     )
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email")
@@ -377,7 +340,10 @@ const updateEvent = async (req, res) => {
 // Delete an event
 const deleteEvent = async (req, res) => {
   try {
-    const deletedEvent = await Event.findByIdAndDelete(req.params.id);
+    const deletedEvent = await Event.findOneAndDelete({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    });
 
     if (!deletedEvent) {
       return res.status(404).json({ message: "Event not found" });
@@ -386,8 +352,14 @@ const deleteEvent = async (req, res) => {
     // Cascade delete all related documents
     await Promise.all([
       Task.deleteMany({ eventId: req.params.id }),
-      Budget.deleteOne({ eventId: req.params.id }),
-      Expense.deleteMany({ eventId: req.params.id }),
+      Budget.deleteOne({
+        eventId: req.params.id,
+        organizationId: req.user.organization,
+      }),
+      Expense.deleteMany({
+        eventId: req.params.id,
+        organizationId: req.user.organization,
+      }),
     ]);
 
     // If event had a client, check if client should be hard-deleted
@@ -402,6 +374,7 @@ const deleteEvent = async (req, res) => {
         // Count remaining events for this client
         const remainingEvents = await Event.countDocuments({
           client: deletedEvent.client,
+          organizationId: req.user.organization,
         });
 
         // If no more events, hard delete the client

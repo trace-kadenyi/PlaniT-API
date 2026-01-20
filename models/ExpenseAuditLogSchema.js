@@ -13,7 +13,12 @@ const expenseAuditLogSchema = new mongoose.Schema(
       ref: "Event",
       required: true,
     },
-
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
     // Action metadata
     actionType: {
       type: String,
@@ -97,7 +102,7 @@ const expenseAuditLogSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Enhanced indexes

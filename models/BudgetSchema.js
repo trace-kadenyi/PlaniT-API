@@ -8,6 +8,13 @@ const budgetSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
 
     // Original planned budget
     totalBudget: {
@@ -46,7 +53,7 @@ const budgetSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // 🔹 Derived values (never stored directly)
