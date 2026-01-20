@@ -76,10 +76,23 @@ const createExpense = async (req, res) => {
       });
     }
 
+    const event = await Event.findOne({
+      _id: req.body.eventId,
+      organizationId: req.user.organization,
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        error: "EventNotFound",
+        message: "Event not found or does not belong to your organization",
+      });
+    }
+
     // Add createdBy from authenticated user
     const expenseData = {
       ...req.body,
-      organizationId: req.user.organization,
+      organizationId: event.organizationId,
+      createdBy: req.user._id,
 
       createdBySnapshot: {
         _id: req.user._id,
