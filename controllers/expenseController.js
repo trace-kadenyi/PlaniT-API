@@ -31,7 +31,28 @@ const createExpense = async (req, res) => {
       });
     }
 
-    const budgetStatus = await getBudgetStatus(req.body.eventId);
+    const eventId = req.body.eventId;
+
+    // 2️⃣ Fetch event + budget status IN PARALLEL
+    const [event, budgetStatus] = await Promise.all([
+      Event.findOne({
+        _id: eventId,
+        organizationId: req.user.organization,
+      }).lean(),
+      getBudgetStatus(eventId),
+    ]);
+
+    // 3️⃣ Event validation
+    if (!event) {
+      return res.status(404).json({
+        error: "EventNotFound",
+        message: "Event not found or does not belong to your organization",
+      });
+    }
+
+    if (!budget) {
+      throw new Error("Budget missing after validation");
+    }
 
     // Enhanced validation
     if (budgetStatus.totalBudget === 0) {
@@ -73,18 +94,6 @@ const createExpense = async (req, res) => {
         ).toFixed(2)} to add this expense.`,
         remainingBudget: budgetStatus.remainingBudget,
         attemptedAmount: req.body.amount,
-      });
-    }
-
-    const event = await Event.findOne({
-      _id: req.body.eventId,
-      organizationId: req.user.organization,
-    });
-
-    if (!event) {
-      return res.status(404).json({
-        error: "EventNotFound",
-        message: "Event not found or does not belong to your organization",
       });
     }
 
