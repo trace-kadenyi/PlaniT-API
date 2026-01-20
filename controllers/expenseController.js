@@ -155,7 +155,10 @@ const createExpense = async (req, res) => {
 // Get all expenses
 const getAllExpenses = async (req, res) => {
   try {
-    const expenses = await Expense.find();
+    const expenses = await Expense.find({
+      organizationId: req.user.organization,
+    });
+
     res.json(expenses);
   } catch (err) {
     res.status(500).json({ message: err.message });
