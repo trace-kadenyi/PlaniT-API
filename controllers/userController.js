@@ -390,6 +390,25 @@ const deleteUser = async (req, res) => {
       });
     }
 
+    // log deletions
+    await UserUpdateHistory.create({
+      userId: targetUser._id,
+      organization: req.user.organization,
+      updatedBy: req.user._id,
+      updatedByRole: req.user.role,
+      type: "user_deleted",
+      changes: [
+        {
+          field: "isActive",
+          oldValue: true,
+          newValue: false,
+        },
+      ],
+      description: `${targetUser.firstName} ${targetUser.lastName} was deleted by ${req.user.firstName} ${req.user.lastName}`,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
     await User.findByIdAndDelete(req.params.userId);
 
     res.json({
