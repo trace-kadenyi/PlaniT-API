@@ -201,7 +201,10 @@ const getExpensesByEventId = async (req, res) => {
 // Get expense by ID
 const getExpenseById = async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id)
+    const expense = await Expense.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    })
       .populate("vendor", "name services")
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email");
