@@ -380,7 +380,7 @@ const deleteExpense = async (req, res) => {
       _id: req.params.id,
       organizationId: req.user.organization,
     });
-    
+
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
@@ -486,6 +486,9 @@ const getExpensesSummary = async (req, res) => {
       {
         $match: {
           eventId: new mongoose.Types.ObjectId(String(req.params.eventId)),
+          organizationId: new mongoose.Types.ObjectId(
+            String(req.user.organization),
+          ),
         },
       },
       {
