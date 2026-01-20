@@ -7,6 +7,12 @@ const userUpdateHistorySchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
