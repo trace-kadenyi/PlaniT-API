@@ -1,8 +1,8 @@
 const Budget = require("../models/BudgetSchema");
 const Expense = require("../models/ExpenseSchema");
 
-const getBudgetStatus = async (eventId) => {
-  const budget = await Budget.findOne({ eventId });
+const getBudgetStatus = async (eventId, organizationId) => {
+  const budget = await Budget.findOne({ eventId, organizationId });
 
   if (!budget) {
     return {
@@ -15,7 +15,7 @@ const getBudgetStatus = async (eventId) => {
 
   // Optional: keep this for UI charts / summaries
   const totalExpensesAgg = await Expense.aggregate([
-    { $match: { eventId: budget.eventId } },
+    { $match: { eventId: budget.eventId, organizationId } },
     { $group: { _id: null, total: { $sum: "$amount" } } },
   ]);
 
