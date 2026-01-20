@@ -67,7 +67,7 @@ const createExpense = async (req, res) => {
     if (req.body.amount > budgetStatus.remainingBudget) {
       return res.status(400).json({
         message: `Expense exceeds remaining budget ($${budgetStatus.remainingBudget.toFixed(
-          2
+          2,
         )} available). Top up your overall budget with $${(
           req.body.amount - budgetStatus.remainingBudget
         ).toFixed(2)} to add this expense.`,
@@ -79,7 +79,7 @@ const createExpense = async (req, res) => {
     // Add createdBy from authenticated user
     const expenseData = {
       ...req.body,
-      createdBy: req.user._id,
+      organizationId: req.user.organization,
 
       createdBySnapshot: {
         _id: req.user._id,
@@ -253,7 +253,7 @@ const updateExpense = async (req, res) => {
       if (budget.remainingBudget < delta) {
         return res.status(400).json({
           message: `Update would exceed remaining budget by $${delta.toFixed(
-            2
+            2,
           )}. Please work within the available budget or increase it.`,
           remainingBudget: budget.remainingBudget,
         });
@@ -292,7 +292,7 @@ const updateExpense = async (req, res) => {
     const updatedExpense = await Expense.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     )
       .populate("vendor", "name services")
       .populate("createdBy", "firstName lastName email")
@@ -570,7 +570,7 @@ const getExpenseAuditLogs = async (req, res) => {
           try {
             const vendor = await Vendor.findById(
               expenseData.vendor,
-              "name services email phone"
+              "name services email phone",
             );
             expenseData.vendor = vendor || {
               _id: expenseData.vendor,
@@ -589,7 +589,7 @@ const getExpenseAuditLogs = async (req, res) => {
           ...logObj,
           expenseData: expenseData,
         };
-      })
+      }),
     );
 
     // Format for frontend
