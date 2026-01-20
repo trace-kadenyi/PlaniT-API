@@ -396,7 +396,7 @@ const deleteUser = async (req, res) => {
       organization: req.user.organization,
       updatedBy: req.user._id,
       updatedByRole: req.user.role,
-      type: "user_deleted",
+      type: "deactivation",
       changes: [
         {
           field: "isActive",
@@ -404,7 +404,7 @@ const deleteUser = async (req, res) => {
           newValue: false,
         },
       ],
-      description: `${targetUser.firstName} ${targetUser.lastName} was deleted by ${req.user.firstName} ${req.user.lastName}`,
+      description: `${targetUser.firstName} ${targetUser.lastName} was deleted by ${req.user.firstName} ${req.user.lastName} on ${new Date().toLocaleString()}`,
       ipAddress: req.ip,
       userAgent: req.headers["user-agent"],
     });
