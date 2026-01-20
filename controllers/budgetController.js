@@ -19,7 +19,7 @@ const getBudgetByEventId = async (req, res) => {
       });
     }
 
-    // 2️⃣ Fetch budget (still org-scoped)
+    // 2️⃣ Fetch budget (org-scoped)
     const budget = await Budget.findOne({
       eventId: req.params.eventId,
       organizationId: req.user.organization,
@@ -55,7 +55,25 @@ const getBudgetByEventId = async (req, res) => {
 // Update budget
 const updateBudget = async (req, res) => {
   try {
-    const budget = await Budget.findOne({ eventId: req.params.eventId });
+    // 1️⃣ Validate event ownership FIRST
+    const event = await Event.findOne({
+      _id: req.params.eventId,
+      organizationId: req.user.organization,
+    }).select("_id");
+
+    if (!event) {
+      return res.status(404).json({
+        error: "EventNotFound",
+        message: "Event not found or does not belong to your organization",
+      });
+    }
+
+    // 2️⃣ Fetch budget
+    const budget = await Budget.findOne({
+      eventId: req.params.eventId,
+      organizationId: req.user.organization,
+    }).lean();
+
     if (!budget) {
       return res.status(404).json({ message: "Budget not found" });
     }
@@ -65,6 +83,9 @@ const updateBudget = async (req, res) => {
         {
           $match: {
             eventId: new mongoose.Types.ObjectId(String(req.params.eventId)),
+            organizationId: new mongoose.Types.ObjectId(
+              String(req.user.organization),
+            ),
           },
         },
         { $group: { _id: null, total: { $sum: "$amount" } } },
