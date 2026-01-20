@@ -376,7 +376,11 @@ const updateExpense = async (req, res) => {
 // Delete expense
 const deleteExpense = async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id);
+    const expense = await Expense.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    });
+    
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
