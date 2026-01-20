@@ -121,21 +121,6 @@ const createExpense = async (req, res) => {
       .populate("vendor", "name services")
       .populate("createdBy", "firstName lastName email");
 
-    // NOTE: You said you don't want to log creation yet
-    // If you change your mind, uncomment this:
-    /*
-    await logExpenseAction({
-      actionType: "CREATE",
-      expense: populatedExpense,
-      user: req.user,
-      reason: "New expense created",
-      description: `Created expense: ${populatedExpense.description} for $${populatedExpense.amount}`,
-      budgetStatusBefore: budgetStatus,
-      budgetStatusAfter: await getBudgetStatus(req.body.eventId),
-      req,
-    });
-    */
-
     res.status(201).json({
       expense: populatedExpense,
       budgetStatus: await getBudgetStatus(req.body.eventId),
