@@ -6,6 +6,7 @@ const Budget = require("../models/BudgetSchema");
 const Expense = require("../models/ExpenseSchema");
 const User = require("../models/UserSchema");
 const Client = require("../models/ClientSchema");
+const supabaseAdmin = require("../utils/supabaseAdmin");
 
 const maxChars = 300;
 const maxNameChars = 70;
@@ -340,6 +341,14 @@ const updateEvent = async (req, res) => {
 // Delete an event
 const deleteEvent = async (req, res) => {
   try {
+    // 🔹 fetch expenses FIRST (for receipts)
+    const expensesWithReceipts = await Expense.find({
+      eventId: req.params.id,
+      organizationId: req.user.organization,
+      receiptUrl: { $exists: true, $ne: null },
+    }).select("receiptUrl");
+
+    // event to be deleted
     const deletedEvent = await Event.findOneAndDelete({
       _id: req.params.id,
       organizationId: req.user.organization,
@@ -361,6 +370,28 @@ const deleteEvent = async (req, res) => {
         organizationId: req.user.organization,
       }),
     ]);
+
+    // 🔹 DELETE RECEIPTS FROM SUPABASE (non-blocking)
+    for (const expense of expensesWithReceipts) {
+      try {
+        const filePath = new URL(expense.receiptUrl).pathname.split(
+          "planit-receipts/",
+        )[1];
+
+        if (filePath) {
+          await supabaseAdmin.storage
+            .from("planit-receipts")
+            .remove([filePath]);
+        }
+      } catch (err) {
+        console.warn(
+          "Receipt deletion failed:",
+          expense.receiptUrl,
+          err.message,
+        );
+        // intentionally non-blocking
+      }
+    }
 
     // If event had a client, check if client should be hard-deleted
     let clientHardDeleted = false;
