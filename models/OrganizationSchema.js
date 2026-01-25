@@ -12,10 +12,6 @@ const organizationSchema = new mongoose.Schema(
       enum: ["free", "premium", "enterprise"],
       default: "free",
     },
-    // maxUsers: {
-    //   type: Number,
-    //   default: 15, // Free plan limit
-    // },
     isActive: {
       type: Boolean,
       default: true,
