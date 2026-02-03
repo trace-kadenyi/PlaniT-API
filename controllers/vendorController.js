@@ -102,6 +102,7 @@ const updateVendor = async (req, res) => {
       {
         _id: req.params.id,
         organizationId: req.user.organization,
+        isDeleted: false,
       },
       req.body,
       { new: true, runValidators: true },
