@@ -8,7 +8,7 @@ const getUsers = async (req, res) => {
   try {
     const users = await User.find({
       organization: req.user.organization,
-      isDeleted: false,
+      isDeactivated: false,
     }).select("-password -passwordResetToken -passwordResetExpires");
 
     res.json(users);
@@ -118,7 +118,7 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (targetUser.isDeleted) {
+    if (targetUser.isDeactivated) {
       return res.status(400).json({
         message: "Cannot update a removed user",
       });
@@ -317,7 +317,7 @@ const updateUserRole = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (targetUser.isDeleted) {
+    if (targetUser.isDeactivated) {
       return res.status(400).json({
         message: "Cannot update a removed user",
       });
@@ -412,7 +412,7 @@ const deleteUser = async (req, res) => {
       type: "deactivation",
       changes: [
         {
-          field: "isDeleted",
+          field: "isDeactivated",
           oldValue: false,
           newValue: true,
         },
@@ -427,7 +427,7 @@ const deleteUser = async (req, res) => {
       userAgent: req.headers["user-agent"],
     });
 
-    targetUser.isDeleted = true;
+    targetUser.isDeactivated = true;
     targetUser.isActive = false;
     await targetUser.save();
 
@@ -497,7 +497,7 @@ const reactivateUser = async (req, res) => {
     const targetUser = await User.findOne({
       _id: req.params.userId,
       organization: req.user.organization,
-      isDeleted: true,
+      isDeactivated: true,
     });
 
     if (!targetUser) {
@@ -507,16 +507,13 @@ const reactivateUser = async (req, res) => {
     }
 
     // Prevent reactivating super admins unless super admin
-    if (
-      targetUser.role === "super_admin" &&
-      req.user.role !== "super_admin"
-    ) {
+    if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
       return res.status(403).json({
         message: "Only super admins can reactivate super admins",
       });
     }
 
-    targetUser.isDeleted = false;
+    targetUser.isDeactivated = false;
     targetUser.isActive = true;
 
     await targetUser.save();
@@ -530,7 +527,7 @@ const reactivateUser = async (req, res) => {
       type: "reactivation",
       changes: [
         {
-          field: "isDeleted",
+          field: "isDeactivated",
           oldValue: true,
           newValue: false,
         },
@@ -558,7 +555,6 @@ const reactivateUser = async (req, res) => {
   }
 };
 
-
 module.exports = {
   getUsers,
   getUser,
@@ -567,5 +563,5 @@ module.exports = {
   updateUserRole,
   deleteUser,
   getUserUpdateHistory,
-  reactivateUser
+  reactivateUser,
 };
