@@ -422,7 +422,9 @@ const deleteUser = async (req, res) => {
       userAgent: req.headers["user-agent"],
     });
 
-    await User.findByIdAndDelete(req.params.userId);
+    targetUser.isDeleted = true;
+    targetUser.isActive = false;
+    await targetUser.save();
 
     res.json({
       message: "User removed successfully",
