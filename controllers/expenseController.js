@@ -80,6 +80,22 @@ const createExpense = async (req, res) => {
       });
     }
 
+    // don't add deleted vendors
+    if (req.body.vendor) {
+      const vendor = await Vendor.findOne({
+        _id: req.body.vendor,
+        organizationId: req.user.organization,
+        isDeleted: false,
+      });
+
+      if (!vendor) {
+        return res.status(400).json({
+          error: "InvalidVendor",
+          message: "Selected vendor does not exist or has been deleted",
+        });
+      }
+    }
+
     // control: expense must be less than remaining budget
     if (req.body.amount > budgetStatus.remainingBudget) {
       return res.status(400).json({
