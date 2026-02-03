@@ -663,7 +663,7 @@ const getExpenseAuditLogs = async (req, res) => {
           try {
             const vendor = await Vendor.findById(
               expenseData.vendor,
-              "name services email phone",
+              "name services email phone isDeleted",
             );
             expenseData.vendor = vendor || {
               _id: expenseData.vendor,
