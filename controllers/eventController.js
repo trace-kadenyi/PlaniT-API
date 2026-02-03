@@ -211,7 +211,7 @@ const getEventById = async (req, res) => {
     const expenses = await Expense.find({
       eventId: req.params.id,
       organizationId: req.user.organization,
-    }).populate("vendor", "name services isArchived");
+    }).populate("vendor", "name services isArchived isDeleted");
 
     // Calculate total expenses
     const totalExpenses = expenses.reduce(
