@@ -179,12 +179,41 @@ const getVendorStats = async (req, res) => {
 };
 
 // Delete vendor completely
+// const deleteVendor = async (req, res) => {
+//   try {
+//     const vendor = await Vendor.findOneAndDelete({
+//       _id: req.params.id,
+//       organizationId: req.user.organization,
+//     });
+
+//     if (!vendor) {
+//       return res.status(404).json({ error: "Vendor not found" });
+//     }
+
+//     res.json({
+//       message: "Vendor deleted successfully",
+//       deletedVendor: vendor,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
 const deleteVendor = async (req, res) => {
   try {
-    const vendor = await Vendor.findOneAndDelete({
-      _id: req.params.id,
-      organizationId: req.user.organization,
-    });
+    const vendor = await Vendor.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        organizationId: req.user.organization,
+        isDeleted: false,
+      },
+      {
+        isDeleted: true,
+        isArchived: true,
+        deletedAt: new Date(),
+      },
+      { new: true },
+    );
 
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
@@ -192,7 +221,12 @@ const deleteVendor = async (req, res) => {
 
     res.json({
       message: "Vendor deleted successfully",
-      deletedVendor: vendor,
+      deletedVendor: {
+        _id: vendor._id,
+        name: `${vendor.name} (Deleted)`,
+        isDeleted: true,
+        deletedAt: vendor.deletedAt,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
