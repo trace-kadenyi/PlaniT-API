@@ -188,7 +188,7 @@ const getExpensesByEventId = async (req, res) => {
       eventId: req.params.eventId,
       organizationId: req.user.organization,
     })
-      .populate("vendor", "name services isArchived")
+      .populate("vendor", "name services isArchived isDeleted")
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email")
       .sort({ createdAt: -1 });
