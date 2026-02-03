@@ -75,7 +75,7 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    isDeleted: {
+    isDeactivated: {
       type: Boolean,
       default: false,
     },
@@ -97,7 +97,7 @@ userSchema.index({ email: 1, organization: 1 }, { unique: true });
 
 // Indices for better query performance
 userSchema.index({ role: 1, isActive: 1 });
-userSchema.index({ organization: 1, isDeleted: 1 });
+userSchema.index({ organization: 1, isDeactivated: 1 });
 
 // Pre-save middleware to hash password
 userSchema.pre("save", async function (next) {
