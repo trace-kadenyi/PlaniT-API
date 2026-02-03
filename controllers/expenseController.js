@@ -331,7 +331,10 @@ const updateExpense = async (req, res) => {
     }
 
     // Prevent assigning deleted vendors on update
-    if (req.body.vendor) {
+    if (
+      req.body.vendor &&
+      req.body.vendor !== existingExpense.vendor?.toString()
+    ) {
       const vendor = await Vendor.findOne({
         _id: req.body.vendor,
         organizationId: req.user.organization,
@@ -358,7 +361,7 @@ const updateExpense = async (req, res) => {
       updateData,
       { new: true, runValidators: true },
     )
-      .populate("vendor", "name services")
+      .populate("vendor", "name services isDeleted")
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email");
 
