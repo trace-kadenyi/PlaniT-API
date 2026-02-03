@@ -224,7 +224,7 @@ const getExpenseById = async (req, res) => {
       _id: req.params.id,
       organizationId: req.user.organization,
     })
-      .populate("vendor", "name services")
+      .populate("vendor", "name services isDeleted")
       .populate("createdBy", "firstName lastName email")
       .populate("updatedBy", "firstName lastName email");
 
@@ -328,6 +328,22 @@ const updateExpense = async (req, res) => {
         maxLength: MAX_NOTES,
         currentLength: req.body.notes.length,
       });
+    }
+
+    // Prevent assigning deleted vendors on update
+    if (req.body.vendor) {
+      const vendor = await Vendor.findOne({
+        _id: req.body.vendor,
+        organizationId: req.user.organization,
+        isDeleted: false,
+      });
+
+      if (!vendor) {
+        return res.status(400).json({
+          error: "InvalidVendor",
+          message: "Selected vendor does not exist or has been deleted",
+        });
+      }
     }
 
     // Add updatedBy to the update data
