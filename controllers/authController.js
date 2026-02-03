@@ -17,7 +17,7 @@ const createSendToken = (user, statusCode, res) => {
   const refreshToken = jwt.sign(
     { id: user._id },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN }
+    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN },
   );
 
   // Cookie settings for local development
@@ -154,6 +154,15 @@ exports.login = async (req, res) => {
       return res.status(401).json({
         status: "error",
         message: "Incorrect password",
+      });
+    }
+
+    // check if user is deactivated
+    if (user.isDeleted || !user.isActive) {
+      return res.status(401).json({
+        status: "error",
+        message: "This account has been deactivated",
+        code: "ACCOUNT_DEACTIVATED",
       });
     }
 
