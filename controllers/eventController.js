@@ -158,7 +158,7 @@ const getAllEvents = async (req, res) => {
         if (eventExpenses) {
           const expenses = await Expense.find({
             _id: { $in: eventExpenses.expenseIds },
-          }).populate("vendor", "name services isArchived");
+          }).populate("vendor", "name services isArchived isDeleted");
 
           const vendorMap = new Map();
           expenses.forEach((expense) => {
