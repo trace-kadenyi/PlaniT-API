@@ -159,6 +159,7 @@ const getVendorStats = async (req, res) => {
       {
         $match: {
           organizationId: req.user.organization,
+          isDeleted: false,
         },
       },
       {
