@@ -131,6 +131,7 @@ const toggleVendorArchive = async (req, res) => {
     const vendor = await Vendor.findOne({
       _id: req.params.id,
       organizationId: req.user.organization,
+      isDeleted: false,
     });
 
     if (!vendor) {
