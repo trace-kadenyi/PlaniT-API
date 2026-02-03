@@ -158,7 +158,7 @@ exports.login = async (req, res) => {
     }
 
     // check if user is deactivated
-    if (user.isDeleted || !user.isActive) {
+    if (user.isDeactivated || !user.isActive) {
       return res.status(401).json({
         status: "error",
         message:
