@@ -178,27 +178,7 @@ const getVendorStats = async (req, res) => {
   }
 };
 
-// Delete vendor completely
-// const deleteVendor = async (req, res) => {
-//   try {
-//     const vendor = await Vendor.findOneAndDelete({
-//       _id: req.params.id,
-//       organizationId: req.user.organization,
-//     });
-
-//     if (!vendor) {
-//       return res.status(404).json({ error: "Vendor not found" });
-//     }
-
-//     res.json({
-//       message: "Vendor deleted successfully",
-//       deletedVendor: vendor,
-//     });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
+// Soft-delete vendor
 const deleteVendor = async (req, res) => {
   try {
     const vendor = await Vendor.findOneAndUpdate(
@@ -232,7 +212,7 @@ const deleteVendor = async (req, res) => {
   }
 };
 
-// Delete all vendors completely
+// Soft-delete all vendors
 const deleteAllVendors = async (req, res) => {
   try {
     // Delete all vendors
