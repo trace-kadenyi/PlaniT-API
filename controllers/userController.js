@@ -422,7 +422,7 @@ const deleteUser = async (req, res) => {
           newValue: false,
         },
       ],
-      description: `${targetUser.firstName} ${targetUser.lastName} was deleted by ${req.user.firstName} ${req.user.lastName} on ${new Date().toLocaleString()}`,
+      description: `${targetUser.firstName} ${targetUser.lastName} was deactivated by ${req.user.firstName} ${req.user.lastName} on ${new Date().toLocaleString()}`,
       ipAddress: req.ip,
       userAgent: req.headers["user-agent"],
     });
