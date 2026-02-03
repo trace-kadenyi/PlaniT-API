@@ -114,6 +114,12 @@ const updateUser = async (req, res) => {
       organization: req.user.organization,
     }).select("+password");
 
+    if (targetUser.isDeleted) {
+      return res.status(400).json({
+        message: "Cannot update a removed user",
+      });
+    }
+
     if (!targetUser) {
       return res.status(404).json({ message: "User not found" });
     }
