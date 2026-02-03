@@ -209,7 +209,6 @@ const deleteVendor = async (req, res) => {
       },
       {
         isDeleted: true,
-        isArchived: true,
         deletedAt: new Date(),
       },
       { new: true },
@@ -237,13 +236,19 @@ const deleteVendor = async (req, res) => {
 const deleteAllVendors = async (req, res) => {
   try {
     // Delete all vendors
-    const deletedVendors = await Vendor.deleteMany({
-      organizationId: req.user.organization,
-    });
-
+    const deletedVendors = await Vendor.updateMany(
+      {
+        organizationId: req.user.organization,
+        isDeleted: false,
+      },
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    );
     res.json({
       message: "All vendors deleted successfully",
-      deletedCount: deletedVendors.deletedCount,
+      deletedCount: deletedVendors.modifiedCount,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
