@@ -68,15 +68,16 @@ const getVendorById = async (req, res) => {
     const vendor = await Vendor.findOne({
       _id: req.params.id,
       organizationId: req.user.organization,
+      isDeleted: false,
     });
 
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
     const vendorData = vendor.toObject();
-    if (vendor.isDeleted) {
-      vendorData.name = `${vendor.name} (Deleted)`;
-    }
+    // if (vendor.isDeleted) {
+    //   vendorData.name = `${vendor.name} (Deleted)`;
+    // }
 
     res.json(vendorData);
   } catch (err) {
@@ -189,6 +190,7 @@ const deleteVendor = async (req, res) => {
       },
       {
         isDeleted: true,
+        isArchived: false,
         deletedAt: new Date(),
       },
       { new: true },
@@ -223,6 +225,7 @@ const deleteAllVendors = async (req, res) => {
       },
       {
         isDeleted: true,
+        isArchived: false,
         deletedAt: new Date(),
       },
     );
