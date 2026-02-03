@@ -412,6 +412,11 @@ const deleteUser = async (req, res) => {
       type: "deactivation",
       changes: [
         {
+          field: "isDeleted",
+          oldValue: false,
+          newValue: true,
+        },
+        {
           field: "isActive",
           oldValue: true,
           newValue: false,
