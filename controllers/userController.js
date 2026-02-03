@@ -8,7 +8,6 @@ const getUsers = async (req, res) => {
   try {
     const users = await User.find({
       organization: req.user.organization,
-      isDeactivated: false,
     }).select("-password -passwordResetToken -passwordResetExpires");
 
     res.json(users);
