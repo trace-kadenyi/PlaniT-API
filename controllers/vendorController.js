@@ -45,6 +45,7 @@ const getAllVendors = async (req, res) => {
     // filter by org
     const filter = {
       organizationId: req.user.organization,
+      isDeleted: false,
     };
 
     if (service) {
@@ -98,7 +99,7 @@ const updateVendor = async (req, res) => {
         organizationId: req.user.organization,
       },
       req.body,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedVendor) {
