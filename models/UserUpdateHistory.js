@@ -37,6 +37,7 @@ const userUpdateHistorySchema = new mongoose.Schema(
         "password_change",
         "role_change",
         "deactivation",
+        "reactivation",
       ],
       default: "profile_update",
     },
