@@ -114,14 +114,14 @@ const updateUser = async (req, res) => {
       organization: req.user.organization,
     }).select("+password");
 
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     if (targetUser.isDeleted) {
       return res.status(400).json({
         message: "Cannot update a removed user",
       });
-    }
-
-    if (!targetUser) {
-      return res.status(404).json({ message: "User not found" });
     }
 
     const isSelf = req.user._id.toString() === req.params.userId;
@@ -315,6 +315,12 @@ const updateUserRole = async (req, res) => {
 
     if (!targetUser) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    if (targetUser.isDeleted) {
+      return res.status(400).json({
+        message: "Cannot update a removed user",
+      });
     }
 
     // Prevent changing super admins role (only super admins can do this)
