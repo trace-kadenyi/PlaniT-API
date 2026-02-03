@@ -91,7 +91,7 @@ const createExpense = async (req, res) => {
       if (!vendor) {
         return res.status(400).json({
           error: "InvalidVendor",
-          message: "Selected vendor does not exist or has been deleted",
+          message: "Selected vendor does not exist or has been removed",
         });
       }
     }
@@ -341,7 +341,7 @@ const updateExpense = async (req, res) => {
       if (!vendor) {
         return res.status(400).json({
           error: "InvalidVendor",
-          message: "Selected vendor does not exist or has been deleted",
+          message: "Selected vendor does not exist or has been removed",
         });
       }
     }
