@@ -161,7 +161,8 @@ exports.login = async (req, res) => {
     if (user.isDeleted || !user.isActive) {
       return res.status(401).json({
         status: "error",
-        message: "This account has been deactivated",
+        message:
+          "This account has been deactivated. Contact a super admin to reactivate",
         code: "ACCOUNT_DEACTIVATED",
       });
     }
