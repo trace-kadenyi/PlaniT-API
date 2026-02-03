@@ -73,7 +73,12 @@ const getVendorById = async (req, res) => {
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
-    res.json(vendor);
+    const vendorData = vendor.toObject();
+    if (vendor.isDeleted) {
+      vendorData.name = `${vendor.name} (Deleted)`;
+    }
+
+    res.json(vendorData);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
