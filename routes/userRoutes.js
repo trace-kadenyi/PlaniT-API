@@ -9,6 +9,7 @@ const {
   updateUserRole,
   deleteUser,
   getUserUpdateHistory,
+  reactivateUser,
 } = require("../controllers/userController");
 const { protect } = require("../controllers/authController");
 
@@ -35,5 +36,8 @@ router.patch("/:userId/role", updateUserRole);
 
 // Delete user
 router.delete("/:userId", deleteUser);
+
+// reactivate user
+router.patch("/:userId/reactivate", reactivateUser);
 
 module.exports = router;
