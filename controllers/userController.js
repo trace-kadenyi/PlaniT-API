@@ -483,6 +483,82 @@ const getUserUpdateHistory = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// reactivate user
+const reactivateUser = async (req, res) => {
+  try {
+    // Permission check
+    if (!["super_admin", "admin"].includes(req.user.role)) {
+      return res.status(403).json({
+        message: "Only organization admins can reactivate users",
+      });
+    }
+
+    const targetUser = await User.findOne({
+      _id: req.params.userId,
+      organization: req.user.organization,
+      isDeleted: true,
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({
+        message: "Removed user not found",
+      });
+    }
+
+    // Prevent reactivating super admins unless super admin
+    if (
+      targetUser.role === "super_admin" &&
+      req.user.role !== "super_admin"
+    ) {
+      return res.status(403).json({
+        message: "Only super admins can reactivate super admins",
+      });
+    }
+
+    targetUser.isDeleted = false;
+    targetUser.isActive = true;
+
+    await targetUser.save();
+
+    // Log reactivation
+    await UserUpdateHistory.create({
+      userId: targetUser._id,
+      organization: req.user.organization,
+      updatedBy: req.user._id,
+      updatedByRole: req.user.role,
+      type: "reactivation",
+      changes: [
+        {
+          field: "isDeleted",
+          oldValue: true,
+          newValue: false,
+        },
+        {
+          field: "isActive",
+          oldValue: false,
+          newValue: true,
+        },
+      ],
+      description: `${targetUser.firstName} ${targetUser.lastName} was reactivated by ${req.user.firstName} ${req.user.lastName}`,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    const cleanUser = await User.findById(targetUser._id).select(
+      "-password -passwordResetToken -passwordResetExpires",
+    );
+
+    res.json({
+      message: "User reactivated successfully",
+      user: cleanUser,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
 module.exports = {
   getUsers,
   getUser,
@@ -491,4 +567,5 @@ module.exports = {
   updateUserRole,
   deleteUser,
   getUserUpdateHistory,
+  reactivateUser
 };
