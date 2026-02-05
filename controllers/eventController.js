@@ -197,8 +197,8 @@ const getEventById = async (req, res) => {
       organizationId: req.user.organization,
     })
       .populate("client")
-      .populate("createdBy", "firstName lastName")
-      .populate("updatedBy", "firstName lastName email")
+      .populate("createdBy", "firstName lastName isActive")
+      .populate("updatedBy", "firstName lastName email isActive")
       .lean();
 
     if (!event) {
@@ -317,8 +317,8 @@ const updateEvent = async (req, res) => {
       updateData,
       { new: true, runValidators: true },
     )
-      .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firstName lastName email")
+      .populate("createdBy", "firstName lastName email isActive")
+      .populate("updatedBy", "firstName lastName email isActive")
       .populate("client");
 
     if (!updatedEvent) {
