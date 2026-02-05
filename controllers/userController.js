@@ -119,7 +119,7 @@ const updateUser = async (req, res) => {
 
     if (targetUser.isDeactivated) {
       return res.status(400).json({
-        message: "Cannot update a removed user",
+        message: "Cannot update a deactivated user",
       });
     }
 
@@ -318,7 +318,7 @@ const updateUserRole = async (req, res) => {
 
     if (targetUser.isDeactivated) {
       return res.status(400).json({
-        message: "Cannot update a removed user",
+        message: "Cannot update a deactivated user",
       });
     }
 
