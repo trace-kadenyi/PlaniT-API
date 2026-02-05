@@ -189,8 +189,8 @@ const getExpensesByEventId = async (req, res) => {
       organizationId: req.user.organization,
     })
       .populate("vendor", "name services isArchived isDeleted")
-      .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firstName lastName email")
+      .populate("createdBy", "firstName lastName email isActive")
+      .populate("updatedBy", "firstName lastName email isActive")
       .sort({ createdAt: -1 });
 
     const budgetStatus = await getBudgetStatus(
@@ -225,8 +225,8 @@ const getExpenseById = async (req, res) => {
       organizationId: req.user.organization,
     })
       .populate("vendor", "name services isDeleted")
-      .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firstName lastName email");
+      .populate("createdBy", "firstName lastName email isActive")
+      .populate("updatedBy", "firstName lastName email isActive");
 
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
@@ -362,8 +362,8 @@ const updateExpense = async (req, res) => {
       { new: true, runValidators: true },
     )
       .populate("vendor", "name services isDeleted")
-      .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firstName lastName email");
+      .populate("createdBy", "firstName lastName email isActive")
+      .populate("updatedBy", "firstName lastName email isActive");
 
     // budget handling
     if (budget && existingExpense.paymentStatus === "pending") {
