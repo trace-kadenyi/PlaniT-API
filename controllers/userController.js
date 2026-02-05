@@ -468,7 +468,7 @@ const getUserUpdateHistory = async (req, res) => {
       userId: req.params.userId,
       organization: req.user.organization,
     })
-      .populate("updatedBy", "firstName lastName email role")
+      .populate("updatedBy", "firstName lastName email role isActive")
       .sort({ createdAt: -1 })
       .limit(50);
 
