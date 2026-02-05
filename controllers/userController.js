@@ -411,14 +411,9 @@ const deleteUser = async (req, res) => {
       type: "deactivation",
       changes: [
         {
-          field: "isDeactivated",
-          oldValue: false,
-          newValue: true,
-        },
-        {
-          field: "isActive",
-          oldValue: true,
-          newValue: false,
+          field: "status",
+          oldValue: "Active",
+          newValue: "Deactivated",
         },
       ],
       description: `${targetUser.firstName} ${targetUser.lastName} was deactivated by ${req.user.firstName} ${req.user.lastName} on ${new Date().toLocaleString()}`,
@@ -526,14 +521,9 @@ const reactivateUser = async (req, res) => {
       type: "reactivation",
       changes: [
         {
-          field: "isDeactivated",
-          oldValue: true,
-          newValue: false,
-        },
-        {
-          field: "isActive",
-          oldValue: false,
-          newValue: true,
+          field: "status",
+          oldValue: "Deactivated",
+          newValue: "Active",
         },
       ],
       description: `${targetUser.firstName} ${targetUser.lastName} was reactivated by ${req.user.firstName} ${req.user.lastName}`,
