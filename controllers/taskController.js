@@ -32,8 +32,8 @@ const getAllTasks = async (req, res) => {
         options: { retainNullValues: true }, // Keep null if eventId is null
       })
       .populate("assignedTo", "firstName lastName email")
-      .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firstName lastName email");
+      .populate("createdBy", "firstName lastName email isActive")
+      .populate("updatedBy", "firstName lastName email isActive");
 
     // Transform tasks to include eventName at top level
     const tasksWithEventName = tasks.map((task) => ({
@@ -237,11 +237,11 @@ const updateTask = async (req, res) => {
       {
         new: true,
         runValidators: true,
-      }
+      },
     )
       .populate("assignedTo", "firstName lastName email")
-      .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firstName lastName email");
+      .populate("createdBy", "firstName lastName email isActive")
+      .populate("updatedBy", "firstName lastName email isActive");
 
     if (!updatedTask) {
       return res.status(404).json({ message: "Task not found" });
@@ -269,8 +269,8 @@ const getTaskById = async (req, res) => {
     })
       .populate("eventId", "name date")
       .populate("assignedTo", "firstName lastName email")
-      .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firstName lastName email");
+      .populate("createdBy", "firstName lastName email isActive")
+      .populate("updatedBy", "firstName lastName email isActive");
 
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
