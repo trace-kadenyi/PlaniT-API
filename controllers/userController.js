@@ -6,9 +6,18 @@ const { generateDescription } = require("../utils/generateDescriptions");
 // Get all users in current user's organization
 const getUsers = async (req, res) => {
   try {
-    const users = await User.find({
+    let query = {
       organization: req.user.organization,
-    }).select("-password -passwordResetToken -passwordResetExpires");
+    };
+
+    // If user is viewer or planner, exclude deactivated users
+    if (req.user.role === "viewer" || req.user.role === "planner") {
+      query.isDeactivated = false;
+    }
+
+    const users = await User.find(query).select(
+      "-password -passwordResetToken -passwordResetExpires",
+    );
 
     res.json(users);
   } catch (err) {
