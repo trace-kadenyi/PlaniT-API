@@ -28,6 +28,16 @@ const getUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // PREVENT VIEWERS/PLANNERS FROM ACCESSING DEACTIVATED USERS
+    if (
+      user.isDeactivated &&
+      (req.user.role === "viewer" || req.user.role === "planner")
+    ) {
+      return res.status(403).json({
+        message: "You don't have permission to view this user",
+      });
+    }
+
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: err.message });
