@@ -430,8 +430,101 @@ const restoreEvent = async (req, res) => {
 };
 
 // Delete an event
+// const deleteEvent = async (req, res) => {
+//   try {
+//     // 🔹 fetch expenses FIRST (for receipts)
+//     const expensesWithReceipts = await Expense.find({
+//       eventId: req.params.id,
+//       organizationId: req.user.organization,
+//       receiptUrl: { $exists: true, $ne: null },
+//     }).select("receiptUrl");
+
+//     // event to be deleted
+//     const deletedEvent = await Event.findOneAndDelete({
+//       _id: req.params.id,
+//       organizationId: req.user.organization,
+//     });
+
+//     if (!deletedEvent) {
+//       return res.status(404).json({ message: "Event not found" });
+//     }
+
+//     // Cascade delete all related documents
+//     await Promise.all([
+//       Task.deleteMany({ eventId: req.params.id }),
+//       Budget.deleteOne({
+//         eventId: req.params.id,
+//         organizationId: req.user.organization,
+//       }),
+//       Expense.deleteMany({
+//         eventId: req.params.id,
+//         organizationId: req.user.organization,
+//       }),
+//     ]);
+
+//     // 🔹 DELETE RECEIPTS FROM SUPABASE (non-blocking)
+//     for (const expense of expensesWithReceipts) {
+//       try {
+//         const filePath = new URL(expense.receiptUrl).pathname.split(
+//           "planit-receipts/",
+//         )[1];
+
+//         if (filePath) {
+//           await supabaseAdmin.storage
+//             .from("planit-receipts")
+//             .remove([filePath]);
+//         }
+//       } catch (err) {
+//         console.warn(
+//           "Receipt deletion failed:",
+//           expense.receiptUrl,
+//           err.message,
+//         );
+//         // intentionally non-blocking
+//       }
+//     }
+
+//     // If event had a client, check if client should be hard-deleted
+//     let clientHardDeleted = false;
+//     let clientName = null;
+
+//     if (deletedEvent.client) {
+//       // Check if client is soft-deleted and has no other events
+//       const client = await Client.findById(deletedEvent.client);
+
+//       if (client && client.isDeleted) {
+//         // Count remaining events for this client
+//         const remainingEvents = await Event.countDocuments({
+//           client: deletedEvent.client,
+//           organizationId: req.user.organization,
+//         });
+
+//         // If no more events, hard delete the client
+//         if (remainingEvents === 0) {
+//           await Client.findByIdAndDelete(deletedEvent.client);
+//           clientHardDeleted = true;
+//           clientName = client.name;
+//         }
+//       }
+//     }
+
+//     res.json({ message: "Event and all related data deleted" });
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
+// Soft-delete event
 const deleteEvent = async (req, res) => {
   try {
+    // 🔒 Admin / Super Admin only
+    if (!["admin", "super_admin"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Delete permission denied" });
+    }
+
+    const eventId = req.params.id;
+    const organizationId = req.user.organization;
+
     // 🔹 fetch expenses FIRST (for receipts)
     const expensesWithReceipts = await Expense.find({
       eventId: req.params.id,
@@ -439,27 +532,31 @@ const deleteEvent = async (req, res) => {
       receiptUrl: { $exists: true, $ne: null },
     }).select("receiptUrl");
 
-    // event to be deleted
-    const deletedEvent = await Event.findOneAndDelete({
-      _id: req.params.id,
-      organizationId: req.user.organization,
-    });
+    // 🔹 SOFT DELETE event (never remove from DB)
+    const deletedEvent = await Event.findOneAndUpdate(
+      {
+        _id: eventId,
+        organizationId,
+        isDeleted: { $ne: true },
+      },
+      {
+        isDeleted: true,
+        isArchived: false, // delete always overrides archive
+        deletedAt: new Date(),
+        deletedBy: req.user._id,
+        updatedBy: req.user._id,
+      },
+      { new: true },
+    );
 
     if (!deletedEvent) {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Cascade delete all related documents
+    // 🔹 Cascade delete domain data (budget intentionally preserved)
     await Promise.all([
-      Task.deleteMany({ eventId: req.params.id }),
-      Budget.deleteOne({
-        eventId: req.params.id,
-        organizationId: req.user.organization,
-      }),
-      Expense.deleteMany({
-        eventId: req.params.id,
-        organizationId: req.user.organization,
-      }),
+      Task.deleteMany({ eventId }),
+      Expense.deleteMany({ eventId, organizationId }),
     ]);
 
     // 🔹 DELETE RECEIPTS FROM SUPABASE (non-blocking)
@@ -496,7 +593,8 @@ const deleteEvent = async (req, res) => {
         // Count remaining events for this client
         const remainingEvents = await Event.countDocuments({
           client: deletedEvent.client,
-          organizationId: req.user.organization,
+          organizationId,
+          isDeleted: false,
         });
 
         // If no more events, hard delete the client
@@ -508,7 +606,7 @@ const deleteEvent = async (req, res) => {
       }
     }
 
-    res.json({ message: "Event and all related data deleted" });
+    res.json({ message: "Event deleted", clientHardDeleted, clientName });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
