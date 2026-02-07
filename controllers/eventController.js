@@ -158,7 +158,7 @@ const getAllEvents = async (req, res) => {
         if (eventExpenses) {
           const expenses = await Expense.find({
             _id: { $in: eventExpenses.expenseIds },
-          }).populate("vendor", "name services isArchived");
+          }).populate("vendor", "name services isArchived isDeleted");
 
           const vendorMap = new Map();
           expenses.forEach((expense) => {
@@ -197,8 +197,8 @@ const getEventById = async (req, res) => {
       organizationId: req.user.organization,
     })
       .populate("client")
-      .populate("createdBy", "firstName lastName")
-      .populate("updatedBy", "firstName lastName email")
+      .populate("createdBy", "firstName lastName isActive")
+      .populate("updatedBy", "firstName lastName email isActive")
       .lean();
 
     if (!event) {
@@ -211,7 +211,7 @@ const getEventById = async (req, res) => {
     const expenses = await Expense.find({
       eventId: req.params.id,
       organizationId: req.user.organization,
-    }).populate("vendor", "name services isArchived");
+    }).populate("vendor", "name services isArchived isDeleted");
 
     // Calculate total expenses
     const totalExpenses = expenses.reduce(
@@ -317,8 +317,8 @@ const updateEvent = async (req, res) => {
       updateData,
       { new: true, runValidators: true },
     )
-      .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firstName lastName email")
+      .populate("createdBy", "firstName lastName email isActive")
+      .populate("updatedBy", "firstName lastName email isActive")
       .populate("client");
 
     if (!updatedEvent) {

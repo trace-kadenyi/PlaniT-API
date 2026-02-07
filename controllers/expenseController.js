@@ -80,6 +80,22 @@ const createExpense = async (req, res) => {
       });
     }
 
+    // don't add deleted vendors
+    if (req.body.vendor) {
+      const vendor = await Vendor.findOne({
+        _id: req.body.vendor,
+        organizationId: req.user.organization,
+        isDeleted: false,
+      });
+
+      if (!vendor) {
+        return res.status(400).json({
+          error: "InvalidVendor",
+          message: "Selected vendor does not exist or has been removed",
+        });
+      }
+    }
+
     // control: expense must be less than remaining budget
     if (req.body.amount > budgetStatus.remainingBudget) {
       return res.status(400).json({
@@ -172,9 +188,9 @@ const getExpensesByEventId = async (req, res) => {
       eventId: req.params.eventId,
       organizationId: req.user.organization,
     })
-      .populate("vendor", "name services isArchived")
-      .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firstName lastName email")
+      .populate("vendor", "name services isArchived isDeleted")
+      .populate("createdBy", "firstName lastName email isActive")
+      .populate("updatedBy", "firstName lastName email isActive")
       .sort({ createdAt: -1 });
 
     const budgetStatus = await getBudgetStatus(
@@ -208,9 +224,9 @@ const getExpenseById = async (req, res) => {
       _id: req.params.id,
       organizationId: req.user.organization,
     })
-      .populate("vendor", "name services")
-      .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firstName lastName email");
+      .populate("vendor", "name services isDeleted")
+      .populate("createdBy", "firstName lastName email isActive")
+      .populate("updatedBy", "firstName lastName email isActive");
 
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
@@ -314,6 +330,25 @@ const updateExpense = async (req, res) => {
       });
     }
 
+    // Prevent assigning deleted vendors on update
+    if (
+      req.body.vendor &&
+      req.body.vendor !== existingExpense.vendor?.toString()
+    ) {
+      const vendor = await Vendor.findOne({
+        _id: req.body.vendor,
+        organizationId: req.user.organization,
+        isDeleted: false,
+      });
+
+      if (!vendor) {
+        return res.status(400).json({
+          error: "InvalidVendor",
+          message: "Selected vendor does not exist or has been removed",
+        });
+      }
+    }
+
     // Add updatedBy to the update data
     const { createdBy, ...safeUpdateData } = req.body; // Remove createdBy from request body
     const updateData = {
@@ -326,9 +361,9 @@ const updateExpense = async (req, res) => {
       updateData,
       { new: true, runValidators: true },
     )
-      .populate("vendor", "name services")
-      .populate("createdBy", "firstName lastName email")
-      .populate("updatedBy", "firstName lastName email");
+      .populate("vendor", "name services isDeleted")
+      .populate("createdBy", "firstName lastName email isActive")
+      .populate("updatedBy", "firstName lastName email isActive");
 
     // budget handling
     if (budget && existingExpense.paymentStatus === "pending") {
@@ -631,7 +666,7 @@ const getExpenseAuditLogs = async (req, res) => {
           try {
             const vendor = await Vendor.findById(
               expenseData.vendor,
-              "name services email phone",
+              "name services email phone isDeleted",
             );
             expenseData.vendor = vendor || {
               _id: expenseData.vendor,

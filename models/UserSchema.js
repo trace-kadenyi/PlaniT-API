@@ -75,6 +75,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isDeactivated: {
+      type: Boolean,
+      default: false,
+    },
     lastLogin: {
       type: Date,
       default: null,
@@ -85,14 +89,15 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Compound index for unique emails per organization
 userSchema.index({ email: 1, organization: 1 }, { unique: true });
 
-// Index for better query performance
+// Indices for better query performance
 userSchema.index({ role: 1, isActive: 1 });
+userSchema.index({ organization: 1, isDeactivated: 1 });
 
 // Pre-save middleware to hash password
 userSchema.pre("save", async function (next) {
@@ -113,7 +118,7 @@ userSchema.pre("save", function (next) {
 // Instance method to check password
 userSchema.methods.correctPassword = async function (
   candidatePassword,
-  userPassword
+  userPassword,
 ) {
   return await bcrypt.compare(candidatePassword, userPassword);
 };
@@ -123,7 +128,7 @@ userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
   if (this.passwordChangedAt) {
     const changedTimestamp = parseInt(
       this.passwordChangedAt.getTime() / 1000,
-      10
+      10,
     );
     return JWTTimestamp < changedTimestamp;
   }
@@ -143,4 +148,5 @@ userSchema.methods.createPasswordResetToken = function () {
 
   return resetToken;
 };
+
 module.exports = mongoose.model("User", userSchema);

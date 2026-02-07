@@ -45,6 +45,7 @@ const getAllVendors = async (req, res) => {
     // filter by org
     const filter = {
       organizationId: req.user.organization,
+      isDeleted: false,
     };
 
     if (service) {
@@ -67,12 +68,18 @@ const getVendorById = async (req, res) => {
     const vendor = await Vendor.findOne({
       _id: req.params.id,
       organizationId: req.user.organization,
+      isDeleted: false,
     });
 
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
-    res.json(vendor);
+    const vendorData = vendor.toObject();
+    // if (vendor.isDeleted) {
+    //   vendorData.name = `${vendor.name} (Deleted)`;
+    // }
+
+    res.json(vendorData);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -96,9 +103,10 @@ const updateVendor = async (req, res) => {
       {
         _id: req.params.id,
         organizationId: req.user.organization,
+        isDeleted: false,
       },
       req.body,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedVendor) {
@@ -124,6 +132,7 @@ const toggleVendorArchive = async (req, res) => {
     const vendor = await Vendor.findOne({
       _id: req.params.id,
       organizationId: req.user.organization,
+      isDeleted: false,
     });
 
     if (!vendor) {
@@ -151,6 +160,7 @@ const getVendorStats = async (req, res) => {
       {
         $match: {
           organizationId: req.user.organization,
+          isDeleted: false,
         },
       },
       {
@@ -169,13 +179,22 @@ const getVendorStats = async (req, res) => {
   }
 };
 
-// Delete vendor completely
+// Soft-delete vendor
 const deleteVendor = async (req, res) => {
   try {
-    const vendor = await Vendor.findOneAndDelete({
-      _id: req.params.id,
-      organizationId: req.user.organization,
-    });
+    const vendor = await Vendor.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        organizationId: req.user.organization,
+        isDeleted: false,
+      },
+      {
+        isDeleted: true,
+        isArchived: false,
+        deletedAt: new Date(),
+      },
+      { new: true },
+    );
 
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
@@ -183,24 +202,36 @@ const deleteVendor = async (req, res) => {
 
     res.json({
       message: "Vendor deleted successfully",
-      deletedVendor: vendor,
+      deletedVendor: {
+        _id: vendor._id,
+        name: `${vendor.name} (Deleted)`,
+        isDeleted: true,
+        deletedAt: vendor.deletedAt,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Delete all vendors completely
+// Soft-delete all vendors
 const deleteAllVendors = async (req, res) => {
   try {
     // Delete all vendors
-    const deletedVendors = await Vendor.deleteMany({
-      organizationId: req.user.organization,
-    });
-
+    const deletedVendors = await Vendor.updateMany(
+      {
+        organizationId: req.user.organization,
+        isDeleted: false,
+      },
+      {
+        isDeleted: true,
+        isArchived: false,
+        deletedAt: new Date(),
+      },
+    );
     res.json({
       message: "All vendors deleted successfully",
-      deletedCount: deletedVendors.deletedCount,
+      deletedCount: deletedVendors.modifiedCount,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

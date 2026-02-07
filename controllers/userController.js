@@ -6,9 +6,18 @@ const { generateDescription } = require("../utils/generateDescriptions");
 // Get all users in current user's organization
 const getUsers = async (req, res) => {
   try {
-    const users = await User.find({
+    let query = {
       organization: req.user.organization,
-    }).select("-password -passwordResetToken -passwordResetExpires");
+    };
+
+    // If user is viewer or planner, exclude deactivated users
+    if (req.user.role === "viewer" || req.user.role === "planner") {
+      query.isDeactivated = false;
+    }
+
+    const users = await User.find(query).select(
+      "-password -passwordResetToken -passwordResetExpires",
+    );
 
     res.json(users);
   } catch (err) {
@@ -26,6 +35,16 @@ const getUser = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // PREVENT VIEWERS/PLANNERS FROM ACCESSING DEACTIVATED USERS
+    if (
+      user.isDeactivated &&
+      (req.user.role === "viewer" || req.user.role === "planner")
+    ) {
+      return res.status(403).json({
+        message: "You don't have permission to view this user",
+      });
     }
 
     res.json(user);
@@ -115,6 +134,12 @@ const updateUser = async (req, res) => {
 
     if (!targetUser) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    if (targetUser.isDeactivated) {
+      return res.status(400).json({
+        message: "Cannot update a deactivated user",
+      });
     }
 
     const isSelf = req.user._id.toString() === req.params.userId;
@@ -310,6 +335,12 @@ const updateUserRole = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    if (targetUser.isDeactivated) {
+      return res.status(400).json({
+        message: "Cannot update a deactivated user",
+      });
+    }
+
     // Prevent changing super admins role (only super admins can do this)
     if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
       return res.status(403).json({
@@ -399,17 +430,19 @@ const deleteUser = async (req, res) => {
       type: "deactivation",
       changes: [
         {
-          field: "isActive",
-          oldValue: true,
-          newValue: false,
+          field: "status",
+          oldValue: "Active",
+          newValue: "Deactivated",
         },
       ],
-      description: `${targetUser.firstName} ${targetUser.lastName} was deleted by ${req.user.firstName} ${req.user.lastName} on ${new Date().toLocaleString()}`,
+      description: `${targetUser.firstName} ${targetUser.lastName} was deactivated by ${req.user.firstName} ${req.user.lastName} on ${new Date().toLocaleString()}`,
       ipAddress: req.ip,
       userAgent: req.headers["user-agent"],
     });
 
-    await User.findByIdAndDelete(req.params.userId);
+    targetUser.isDeactivated = true;
+    targetUser.isActive = false;
+    await targetUser.save();
 
     res.json({
       message: "User removed successfully",
@@ -454,7 +487,7 @@ const getUserUpdateHistory = async (req, res) => {
       userId: req.params.userId,
       organization: req.user.organization,
     })
-      .populate("updatedBy", "firstName lastName email role")
+      .populate("updatedBy", "firstName lastName email role isActive")
       .sort({ createdAt: -1 })
       .limit(50);
 
@@ -463,6 +496,73 @@ const getUserUpdateHistory = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// reactivate user
+const reactivateUser = async (req, res) => {
+  try {
+    // Permission check
+    if (!["super_admin", "admin"].includes(req.user.role)) {
+      return res.status(403).json({
+        message: "Only organization admins can reactivate users",
+      });
+    }
+
+    const targetUser = await User.findOne({
+      _id: req.params.userId,
+      organization: req.user.organization,
+      isDeactivated: true,
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({
+        message: "Removed user not found",
+      });
+    }
+
+    // Prevent reactivating super admins unless super admin
+    if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
+      return res.status(403).json({
+        message: "Only super admins can reactivate super admins",
+      });
+    }
+
+    targetUser.isDeactivated = false;
+    targetUser.isActive = true;
+
+    await targetUser.save();
+
+    // Log reactivation
+    await UserUpdateHistory.create({
+      userId: targetUser._id,
+      organization: req.user.organization,
+      updatedBy: req.user._id,
+      updatedByRole: req.user.role,
+      type: "reactivation",
+      changes: [
+        {
+          field: "status",
+          oldValue: "Deactivated",
+          newValue: "Active",
+        },
+      ],
+      description: `${targetUser.firstName} ${targetUser.lastName} was reactivated by ${req.user.firstName} ${req.user.lastName}`,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    const cleanUser = await User.findById(targetUser._id).select(
+      "-password -passwordResetToken -passwordResetExpires",
+    );
+
+    res.json({
+      message: "User reactivated successfully",
+      user: cleanUser,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getUsers,
   getUser,
@@ -471,4 +571,5 @@ module.exports = {
   updateUserRole,
   deleteUser,
   getUserUpdateHistory,
+  reactivateUser,
 };
