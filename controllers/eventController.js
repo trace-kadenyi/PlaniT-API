@@ -520,4 +520,6 @@ module.exports = {
   getEventById,
   updateEvent,
   deleteEvent,
+  archiveEvent,
+  restoreEvent,
 };
