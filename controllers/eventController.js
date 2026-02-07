@@ -396,6 +396,39 @@ const archiveEvent = async (req, res) => {
   }
 };
 
+// restore archived event
+const restoreEvent = async (req, res) => {
+  try {
+    if (!["admin", "super_admin"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Permission denied" });
+    }
+
+    const event = await Event.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        organizationId: req.user.organization,
+        isDeleted: false,
+      },
+      {
+        isArchived: false,
+        archivedAt: null,
+      },
+      { new: true },
+    );
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    res.json({
+      message: "Event restored successfully",
+      event,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // Delete an event
 const deleteEvent = async (req, res) => {
   try {
