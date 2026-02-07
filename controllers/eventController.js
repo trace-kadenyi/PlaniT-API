@@ -122,10 +122,20 @@ const createEvent = async (req, res) => {
 // Get all events
 const getAllEvents = async (req, res) => {
   try {
-    // Show events created by ANY user in the same organization
-    const events = await Event.find({
+    const isAdmin =
+      req.user.role === "admin" || req.user.role === "super_admin";
+
+    const filter = {
       organizationId: req.user.organization,
-    })
+      isDeleted: false,
+    };
+
+    // Non-admins should not see archived events
+    if (!isAdmin) {
+      filter.isArchived = false;
+    }
+    // Show events created by ANY user in the same organization
+    const events = await Event.find(filter)
       .populate("client")
       .populate("createdBy", "firstName lastName")
       .populate("updatedBy", "firstName lastName email")
