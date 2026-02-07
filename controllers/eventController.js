@@ -213,9 +213,7 @@ const getEventById = async (req, res) => {
       .lean();
 
     if (!event) {
-      return res
-        .status(404)
-        .json({ message: "Event not found or access denied" });
+      return res.status(404).json({ message: "Event not found" });
     }
 
     // restrict access for archived events
@@ -271,15 +269,24 @@ const getEventById = async (req, res) => {
 // Update an event
 const updateEvent = async (req, res) => {
   try {
+    if (req.user.role === "viewer") {
+      return res.status(403).json({ message: "Read-only access" });
+    }
+
     const existingEvent = await Event.findOne({
       _id: req.params.id,
       organizationId: req.user.organization,
+      isDeleted: false,
     });
 
     if (!existingEvent) {
-      return res
-        .status(404)
-        .json({ message: "Event not found or access denied" });
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    if (existingEvent.isArchived) {
+      return res.status(400).json({
+        message: "Archived events cannot be edited",
+      });
     }
 
     // Normalize the date if provided
