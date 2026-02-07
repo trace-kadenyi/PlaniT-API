@@ -205,6 +205,7 @@ const getEventById = async (req, res) => {
     const event = await Event.findOne({
       _id: req.params.id,
       organizationId: req.user.organization,
+      isDeleted: false,
     })
       .populate("client")
       .populate("createdBy", "firstName lastName isActive")
@@ -215,6 +216,13 @@ const getEventById = async (req, res) => {
       return res
         .status(404)
         .json({ message: "Event not found or access denied" });
+    }
+
+    // restrict access for archived events
+    if (event.isArchived && !["admin", "super_admin"].includes(req.user.role)) {
+      return res.status(403).json({
+        message: "You do not have permission to view archived events",
+      });
     }
 
     // Get all expenses for this event to calculate totals and get vendors
