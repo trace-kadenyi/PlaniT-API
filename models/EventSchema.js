@@ -78,13 +78,24 @@ const eventSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    isArchived: {
+      type: Boolean,
+      default: false,
+    },
+    archivedAt: Date,
+
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: Date,
   },
   {
     timestamps: true,
     // Enable getters when converting to JSON
     toJSON: { getters: true },
     toObject: { getters: true },
-  }
+  },
 );
 
 module.exports = mongoose.model("Event", eventSchema);

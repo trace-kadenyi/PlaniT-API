@@ -7,6 +7,8 @@ const {
   getEventById,
   updateEvent,
   deleteEvent,
+  archiveEvent,
+  restoreEvent,
 } = require("../controllers/eventController");
 const authController = require("../controllers/authController");
 
@@ -21,6 +23,12 @@ router.get("/:id", authController.protect, getEventById);
 
 // Update event by ID
 router.put("/:id", authController.protect, updateEvent);
+
+// Archive event
+router.patch("/:id/archive", authController.protect, archiveEvent);
+
+// Restore archived event
+router.patch("/:id/restore", authController.protect, restoreEvent);
 
 // Delete event by ID
 router.delete("/:id", authController.protect, deleteEvent);

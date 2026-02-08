@@ -122,10 +122,22 @@ const createEvent = async (req, res) => {
 // Get all events
 const getAllEvents = async (req, res) => {
   try {
-    // Show events created by ANY user in the same organization
-    const events = await Event.find({
+    const isPermitted =
+      req.user.role === "admin" ||
+      req.user.role === "super_admin" ||
+      req.user.role === "planner";
+
+    const filter = {
       organizationId: req.user.organization,
-    })
+      isDeleted: false,
+    };
+
+    // Non-admins should not see archived events
+    if (!isPermitted) {
+      filter.isArchived = false;
+    }
+    // Show events created by ANY user in the same organization
+    const events = await Event.find(filter)
       .populate("client")
       .populate("createdBy", "firstName lastName")
       .populate("updatedBy", "firstName lastName email")
@@ -195,6 +207,7 @@ const getEventById = async (req, res) => {
     const event = await Event.findOne({
       _id: req.params.id,
       organizationId: req.user.organization,
+      isDeleted: false,
     })
       .populate("client")
       .populate("createdBy", "firstName lastName isActive")
@@ -202,9 +215,14 @@ const getEventById = async (req, res) => {
       .lean();
 
     if (!event) {
-      return res
-        .status(404)
-        .json({ message: "Event not found or access denied" });
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    // restrict access for archived events
+    if (event.isArchived && ["viewer"].includes(req.user.role)) {
+      return res.status(403).json({
+        message: "You do not have permission to view archived events",
+      });
     }
 
     // Get all expenses for this event to calculate totals and get vendors
@@ -253,15 +271,24 @@ const getEventById = async (req, res) => {
 // Update an event
 const updateEvent = async (req, res) => {
   try {
+    if (req.user.role === "viewer") {
+      return res.status(403).json({ message: "Read-only access" });
+    }
+
     const existingEvent = await Event.findOne({
       _id: req.params.id,
       organizationId: req.user.organization,
+      isDeleted: false,
     });
 
     if (!existingEvent) {
-      return res
-        .status(404)
-        .json({ message: "Event not found or access denied" });
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    if (existingEvent.isArchived) {
+      return res.status(400).json({
+        message: "Archived events cannot be edited. Restore to edit.",
+      });
     }
 
     // Normalize the date if provided
@@ -338,9 +365,83 @@ const updateEvent = async (req, res) => {
   }
 };
 
-// Delete an event
+// archive an event
+const archiveEvent = async (req, res) => {
+  try {
+    if (!["planner", "admin", "super_admin"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Permission denied" });
+    }
+
+    const event = await Event.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        organizationId: req.user.organization,
+        isDeleted: false,
+      },
+      {
+        isArchived: true,
+        archivedAt: new Date(),
+      },
+      { new: true },
+    );
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    res.json({
+      message: "Event archived successfully",
+      event,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// restore archived event
+const restoreEvent = async (req, res) => {
+  try {
+    if (!["planner", "admin", "super_admin"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Permission denied" });
+    }
+
+    const event = await Event.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        organizationId: req.user.organization,
+        isDeleted: false,
+      },
+      {
+        isArchived: false,
+        archivedAt: null,
+      },
+      { new: true },
+    );
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    res.json({
+      message: "Event restored successfully",
+      event,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Soft-delete event
 const deleteEvent = async (req, res) => {
   try {
+    // 🔒 Admin / Super Admin only
+    if (!["admin", "super_admin"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Delete permission denied" });
+    }
+
+    const eventId = req.params.id;
+    const organizationId = req.user.organization;
+
     // 🔹 fetch expenses FIRST (for receipts)
     const expensesWithReceipts = await Expense.find({
       eventId: req.params.id,
@@ -348,27 +449,50 @@ const deleteEvent = async (req, res) => {
       receiptUrl: { $exists: true, $ne: null },
     }).select("receiptUrl");
 
-    // event to be deleted
-    const deletedEvent = await Event.findOneAndDelete({
-      _id: req.params.id,
-      organizationId: req.user.organization,
-    });
+    // 🔹 SOFT DELETE event (never remove from DB)
+    const deletedEvent = await Event.findOneAndUpdate(
+      {
+        _id: eventId,
+        organizationId,
+        isDeleted: { $ne: true },
+      },
+      {
+        isDeleted: true,
+        isArchived: false, // delete always overrides archive
+        deletedAt: new Date(),
+        deletedBy: req.user._id,
+        updatedBy: req.user._id,
+      },
+      { new: true },
+    );
 
     if (!deletedEvent) {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Cascade delete all related documents
+    // handle expense logs for deleted events
+    const expensesToDelete = await Expense.find({
+      eventId,
+      organizationId,
+    });
+
+    for (const expense of expensesToDelete) {
+      await logExpenseAction({
+        actionType: "EVENT_DELETE_CASCADE",
+        expense,
+        user: req.user,
+        reason: "Expense removed due to event deletion",
+        description: `Expense removed because event "${deletedEvent.name}" was deleted`,
+        budgetStatusBefore: null,
+        budgetStatusAfter: null,
+        req,
+      });
+    }
+
+    // 🔹 Cascade delete domain data (budget intentionally preserved)
     await Promise.all([
-      Task.deleteMany({ eventId: req.params.id }),
-      Budget.deleteOne({
-        eventId: req.params.id,
-        organizationId: req.user.organization,
-      }),
-      Expense.deleteMany({
-        eventId: req.params.id,
-        organizationId: req.user.organization,
-      }),
+      Task.deleteMany({ eventId }),
+      Expense.deleteMany({ eventId, organizationId }),
     ]);
 
     // 🔹 DELETE RECEIPTS FROM SUPABASE (non-blocking)
@@ -405,7 +529,8 @@ const deleteEvent = async (req, res) => {
         // Count remaining events for this client
         const remainingEvents = await Event.countDocuments({
           client: deletedEvent.client,
-          organizationId: req.user.organization,
+          organizationId,
+          isDeleted: false,
         });
 
         // If no more events, hard delete the client
@@ -417,7 +542,7 @@ const deleteEvent = async (req, res) => {
       }
     }
 
-    res.json({ message: "Event and all related data deleted" });
+    res.json({ message: "Event deleted", clientHardDeleted, clientName });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -429,4 +554,6 @@ module.exports = {
   getEventById,
   updateEvent,
   deleteEvent,
+  archiveEvent,
+  restoreEvent,
 };

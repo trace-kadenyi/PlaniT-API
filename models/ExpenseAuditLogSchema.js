@@ -22,7 +22,14 @@ const expenseAuditLogSchema = new mongoose.Schema(
     // Action metadata
     actionType: {
       type: String,
-      enum: ["CREATE", "UPDATE", "DELETE", "STATUS_CHANGE", "AMOUNT_CHANGE"],
+      enum: [
+        "CREATE",
+        "UPDATE",
+        "DELETE",
+        "STATUS_CHANGE",
+        "AMOUNT_CHANGE",
+        "EVENT_DELETE_CASCADE",
+      ],
       required: true,
     },
 

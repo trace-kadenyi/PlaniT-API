@@ -225,7 +225,7 @@ const deleteClient = async (req, res) => {
 
     if (eventCount > 0) {
       client.isDeleted = true;
-      client.isArchived = true;
+      client.isArchived = false;
       client.deletedAt = new Date();
       await client.save();
 
@@ -276,7 +276,7 @@ const deleteAllClients = async (req, res) => {
 
       if (eventCount > 0) {
         client.isDeleted = true;
-        client.isArchived = true;
+        client.isArchived = false;
         client.deletedAt = new Date();
         await client.save();
         softDeleted++;
