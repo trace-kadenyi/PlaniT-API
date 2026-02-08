@@ -122,8 +122,10 @@ const createEvent = async (req, res) => {
 // Get all events
 const getAllEvents = async (req, res) => {
   try {
-    const isAdmin =
-      req.user.role === "admin" || req.user.role === "super_admin";
+    const isPermitted =
+      req.user.role === "admin" ||
+      req.user.role === "super_admin" ||
+      req.user.role === "planner";
 
     const filter = {
       organizationId: req.user.organization,
@@ -131,7 +133,7 @@ const getAllEvents = async (req, res) => {
     };
 
     // Non-admins should not see archived events
-    if (!isAdmin) {
+    if (!isPermitted) {
       filter.isArchived = false;
     }
     // Show events created by ANY user in the same organization
@@ -217,7 +219,7 @@ const getEventById = async (req, res) => {
     }
 
     // restrict access for archived events
-    if (event.isArchived && !["admin", "super_admin"].includes(req.user.role)) {
+    if (event.isArchived && ["viewer"].includes(req.user.role)) {
       return res.status(403).json({
         message: "You do not have permission to view archived events",
       });
