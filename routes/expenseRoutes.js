@@ -11,6 +11,7 @@ const {
   getAllExpenses,
   getBudgetStatusForAllEvents,
   getExpenseAuditLogs,
+  getDeletedEventExpenseLogs,
 } = require("../controllers/expenseController");
 const authController = require("../controllers/authController");
 
@@ -20,6 +21,14 @@ router.get(
   authController.protect,
   authController.restrictTo("admin", "super_admin"),
   getExpenseAuditLogs,
+);
+
+// 🔴 Audit log for deleted events
+router.get(
+  "/audit-logs/deleted-events",
+  authController.protect,
+  authController.restrictTo("admin", "super_admin"),
+  getDeletedEventExpenseLogs,
 );
 
 // create expense - planners, admins, super_admins only
