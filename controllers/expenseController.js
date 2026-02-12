@@ -748,6 +748,106 @@ const getExpenseAuditLogs = async (req, res) => {
   }
 };
 
+// 🔴 NEW ENDPOINT -专门 for deleted events
+const getDeletedEventExpenseLogs = async (req, res) => {
+  try {
+    if (!canViewAuditLogs(req.user)) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Only administrators can view audit logs",
+      });
+    }
+
+    const { eventId } = req.query;
+    let query = {
+      organizationId: req.user.organization,
+      actionType: "EVENT_DELETE_CASCADE", // 🔴 ONLY cascade deletions
+    };
+
+    if (eventId && mongoose.Types.ObjectId.isValid(eventId)) {
+      query.eventId = eventId;
+    }
+
+    // 🔴 NO POPULATE on expenseId - we use newData instead!
+    const logs = await ExpenseAuditLog.find(query)
+      .populate("eventId", "name")
+      .populate("performedBy", "firstName lastName email role")
+      .lean()
+      .sort({ createdAt: -1 })
+      .limit(parseInt(req.query.limit || 100));
+
+    // 🔴 Format specifically for deleted events
+    const formattedLogs = logs.map((log) => {
+      // Use newData as the source of truth
+      const expenseData = log.newData || {};
+
+      return {
+        _id: log._id,
+        expenseId: log.expenseId, // Now this works!
+        eventId: log.eventId,
+        performedBySnapshot: log.performedBySnapshot,
+        createdAt: log.createdAt,
+        expenseData: {
+          _id: log.expenseId, // Use the ID from the log, not populate
+          description: expenseData.description,
+          amount: expenseData.amount,
+          category: expenseData.category,
+          vendor: expenseData.vendor,
+          paymentStatus: expenseData.paymentStatus,
+          paymentDate: expenseData.paymentDate,
+          dueDate: expenseData.dueDate,
+          notes: expenseData.notes,
+          receiptUrl: expenseData.receiptUrl,
+          createdAt: expenseData.createdAt,
+          createdBySnapshot: expenseData.createdBySnapshot,
+        },
+        event: {
+          _id: log.eventId?._id || log.eventId,
+          name: log.eventId?.name || extractEventName(log) || "Unknown Event",
+        },
+        reason: log.reason,
+        description: log.description,
+        actionType: log.actionType,
+      };
+    });
+
+    // Group by event for frontend convenience
+    const groupedByEvent = formattedLogs.reduce((acc, log) => {
+      const eventId = log.eventId?._id || log.eventId;
+      if (!acc[eventId]) {
+        acc[eventId] = {
+          eventId,
+          eventName: log.event?.name || "Unknown Event",
+          deletedAt: log.createdAt,
+          expenses: [],
+          totalAmount: 0,
+        };
+      }
+      acc[eventId].expenses.push(log);
+      acc[eventId].totalAmount += log.expenseData?.amount || 0;
+      return acc;
+    }, {});
+
+    res.json({
+      success: true,
+      logs: formattedLogs,
+      groupedByEvent: Object.values(groupedByEvent),
+      count: formattedLogs.length,
+    });
+  } catch (err) {
+    console.error("❌ Deleted event audit log error:", err);
+    res.status(500).json({
+      message: "Failed to fetch deleted event expense logs",
+      error: err.message,
+    });
+  }
+};
+
+// Helper function to extract event name from description
+const extractEventName = (log) => {
+  const match = log.description?.match(/event "([^"]+)"/);
+  return match ? match[1] : null;
+};
 module.exports = {
   createExpense,
   getExpensesByEventId,
@@ -758,4 +858,5 @@ module.exports = {
   getAllExpenses,
   getBudgetStatusForAllEvents,
   getExpenseAuditLogs,
+  getDeletedEventExpenseLogs,
 };
