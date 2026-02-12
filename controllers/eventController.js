@@ -7,6 +7,7 @@ const Expense = require("../models/ExpenseSchema");
 const User = require("../models/UserSchema");
 const Client = require("../models/ClientSchema");
 const supabaseAdmin = require("../utils/supabaseAdmin");
+const { logExpenseAction } = require("../utils/auditHelpers");
 
 const maxChars = 300;
 const maxNameChars = 70;
