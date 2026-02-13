@@ -761,34 +761,39 @@ const getDeletedEventExpenseLogs = async (req, res) => {
     const { eventId } = req.query;
     let query = {
       organizationId: req.user.organization,
-      actionType: "EVENT_DELETE_CASCADE", // 🔴 ONLY cascade deletions
+      actionType: "EVENT_DELETE_CASCADE",
     };
 
     if (eventId && mongoose.Types.ObjectId.isValid(eventId)) {
       query.eventId = eventId;
     }
 
-    // 🔴 NO POPULATE on expenseId - we use newData instead!
     const logs = await ExpenseAuditLog.find(query)
       .populate("eventId", "name")
       .populate("performedBy", "firstName lastName email role")
+      .populate({
+        path: "newData.vendor",
+        select: "name email phone address",
+        model: "Vendor",
+      })
       .lean()
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit || 100));
 
-    // 🔴 Format specifically for deleted events
     const formattedLogs = logs.map((log) => {
-      // Use newData as the source of truth
       const expenseData = log.newData || {};
 
       return {
         _id: log._id,
-        expenseId: log.expenseId, // Now this works!
+        expenseId: log.expenseId,
         eventId: log.eventId,
-        performedBySnapshot: log.performedBySnapshot,
+        // ✅ ADD THIS - Who deleted the event (the person who triggered the cascade)
+        performedBy: log.performedBy,
+        performedBySnapshot: log.performedBySnapshot, // ← CRITICAL!
         createdAt: log.createdAt,
+        // ✅ ADD THIS - Who created the expense originally
         expenseData: {
-          _id: log.expenseId, // Use the ID from the log, not populate
+          _id: log.expenseId,
           description: expenseData.description,
           amount: expenseData.amount,
           category: expenseData.category,
@@ -799,19 +804,29 @@ const getDeletedEventExpenseLogs = async (req, res) => {
           notes: expenseData.notes,
           receiptUrl: expenseData.receiptUrl,
           createdAt: expenseData.createdAt,
-          createdBySnapshot: expenseData.createdBySnapshot,
+          createdBy: expenseData.createdBy,
+          createdBySnapshot: expenseData.createdBySnapshot, // ← CRITICAL!
         },
         event: {
           _id: log.eventId?._id || log.eventId,
           name: log.eventId?.name || extractEventName(log) || "Unknown Event",
         },
+        // ✅ ADD THIS - Make it match the regular audit log structure
+        deletedBy: log.performedBySnapshot, // For AuditLogsOverview component
         reason: log.reason,
         description: log.description,
         actionType: log.actionType,
+        changes: log.changes || [], // Add changes array
+        metadata: log.budgetImpact
+          ? {
+              budgetRemainingBefore: log.budgetImpact.before?.remainingBudget,
+              budgetRemainingAfter: log.budgetImpact.after?.remainingBudget,
+            }
+          : {},
       };
     });
 
-    // Group by event for frontend convenience
+    // Group by event for frontend
     const groupedByEvent = formattedLogs.reduce((acc, log) => {
       const eventId = log.eventId?._id || log.eventId;
       if (!acc[eventId]) {
@@ -848,6 +863,7 @@ const extractEventName = (log) => {
   const match = log.description?.match(/event "([^"]+)"/);
   return match ? match[1] : null;
 };
+
 module.exports = {
   createExpense,
   getExpensesByEventId,
