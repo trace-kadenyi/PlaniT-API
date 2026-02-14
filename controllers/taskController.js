@@ -72,6 +72,15 @@ const createTask = async (req, res) => {
       return res.status(404).json({ message: "Associated event not found" });
     }
 
+    // 🚫 PREVENT CREATING TASKS FOR ARCHIVED EVENTS
+    if (event.isArchived) {
+      return res.status(403).json({
+        error: "EventArchived",
+        message:
+          "Cannot create tasks for archived events. Please restore the event first.",
+      });
+    }
+
     // verify user has access to this event (event must be in same org)
     const organizationUsers = await User.find({
       organization: req.user.organization,
