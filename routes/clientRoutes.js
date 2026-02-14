@@ -11,30 +11,56 @@ const {
   deleteClient,
   deleteAllClients,
 } = require("../controllers/clientController");
+const { authorize } = require("../middleware/authmiddleware");
+const { PERMISSIONS, RESOURCES } = require("../services/permissionService");
+
 const authController = require("../controllers/authController");
 
+// ========== PROTECT ALL ROUTES ==========
+router.use(authController.protect);
+
 // POST /api/clients
-router.post("/", authController.protect, createClient);
+router.post("/", authorize(PERMISSIONS.CREATE, RESOURCES.CLIENT), createClient);
 
 // GET /api/clients
-router.get("/", authController.protect, getAllClients);
+router.get("/", authorize(PERMISSIONS.VIEW, RESOURCES.CLIENT), getAllClients);
 
 // GET /api/clients/:id
-router.get("/:id", authController.protect, getClientWithEvents);
+router.get(
+  "/:id",
+  authorize(PERMISSIONS.VIEW, RESOURCES.CLIENT),
+  getClientWithEvents,
+);
 
 // PUT /api/clients/:id
-router.put("/:id", authController.protect, updateClient);
+router.put("/:id", authorize(PERMISSIONS.EDIT, RESOURCES.CLIENT), updateClient);
 
 // PATCH /api/clients/id/archive
-router.patch("/:id/archive", authController.protect, archiveClient);
+router.patch(
+  "/:id/archive",
+  authorize(PERMISSIONS.ARCHIVE, RESOURCES.CLIENT),
+  archiveClient,
+);
 
 // PATCH /api/clients/id/restore
-router.patch("/:id/restore", authController.protect, restoreClient);
+router.patch(
+  "/:id/restore",
+  authorize(PERMISSIONS.ARCHIVE, RESOURCES.CLIENT),
+  restoreClient,
+);
 
 // DELETE /api/clients/id
-router.delete("/:id", authController.protect, deleteClient);
+router.delete(
+  "/:id",
+  authorize(PERMISSIONS.DELETE, RESOURCES.CLIENT),
+  deleteClient,
+);
 
 // DELETE /api/clients
-router.delete("/", authController.protect, deleteAllClients);
+router.delete(
+  "/",
+  authorize(PERMISSIONS.DELETE_ALL, RESOURCES.CLIENT),
+  deleteAllClients,
+);
 
 module.exports = router;
