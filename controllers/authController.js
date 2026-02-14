@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 
 const User = require("../models/UserSchema");
 const Organization = require("../models/OrganizationSchema");
+const { getBasePermissionsForRole } = require("../services/permissionService");
 
 // Generate JWT tokens
 const signToken = (id) => {
@@ -29,12 +30,24 @@ const createSendToken = (user, statusCode, res) => {
     domain: "localhost", // Explicitly set domain for local development
   });
 
+  // Generate permissions based on role
+  const permissions = getBasePermissionsForRole(user.role);
   user.password = undefined;
 
   res.status(statusCode).json({
     status: "success",
     accessToken,
-    data: { user },
+    data: {
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        organization: user.organization,
+        permissions,
+      },
+    },
   });
 };
 
