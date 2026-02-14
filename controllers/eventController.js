@@ -288,7 +288,8 @@ const updateEvent = async (req, res) => {
 
     if (existingEvent.isArchived) {
       return res.status(400).json({
-        message: "Archived events cannot be edited. Restore to edit.",
+        message:
+          "Cannot update archived events. Please restore the event first.",
       });
     }
 
