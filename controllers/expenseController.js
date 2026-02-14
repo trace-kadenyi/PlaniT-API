@@ -53,7 +53,8 @@ const createExpense = async (req, res) => {
     if (event.isArchived) {
       return res.status(404).json({
         error: "EventArchived",
-        message: "Event is Archived. Restore to add expenses",
+        message:
+          "Cannot add expenses for archived events. Please restore the event first.",
       });
     }
 
@@ -261,6 +262,26 @@ const updateExpense = async (req, res) => {
 
     // cache event id
     const eventId = existingExpense.eventId;
+
+    // validate event
+    const event = await Event.findOne({
+      _id: eventId,
+      organizationId: req.user.organization,
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        error: "EventNotFound",
+        message: "Associated event not found",
+      });
+    }
+    if (event.isArchived) {
+      return res.status(403).json({
+        error: "EventArchived",
+        message:
+          "Cannot update expenses for archived events. Please restore the event first.",
+      });
+    }
 
     const [budget, budgetStatusBefore] = await Promise.all([
       Budget.findOne({
