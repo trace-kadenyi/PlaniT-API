@@ -177,6 +177,22 @@ const updateTask = async (req, res) => {
       });
     }
 
+    // 🚫 CHECK IF ASSOCIATED EVENT IS ARCHIVED
+    if (existingTask.eventId) {
+      const event = await Event.findOne({
+        _id: existingTask.eventId,
+        organizationId: req.user.organization,
+      }).select("isArchived");
+
+      if (event && event.isArchived) {
+        return res.status(403).json({
+          error: "EventArchived",
+          message:
+            "Cannot update tasks for archived events. Please restore the event first.",
+        });
+      }
+    }
+
     // name word limit
     const taskName = req.body.title || "";
     if (taskName.length > maxNameChars) {
