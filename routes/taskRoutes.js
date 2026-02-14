@@ -9,11 +9,8 @@ const {
   deleteTask,
 } = require("../controllers/taskController");
 const authController = require("../controllers/authController");
-const {
-  authorize,
-  PERMISSIONS,
-  RESOURCES,
-} = require("../middleware/authmiddleware");
+const { authorize } = require("../middleware/authmiddleware");
+const { PERMISSIONS, RESOURCES } = require("../services/permissionService");
 
 // 🔐 Protect all task routes
 router.use(authController.protect);
