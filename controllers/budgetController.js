@@ -56,11 +56,33 @@ const getBudgetByEventId = async (req, res) => {
 // Update budget
 const updateBudget = async (req, res) => {
   try {
-    // 1️⃣ Validate event ownership FIRST
+    // 1️⃣ Get the existing budget FIRST
+    const existingBudget = await Budget.findOne({
+      eventId: req.params.eventId,
+      organizationId: req.user.organization,
+    });
+
+    if (!existingBudget) {
+      return res.status(404).json({ message: "Budget not found" });
+    }
+
+    // 2️⃣ Check if anything actually changed
+    const { totalBudget, notes } = req.body;
+    const budgetChanged =
+      (totalBudget !== undefined &&
+        totalBudget !== existingBudget.totalBudget) ||
+      (notes !== undefined && notes !== existingBudget.notes);
+
+    // 3️⃣ If nothing changed, just return success without any checks
+    if (!budgetChanged) {
+      return res.json(existingBudget);
+    }
+
+    // 4️⃣ ONLY NOW check if event is archived (since something actually changed)
     const event = await Event.findOne({
       _id: req.params.eventId,
       organizationId: req.user.organization,
-    }).select("_id");
+    }).select("_id isArchived");
 
     if (!event) {
       return res.status(404).json({
@@ -69,17 +91,16 @@ const updateBudget = async (req, res) => {
       });
     }
 
-    // 2️⃣ Fetch budget
-    const budget = await Budget.findOne({
-      eventId: req.params.eventId,
-      organizationId: req.user.organization,
-    });
-
-    if (!budget) {
-      return res.status(404).json({ message: "Budget not found" });
+    if (event.isArchived) {
+      return res.status(403).json({
+        error: "EventArchived",
+        message:
+          "Cannot update budget for archived events. Please restore the event first.",
+      });
     }
 
-    if (req.body.totalBudget !== undefined) {
+    // 5️⃣ Validate new totalBudget against expenses
+    if (totalBudget !== undefined) {
       const expenses = await Expense.aggregate([
         {
           $match: {
@@ -92,20 +113,18 @@ const updateBudget = async (req, res) => {
         { $group: { _id: null, total: { $sum: "$amount" } } },
       ]);
 
-      // 3️⃣ Validate new totalBudget
       const totalExpenses = expenses[0]?.total || 0;
-      if (req.body.totalBudget < totalExpenses) {
+      if (totalBudget < totalExpenses) {
         return res.status(400).json({
           message: `New budget must be at least $${totalExpenses.toLocaleString()} (current expenses total)`,
         });
       }
     }
 
-    // 4️⃣ Update + save
-    const { totalBudget, notes } = req.body;
-    Object.assign(budget, { totalBudget, notes });
-    await budget.save();
-    res.json(budget);
+    // 6️⃣ Update and save
+    Object.assign(existingBudget, { totalBudget, notes });
+    await existingBudget.save();
+    res.json(existingBudget);
   } catch (err) {
     if (err.name === "ValidationError") {
       return res.status(400).json({
