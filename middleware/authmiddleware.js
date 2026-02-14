@@ -69,3 +69,5 @@ const authorize = (permission, resource) => {
     }
   };
 };
+
+module.exports = { authorize };
