@@ -11,11 +11,9 @@ const {
   deleteVendor,
   deleteAllVendors,
 } = require("../controllers/vendorController");
-const {
-  authorize,
-  PERMISSIONS,
-  RESOURCES,
-} = require("../middleware/authmiddleware");
+const { authorize } = require("../middleware/authmiddleware");
+const { PERMISSIONS, RESOURCES } = require("../services/permissionService");
+
 const authController = require("../controllers/authController");
 
 // ========== PROTECT ALL ROUTES ==========
