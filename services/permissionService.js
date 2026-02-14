@@ -20,6 +20,7 @@ const RESOURCES = {
   CLIENT: "client",
   USER: "user",
   EXPENSE: "expense",
+  BUDGET: "budget",
   AUDIT_LOG: "audit_log",
 };
 
@@ -49,6 +50,7 @@ const getBasePermissionsForRole = (role) => {
     [RESOURCES.CLIENT]: [PERMISSIONS.VIEW],
     [RESOURCES.USER]: [PERMISSIONS.VIEW],
     [RESOURCES.EXPENSE]: [PERMISSIONS.VIEW],
+    [RESOURCES.BUDGET]: [PERMISSIONS.VIEW],
     [RESOURCES.AUDIT_LOG]: [],
   };
 
@@ -60,6 +62,7 @@ const getBasePermissionsForRole = (role) => {
       RESOURCES.TASK,
       RESOURCES.CLIENT,
       RESOURCES.EXPENSE,
+      RESOURCES.BUDGET,
     ].forEach((resource) => {
       basePermissions[resource].push(
         PERMISSIONS.CREATE,
