@@ -51,7 +51,7 @@ const createExpense = async (req, res) => {
     }
 
     if (event.isArchived) {
-      return res.status(404).json({
+      return res.status(403).json({
         error: "EventArchived",
         message:
           "Cannot add expenses for archived events. Please restore the event first.",
@@ -471,6 +471,15 @@ const deleteExpense = async (req, res) => {
 
     if (!event) {
       return res.status(404).json({ message: "Associated event not found" });
+    }
+
+    // 🚫 PREVENT DELETING EXPENSES FOR ARCHIVED EVENTS
+    if (event.isArchived) {
+      return res.status(403).json({
+        error: "EventArchived",
+        message:
+          "Cannot delete expenses for archived events. Please restore the event first.",
+      });
     }
 
     if (event.status === "Completed") {
