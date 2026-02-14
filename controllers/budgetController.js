@@ -60,12 +60,20 @@ const updateBudget = async (req, res) => {
     const event = await Event.findOne({
       _id: req.params.eventId,
       organizationId: req.user.organization,
-    }).select("_id");
+    }).select("_id isArchived");
 
     if (!event) {
       return res.status(404).json({
         error: "EventNotFound",
         message: "Event not found or does not belong to your organization",
+      });
+    }
+
+    if (event.isArchived) {
+      return res.status(403).json({
+        error: "EventArchived",
+        message:
+          "Cannot update the budget of an archived event. Please restore the event first to proceed.",
       });
     }
 
