@@ -318,11 +318,45 @@ const getTaskById = async (req, res) => {
 // Delete a task
 const deleteTask = async (req, res) => {
   try {
+    // Get all users in the same organization
+    const organizationUsers = await User.find({
+      organization: req.user.organization,
+    }).select("_id");
+    const organizationUserIds = organizationUsers.map((user) => user._id);
+
+    // Check if task exists and user has access
+    const existingTask = await Task.findOne({
+      _id: req.params.id,
+      createdBy: { $in: organizationUserIds },
+    });
+
+    if (!existingTask) {
+      return res.status(404).json({
+        message: "Task not found or access denied",
+      });
+    }
+
+    // 🚫 CHECK IF ASSOCIATED EVENT IS ARCHIVED
+    if (existingTask.eventId) {
+      const event = await Event.findOne({
+        _id: existingTask.eventId,
+        organizationId: req.user.organization,
+      }).select("isArchived");
+
+      if (event && event.isArchived) {
+        return res.status(403).json({
+          error: "EventArchived",
+          message:
+            "Cannot delete tasks for archived events. Please restore the event first.",
+        });
+      }
+    }
+
     const deletedTask = await Task.findByIdAndDelete(req.params.id);
     if (!deletedTask) {
       return res.status(404).json({ message: "Task not found" });
     }
-    res.json({ message: "Task deleted" });
+    res.json({ message: "Task deleted successfully" });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
