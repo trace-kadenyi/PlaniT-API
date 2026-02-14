@@ -50,6 +50,13 @@ const createExpense = async (req, res) => {
       });
     }
 
+    if (event.isArchived) {
+      return res.status(404).json({
+        error: "EventArchived",
+        message: "Event is Archived. Restore to add expenses",
+      });
+    }
+
     // Enhanced validation
     if (budgetStatus.totalBudget === 0) {
       return res.status(404).json({
