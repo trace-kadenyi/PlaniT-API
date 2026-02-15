@@ -16,11 +16,14 @@ const authorize = (permission, resource) => {
       // ===============================
       if (!req.user) {
         return res.status(401).json({
-          message: "Authentication required",
+          error: "Unauthorized",
+          code: "AUTH_REQUIRED",
+          message: "You must be logged in to perform this action.",
         });
       }
 
       let targetUser = null;
+      let expense = null;
 
       // ===============================
       // 2️⃣ Load target user if needed
@@ -30,13 +33,58 @@ const authorize = (permission, resource) => {
 
         if (!targetUser) {
           return res.status(404).json({
-            message: "User not found",
+            error: "Not Found",
+            code: "USER_NOT_FOUND",
+            message: "User not found.",
           });
         }
       }
 
       // ===============================
-      // 3️⃣ Base permission check
+      // 3️⃣ Load expense if needed
+      // ===============================
+      if (
+        resource === RESOURCES.EXPENSE &&
+        permission === PERMISSIONS.DELETE &&
+        req.params.id
+      ) {
+        expense = await Expense.findById(req.params.id);
+
+        if (!expense) {
+          return res.status(404).json({
+            error: "Not Found",
+            code: "EXPENSE_NOT_FOUND",
+            message: "Expense not found.",
+          });
+        }
+
+        // ===============================
+        // 4️⃣ Context-aware rule:
+        // Paid expense deletion
+        // ===============================
+        if (expense.paymentStatus === "paid") {
+          const canDeletePaid = checkPermission(
+            req.user,
+            PERMISSIONS.DELETE_PAID_EXPENSE,
+            RESOURCES.EXPENSE,
+          );
+
+          if (!canDeletePaid) {
+            return res.status(403).json({
+              error: "Forbidden",
+              code: "DELETE_PAID_EXPENSE_RESTRICTED",
+              message: "Only Super Admins can delete paid expenses.",
+              details: {
+                permission,
+                resource,
+              },
+            });
+          }
+        }
+      }
+
+      // ===============================
+      // 5️⃣ General permission check
       // ===============================
       const hasPermission = checkPermission(
         req.user,
@@ -47,53 +95,25 @@ const authorize = (permission, resource) => {
 
       if (!hasPermission) {
         return res.status(403).json({
-          message: "Access denied",
-          required: { permission, resource },
+          error: "Forbidden",
+          code: "INSUFFICIENT_PERMISSION",
+          message: "You do not have permission to perform this action.",
+          details: {
+            permission,
+            resource,
+          },
         });
       }
 
-      // ===============================
-      // 4️⃣ Context-aware rule:
-      // Paid expense deletion
-      // ===============================
-      if (
-        resource === RESOURCES.EXPENSE &&
-        permission === PERMISSIONS.DELETE &&
-        req.params.id
-      ) {
-        const expense = await Expense.findById(req.params.id);
-
-        if (!expense) {
-          return res.status(404).json({
-            message: "Expense not found",
-          });
-        }
-
-        if (expense.paymentStatus === "paid") {
-          const canDeletePaid = checkPermission(
-            req.user,
-            PERMISSIONS.DELETE_PAID_EXPENSE,
-            RESOURCES.EXPENSE,
-          );
-
-          if (!canDeletePaid) {
-            return res.status(403).json({
-              message: "You don't have permission to delete paid expenses",
-            });
-          }
-        }
-      }
-
-      // Attach targetUser if needed downstream
-      if (targetUser) {
-        req.targetUser = targetUser;
-      }
+      if (targetUser) req.targetUser = targetUser;
 
       next();
     } catch (error) {
       console.error("Authorization error:", error);
       return res.status(500).json({
-        message: "Authorization check failed",
+        error: "Internal Server Error",
+        code: "AUTHORIZATION_CHECK_FAILED",
+        message: "Authorization check failed.",
       });
     }
   };
