@@ -121,13 +121,6 @@ const updateUserRole = async (req, res) => {
     const { userId } = req.params;
     const { role } = req.body;
 
-    // Check permissions
-    if (!["super_admin", "admin"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Only organization admins can update user roles",
-      });
-    }
-
     // identify user to update
     const userToUpdate = await User.findOne({
       _id: userId,
