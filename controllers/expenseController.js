@@ -300,16 +300,6 @@ const updateExpense = async (req, res) => {
       });
     }
 
-    // Check if user can update this expense
-    if (!canPerformExpenseAction(req.user, existingExpense, "update")) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "You do not have permission to update expenses",
-        requiredRole: ["planner", "admin", "super_admin"],
-        userRole: req.user.role,
-      });
-    }
-
     // If trying to mark as paid, verify permissions
     if (req.body.paymentStatus === "paid" && req.user.role === "viewer") {
       return res.status(403).json({
