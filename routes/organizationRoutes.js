@@ -1,8 +1,5 @@
 const express = require("express");
 const router = express.Router();
-const { protect } = require("../controllers/authController");
-const { authorize } = require("../middleware/authMiddleware");
-const { PERMISSIONS, RESOURCES } = require("../services/permissionService");
 
 const {
   addUserToOrganization,
@@ -11,9 +8,12 @@ const {
   updateUserRole,
   getOrganizationDetails,
 } = require("../controllers/organizationController");
+const authController = require("../controllers/authController");
+const { authorize } = require("../middleware/authmiddleware");
+const { PERMISSIONS, RESOURCES } = require("../services/permissionService");
 
-// All routes protected
-router.use(protect);
+// 🔐 Protect all routes
+router.use(authController.protect);
 
 // create new user
 router.post(
@@ -31,14 +31,14 @@ router.get(
 
 // delete/remove a user from org
 router.delete(
-  "/users/:userId",
+  "/users/:id",
   authorize(PERMISSIONS.MANAGE_USERS, RESOURCES.USER),
   removeUserFromOrganization,
 );
 
 // update the role of a user within org
 router.patch(
-  "/users/:userId/role",
+  "/users/:id/role",
   authorize(PERMISSIONS.MANAGE_USERS, RESOURCES.USER),
   updateUserRole,
 );
@@ -46,7 +46,7 @@ router.patch(
 // get org details
 router.get(
   "/",
-  authorize(PERMISSIONS.VIEW, RESOURCES.USER),
+  authorize(PERMISSIONS.VIEW, RESOURCES.ORGANIZATION),
   getOrganizationDetails,
 );
 
