@@ -79,13 +79,6 @@ const removeUserFromOrganization = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Check permissions
-    if (!["super_admin", "admin"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Only organization admins can remove users",
-      });
-    }
-
     // Prevent users from removing themselves
     if (userId === req.user._id.toString()) {
       return res.status(400).json({
