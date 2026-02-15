@@ -300,16 +300,6 @@ const updateExpense = async (req, res) => {
       });
     }
 
-    // If trying to mark as paid, verify permissions
-    if (req.body.paymentStatus === "paid" && req.user.role === "viewer") {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "Viewers cannot mark expenses as paid",
-        requiredRole: ["planner", "admin", "super_admin"],
-        userRole: req.user.role,
-      });
-    }
-
     // 4️⃣ Budget math (only if budget exists)
     const oldAmount = existingExpense.amount;
     const newAmount = req.body.amount ?? oldAmount;
