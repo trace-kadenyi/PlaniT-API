@@ -13,66 +13,78 @@ const {
   getExpenseAuditLogs,
   getDeletedEventExpenseLogs,
 } = require("../controllers/expenseController");
-const authController = require("../controllers/authController");
 
-// protect all routes
+const authController = require("../controllers/authController");
+const { authorize } = require("../middleware/authmiddleware");
+const { PERMISSIONS, RESOURCES } = require("../services/permissionService");
+
+// 🔐 Protect all routes
 router.use(authController.protect);
 
-// Audit logs - only admins and super admins can view
+// Audit logs
 router.get(
   "/audit-logs",
-
-  authController.restrictTo("admin", "super_admin"),
+  authorize(PERMISSIONS.VIEW_AUDIT_LOGS, RESOURCES.AUDIT_LOG),
   getExpenseAuditLogs,
 );
 
 // 🔴 Audit log for deleted events
 router.get(
   "/audit-logs/deleted-events",
-
-  authController.restrictTo("admin", "super_admin"),
+  authorize(PERMISSIONS.VIEW_AUDIT_LOGS, RESOURCES.AUDIT_LOG),
   getDeletedEventExpenseLogs,
 );
 
-// create expense - planners, admins, super_admins only
+// create expense
 router.post(
   "/",
-
-  authController.restrictTo("planner", "admin", "super_admin"),
+  authorize(PERMISSIONS.CREATE, RESOURCES.EXPENSE),
   createExpense,
 );
 
-// get budget status - all authenticated users
+// get budget status
 router.get(
   "/budget-status",
-
+  authorize(PERMISSIONS.VIEW, RESOURCES.EXPENSE),
   getBudgetStatusForAllEvents,
 );
 
-// get expenses by event id - all authenticated users
-router.get("/event/:eventId", getExpensesByEventId);
+// get expenses by event id
+router.get(
+  "/event/:eventId",
+  authorize(PERMISSIONS.VIEW, RESOURCES.EXPENSE),
+  getExpensesByEventId,
+);
 
-// get single expense - all authenticated users
-router.get("/:id", getExpenseById);
+// get single expense
+router.get(
+  "/:id",
+  authorize(PERMISSIONS.VIEW, RESOURCES.EXPENSE),
+  getExpenseById,
+);
 
-// update expense - planners, admins, super_admins only
+// update expense
 router.put(
   "/:id",
-  authController.restrictTo("planner", "admin", "super_admin"),
+  authorize(PERMISSIONS.EDIT, RESOURCES.EXPENSE),
   updateExpense,
 );
 
-// delete expense - planners, admins, super_admins only
+// delete expense
 router.delete(
   "/:id",
-  authController.restrictTo("planner", "admin", "super_admin"),
+  authorize(PERMISSIONS.DELETE, RESOURCES.EXPENSE),
   deleteExpense,
 );
 
-// expenses summary - all authenticated users
-router.get("/:eventId/summary", getExpensesSummary);
+// expenses summary
+router.get(
+  "/:eventId/summary",
+  authorize(PERMISSIONS.VIEW, RESOURCES.EXPENSE),
+  getExpensesSummary,
+);
 
-// get all expenses - all authenticated users
-router.get("/", getAllExpenses);
+// get all expenses
+router.get("/", authorize(PERMISSIONS.VIEW, RESOURCES.EXPENSE), getAllExpenses);
 
 module.exports = router;
