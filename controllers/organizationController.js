@@ -2,17 +2,10 @@ const Organization = require("../models/OrganizationSchema");
 const User = require("../models/UserSchema");
 const { PASSWORD_REGEX } = require("../constants/regex");
 
-// Add user to organization (admin function)
+// Add user to organization
 const addUserToOrganization = async (req, res) => {
   try {
     const { email, firstName, lastName, role, password } = req.body;
-
-    // Check if current user has permission (admin or super admin)
-    if (!["super_admin", "admin"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Only organization admins can add users",
-      });
-    }
 
     // validate password
     if (password) {
