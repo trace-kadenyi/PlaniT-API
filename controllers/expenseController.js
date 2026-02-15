@@ -21,16 +21,6 @@ const MAX_NOTES = 200;
 // Create new expense
 const createExpense = async (req, res) => {
   try {
-    // Check if user can create expenses
-    if (!canPerformExpenseAction(req.user, null, "create")) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "You do not have permission to create expenses",
-        requiredRole: ["planner", "admin", "super_admin"],
-        userRole: req.user.role,
-      });
-    }
-
     const eventId = req.body.eventId;
 
     // 2️⃣ Fetch event + budget status IN PARALLEL
@@ -616,8 +606,6 @@ const getBudgetStatusForAllEvents = async (req, res) => {
 // Get expense audit logs
 const getExpenseAuditLogs = async (req, res) => {
   try {
-    
-
     const {
       eventId,
       actionType,
