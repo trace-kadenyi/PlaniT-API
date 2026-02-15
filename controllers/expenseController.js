@@ -738,13 +738,6 @@ const getExpenseAuditLogs = async (req, res) => {
 // 🔴 NEW ENDPOINT -专门 for deleted events
 const getDeletedEventExpenseLogs = async (req, res) => {
   try {
-    if (!canViewAuditLogs(req.user)) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "Only administrators can view audit logs",
-      });
-    }
-
     const { eventId } = req.query;
     let query = {
       organizationId: req.user.organization,
