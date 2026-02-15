@@ -29,7 +29,10 @@ const authorize = (permission, resource) => {
       // 2️⃣ Load target user if needed
       // ===============================
       if (resource === RESOURCES.USER && req.params.id) {
-        targetUser = await User.findById(req.params.id);
+        targetUser = await User.findOne({
+          _id: req.params.id,
+          organization: req.user.organization,
+        });
 
         if (!targetUser) {
           return res.status(404).json({
@@ -48,7 +51,10 @@ const authorize = (permission, resource) => {
         permission === PERMISSIONS.DELETE &&
         req.params.id
       ) {
-        expense = await Expense.findById(req.params.id);
+        expense = await Expense.findOne({
+          _id: req.params.id,
+          organization: req.user.organization,
+        });
 
         if (!expense) {
           return res.status(404).json({
