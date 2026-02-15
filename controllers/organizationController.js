@@ -7,6 +7,12 @@ const addUserToOrganization = async (req, res) => {
   try {
     const { email, firstName, lastName, role, password } = req.body;
 
+    if (!email || !firstName || !lastName) {
+      return res.status(400).json({
+        message: "Email, first name and last name are required",
+      });
+    }
+
     // validate password
     if (password) {
       if (!PASSWORD_REGEX.test(password)) {
@@ -77,26 +83,17 @@ const getOrganizationUsers = async (req, res) => {
 // Remove user from organization
 const removeUserFromOrganization = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { id } = req.params;
 
     // Prevent users from removing themselves
-    if (userId === req.user._id.toString()) {
+    if (id === req.user._id.toString()) {
       return res.status(400).json({
         message: "Cannot remove yourself from organization",
       });
     }
 
     // identify user to be removed
-    const userToRemove = await User.findOne({
-      _id: userId,
-      organization: req.user.organization,
-    });
-
-    if (!userToRemove) {
-      return res.status(404).json({
-        message: "User not found in organization",
-      });
-    }
+    const userToRemove = req.targetUser;
 
     // Prevent removing organization super admin
     if (userToRemove.role === "super_admin") {
@@ -105,7 +102,7 @@ const removeUserFromOrganization = async (req, res) => {
       });
     }
 
-    await User.findByIdAndDelete(userId);
+    await userToRemove.deleteOne();
 
     res.json({
       message: "User removed from organization successfully",
@@ -118,20 +115,10 @@ const removeUserFromOrganization = async (req, res) => {
 // Update user role in organization
 const updateUserRole = async (req, res) => {
   try {
-    const { userId } = req.params;
     const { role } = req.body;
 
     // identify user to update
-    const userToUpdate = await User.findOne({
-      _id: userId,
-      organization: req.user.organization,
-    });
-
-    if (!userToUpdate) {
-      return res.status(404).json({
-        message: "User not found in organization",
-      });
-    }
+    const userToUpdate = req.targetUser;
 
     // Prevent changing super admins role (only super admins can transfer ownership)
     if (
