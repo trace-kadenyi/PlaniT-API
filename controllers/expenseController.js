@@ -4,12 +4,9 @@ const Event = require("../models/EventSchema");
 const Expense = require("../models/ExpenseSchema");
 const Budget = require("../models/BudgetSchema");
 const ExpenseAuditLog = require("../models/ExpenseAuditLogSchema");
-const User = require("../models/UserSchema");
 const Vendor = require("../models/VendorSchema");
 const { getBudgetStatus } = require("../utils/budgetHelpers");
 const {
-  canPerformExpenseAction,
-  canViewAuditLogs,
   getChangedFields,
   determineActionType,
   logExpenseAction,
