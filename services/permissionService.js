@@ -22,6 +22,7 @@ const RESOURCES = {
   EXPENSE: "expense",
   BUDGET: "budget",
   AUDIT_LOG: "audit_log",
+  ORGANIZATION: "organization",
 };
 
 const ROLES = {
@@ -52,6 +53,7 @@ const getBasePermissionsForRole = (role) => {
     [RESOURCES.EXPENSE]: [PERMISSIONS.VIEW],
     [RESOURCES.BUDGET]: [PERMISSIONS.VIEW],
     [RESOURCES.AUDIT_LOG]: [],
+    [RESOURCES.ORGANIZATION]: [PERMISSIONS.VIEW],
   };
 
   if (hierarchy >= ROLE_HIERARCHY[ROLES.PLANNER]) {
