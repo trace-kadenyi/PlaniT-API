@@ -463,17 +463,6 @@ const deleteExpense = async (req, res) => {
       return res.status(404).json({ message: "Associated budget not found" });
     }
 
-    if (!canPerformExpenseAction(req.user, expense, "delete")) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message:
-          expense.paymentStatus === "paid"
-            ? "Only super administrators can delete paid expenses"
-            : "You do not have permission to delete expenses",
-        userRole: req.user.role,
-      });
-    }
-
     // 4️⃣ Budget snapshot BEFORE mutation
     const budgetStatusBefore = await getBudgetStatus(
       expense.eventId,
