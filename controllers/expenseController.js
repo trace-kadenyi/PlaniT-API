@@ -616,14 +616,7 @@ const getBudgetStatusForAllEvents = async (req, res) => {
 // Get expense audit logs
 const getExpenseAuditLogs = async (req, res) => {
   try {
-    if (!canViewAuditLogs(req.user)) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "Only administrators can view audit logs",
-        requiredRole: ["admin", "super_admin"],
-        userRole: req.user.role,
-      });
-    }
+    
 
     const {
       eventId,
