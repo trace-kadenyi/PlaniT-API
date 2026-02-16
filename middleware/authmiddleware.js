@@ -46,11 +46,7 @@ const authorize = (permission, resource) => {
       // ===============================
       // 3️⃣ Load expense if needed
       // ===============================
-      if (
-        resource === RESOURCES.EXPENSE &&
-        permission === PERMISSIONS.DELETE &&
-        req.params.id
-      ) {
+      if (resource === RESOURCES.EXPENSE && req.params.id) {
         expense = await Expense.findOne({
           _id: req.params.id,
           organizationId: req.user.organization,
@@ -64,11 +60,16 @@ const authorize = (permission, resource) => {
           });
         }
 
+        req.targetExpense = expense;
+
         // ===============================
         // 4️⃣ Context-aware rule:
         // Paid expense deletion
         // ===============================
-        if (expense.paymentStatus === "paid") {
+        if (
+          permission === PERMISSIONS.DELETE &&
+          expense.paymentStatus === "paid"
+        ) {
           const canDeletePaid = checkPermission(
             req.user,
             PERMISSIONS.DELETE_PAID_EXPENSE,
@@ -80,10 +81,6 @@ const authorize = (permission, resource) => {
               error: "Forbidden",
               code: "DELETE_PAID_EXPENSE_RESTRICTED",
               message: "Only Super Admins can delete paid expenses.",
-              details: {
-                permission,
-                resource,
-              },
             });
           }
         }
