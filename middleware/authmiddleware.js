@@ -62,8 +62,6 @@ const authorize = (permission, resource) => {
           });
         }
 
-        req.targetExpense = expense;
-
         // ===============================
         // 4️⃣ Context-aware rule:
         // Paid expense deletion
@@ -105,8 +103,6 @@ const authorize = (permission, resource) => {
             message: "Event not found.",
           });
         }
-
-        req.targetEvent = event;
       }
 
       // ===============================
@@ -132,7 +128,8 @@ const authorize = (permission, resource) => {
       }
 
       if (targetUser) req.targetUser = targetUser;
-
+      if (expense) req.targetExpense = expense;
+      if (event) req.targetEvent = event;
       next();
     } catch (error) {
       console.error("Authorization error:", error);
