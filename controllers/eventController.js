@@ -272,7 +272,7 @@ const getEventById = async (req, res) => {
 // Update an event
 const updateEvent = async (req, res) => {
   try {
-       const existingEvent = await Event.findOne({
+    const existingEvent = await Event.findOne({
       _id: req.params.id,
       organizationId: req.user.organization,
       isDeleted: false,
@@ -366,10 +366,6 @@ const updateEvent = async (req, res) => {
 // archive an event
 const archiveEvent = async (req, res) => {
   try {
-    if (!["planner", "admin", "super_admin"].includes(req.user.role)) {
-      return res.status(403).json({ message: "Permission denied" });
-    }
-
     const event = await Event.findOneAndUpdate(
       {
         _id: req.params.id,
