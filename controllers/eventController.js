@@ -272,6 +272,10 @@ const getEventById = async (req, res) => {
 // Update an event
 const updateEvent = async (req, res) => {
   try {
+    // if (req.user.role === "viewer") {
+    //   return res.status(403).json({ message: "Read-only access" });
+    // }
+
     const existingEvent = await Event.findOne({
       _id: req.params.id,
       organizationId: req.user.organization,
@@ -366,6 +370,10 @@ const updateEvent = async (req, res) => {
 // archive an event
 const archiveEvent = async (req, res) => {
   try {
+    // if (!["planner", "admin", "super_admin"].includes(req.user.role)) {
+    //   return res.status(403).json({ message: "Permission denied" });
+    // }
+
     const event = await Event.findOneAndUpdate(
       {
         _id: req.params.id,
@@ -395,7 +403,11 @@ const archiveEvent = async (req, res) => {
 // restore archived event
 const restoreEvent = async (req, res) => {
   try {
-        const event = await Event.findOneAndUpdate(
+    // if (!["planner", "admin", "super_admin"].includes(req.user.role)) {
+    //   return res.status(403).json({ message: "Permission denied" });
+    // }
+
+    const event = await Event.findOneAndUpdate(
       {
         _id: req.params.id,
         organizationId: req.user.organization,
@@ -425,9 +437,9 @@ const restoreEvent = async (req, res) => {
 const deleteEvent = async (req, res) => {
   try {
     // 🔒 Admin / Super Admin only
-    if (!["admin", "super_admin"].includes(req.user.role)) {
-      return res.status(403).json({ message: "Delete permission denied" });
-    }
+    // if (!["admin", "super_admin"].includes(req.user.role)) {
+    //   return res.status(403).json({ message: "Delete permission denied" });
+    // }
 
     const eventId = req.params.id;
     const organizationId = req.user.organization;
@@ -499,7 +511,7 @@ const deleteEvent = async (req, res) => {
         }
       } catch (err) {
         console.warn(
-          "Receipt deletion failed:",
+          "Receipt deletion failedddddd:",
           expense.receiptUrl,
           err.message,
         );
