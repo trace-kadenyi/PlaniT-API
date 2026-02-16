@@ -27,7 +27,7 @@ router.get("/", authorize(PERMISSIONS.VIEW, RESOURCES.EVENT), getAllEvents);
 router.get("/:id", authorize(PERMISSIONS.VIEW, RESOURCES.EVENT), getEventById);
 
 // Update event by ID
-router.put("/:id", authorize(PERMISSIONS.UPDATE, RESOURCES.EVENT), updateEvent);
+router.put("/:id", authorize(PERMISSIONS.EDIT, RESOURCES.EVENT), updateEvent);
 
 // Archive event
 router.patch(
