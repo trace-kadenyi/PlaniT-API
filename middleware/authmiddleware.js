@@ -7,6 +7,7 @@ const {
 // Import models at the top
 const User = require("../models/UserSchema");
 const Expense = require("../models/ExpenseSchema");
+const Event = require("../models/EventSchema");
 
 const authorize = (permission, resource) => {
   return async (req, res, next) => {
@@ -24,6 +25,7 @@ const authorize = (permission, resource) => {
 
       let targetUser = null;
       let expense = null;
+      let event = null;
 
       // ===============================
       // 2️⃣ Load target user if needed
@@ -87,13 +89,34 @@ const authorize = (permission, resource) => {
       }
 
       // ===============================
+      // Load event if needed
+      // ===============================
+      if (resource === RESOURCES.EVENT && req.params.id) {
+        event = await Event.findOne({
+          _id: req.params.id,
+          organizationId: req.user.organization,
+          isDeleted: false,
+        });
+
+        if (!event) {
+          return res.status(404).json({
+            error: "Not Found",
+            code: "EVENT_NOT_FOUND",
+            message: "Event not found.",
+          });
+        }
+
+        req.targetEvent = event;
+      }
+
+      // ===============================
       // 5️⃣ General permission check
       // ===============================
       const hasPermission = checkPermission(
         req.user,
         permission,
         resource,
-        targetUser,
+        targetUser || expense || event,
       );
 
       if (!hasPermission) {
