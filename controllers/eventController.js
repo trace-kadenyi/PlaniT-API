@@ -395,11 +395,7 @@ const archiveEvent = async (req, res) => {
 // restore archived event
 const restoreEvent = async (req, res) => {
   try {
-    if (!["planner", "admin", "super_admin"].includes(req.user.role)) {
-      return res.status(403).json({ message: "Permission denied" });
-    }
-
-    const event = await Event.findOneAndUpdate(
+        const event = await Event.findOneAndUpdate(
       {
         _id: req.params.id,
         organizationId: req.user.organization,
