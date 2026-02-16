@@ -53,7 +53,7 @@ const authorize = (permission, resource) => {
       ) {
         expense = await Expense.findOne({
           _id: req.params.id,
-          organization: req.user.organization,
+          organizationId: req.user.organization,
         });
 
         if (!expense) {
