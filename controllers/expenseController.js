@@ -215,17 +215,11 @@ const getExpensesByEventId = async (req, res) => {
 // Get expense by ID
 const getExpenseById = async (req, res) => {
   try {
-    const expense = await Expense.findOne({
-      _id: req.params.id,
-      organizationId: req.user.organization,
-    })
+    const expense = await req.targetExpense
       .populate("vendor", "name services isDeleted")
       .populate("createdBy", "firstName lastName email isActive")
       .populate("updatedBy", "firstName lastName email isActive");
 
-    if (!expense) {
-      return res.status(404).json({ message: "Expense not found" });
-    }
     res.json(expense);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -235,17 +229,7 @@ const getExpenseById = async (req, res) => {
 // Update expense
 const updateExpense = async (req, res) => {
   try {
-    const existingExpense = await Expense.findOne({
-      _id: req.params.id,
-      organizationId: req.user.organization,
-    });
-
-    if (!existingExpense) {
-      return res.status(404).json({
-        error: "NotFound",
-        message: "Expense not found",
-      });
-    }
+    const existingExpense = req.targetExpense;
 
     // cache event id
     const eventId = existingExpense.eventId;
@@ -415,14 +399,7 @@ const updateExpense = async (req, res) => {
 // Delete expense
 const deleteExpense = async (req, res) => {
   try {
-    const expense = await Expense.findOne({
-      _id: req.params.id,
-      organizationId: req.user.organization,
-    });
-
-    if (!expense) {
-      return res.status(404).json({ message: "Expense not found" });
-    }
+    const expense = req.targetExpense;
 
     // 2️⃣ Fetch event + budget in parallel
     const [event, budget] = await Promise.all([
