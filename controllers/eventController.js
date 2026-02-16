@@ -272,11 +272,7 @@ const getEventById = async (req, res) => {
 // Update an event
 const updateEvent = async (req, res) => {
   try {
-    if (req.user.role === "viewer") {
-      return res.status(403).json({ message: "Read-only access" });
-    }
-
-    const existingEvent = await Event.findOne({
+       const existingEvent = await Event.findOne({
       _id: req.params.id,
       organizationId: req.user.organization,
       isDeleted: false,
