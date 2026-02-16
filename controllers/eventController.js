@@ -254,9 +254,23 @@ const getEventById = async (req, res) => {
       vendors,
       budget: budget || null,
       totalExpenses,
-      date: event.date?.toISOString(),
-      createdAt: event.createdAt?.toISOString(),
-      updatedAt: event.updatedAt?.toISOString(),
+      date: event.date
+        ? event.date instanceof Date
+          ? event.date.toISOString()
+          : new Date(event.date).toISOString()
+        : null,
+
+      createdAt: event.createdAt
+        ? event.createdAt instanceof Date
+          ? event.createdAt.toISOString()
+          : new Date(event.createdAt).toISOString()
+        : null,
+
+      updatedAt: event.updatedAt
+        ? event.updatedAt instanceof Date
+          ? event.updatedAt.toISOString()
+          : new Date(event.updatedAt).toISOString()
+        : null,
     };
 
     res.json(responseData);
