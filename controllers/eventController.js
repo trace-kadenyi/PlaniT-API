@@ -204,20 +204,14 @@ const getAllEvents = async (req, res) => {
 // Get event by ID
 const getEventById = async (req, res) => {
   try {
-    // Only allow access if event was created by someone in the same organization
-    const event = await Event.findOne({
-      _id: req.params.id,
-      organizationId: req.user.organization,
-      isDeleted: false,
-    })
-      .populate("client")
-      .populate("createdBy", "firstName lastName isActive")
-      .populate("updatedBy", "firstName lastName email isActive")
-      .lean();
+    // find event
+    const event = req.targetEvent;
 
-    if (!event) {
-      return res.status(404).json({ message: "Event not found" });
-    }
+    await event.populate([
+      { path: "client" },
+      { path: "createdBy", select: "firstName lastName isActive" },
+      { path: "updatedBy", select: "firstName lastName email isActive" },
+    ]);
 
     // restrict access for archived events
     if (event.isArchived && ["viewer"].includes(req.user.role)) {
@@ -253,9 +247,11 @@ const getEventById = async (req, res) => {
       organizationId: req.user.organization,
     }).lean();
 
+    const eventObj = event.toObject();
+
     const responseData = {
-      ...event,
-      vendors, // Add the derived vendors list
+      ...eventObj,
+      vendors,
       budget: budget || null,
       totalExpenses,
       date: event.date?.toISOString(),
@@ -272,19 +268,7 @@ const getEventById = async (req, res) => {
 // Update an event
 const updateEvent = async (req, res) => {
   try {
-    // if (req.user.role === "viewer") {
-    //   return res.status(403).json({ message: "Read-only access" });
-    // }
-
-    const existingEvent = await Event.findOne({
-      _id: req.params.id,
-      organizationId: req.user.organization,
-      isDeleted: false,
-    });
-
-    if (!existingEvent) {
-      return res.status(404).json({ message: "Event not found" });
-    }
+    const existingEvent = req.targetEvent;
 
     if (existingEvent.isArchived) {
       return res.status(403).json({
@@ -338,22 +322,20 @@ const updateEvent = async (req, res) => {
       });
     }
 
-    const updatedEvent = await Event.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        organizationId: req.user.organization,
-      },
-      updateData,
-      { new: true, runValidators: true },
-    )
-      .populate("createdBy", "firstName lastName email isActive")
-      .populate("updatedBy", "firstName lastName email isActive")
-      .populate("client");
+    const event = req.targetEvent;
 
-    if (!updatedEvent) {
-      return res.status(404).json({ message: "Event not found" });
-    }
-    res.json(updatedEvent);
+    // Apply updates
+    Object.assign(event, updateData);
+
+    await event.save();
+
+    await event.populate([
+      { path: "client" },
+      { path: "createdBy", select: "firstName lastName email isActive" },
+      { path: "updatedBy", select: "firstName lastName email isActive" },
+    ]);
+
+    res.json(event);
   } catch (err) {
     // Keep existing error handling
     if (err.name === "ValidationError") {
@@ -370,26 +352,10 @@ const updateEvent = async (req, res) => {
 // archive an event
 const archiveEvent = async (req, res) => {
   try {
-    // if (!["planner", "admin", "super_admin"].includes(req.user.role)) {
-    //   return res.status(403).json({ message: "Permission denied" });
-    // }
-
-    const event = await Event.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        organizationId: req.user.organization,
-        isDeleted: false,
-      },
-      {
-        isArchived: true,
-        archivedAt: new Date(),
-      },
-      { new: true },
-    );
-
-    if (!event) {
-      return res.status(404).json({ message: "Event not found" });
-    }
+    const event = req.targetEvent;
+    event.isArchived = true;
+    event.archivedAt = new Date();
+    await event.save();
 
     res.json({
       message: "Event archived successfully",
@@ -403,26 +369,12 @@ const archiveEvent = async (req, res) => {
 // restore archived event
 const restoreEvent = async (req, res) => {
   try {
-    // if (!["planner", "admin", "super_admin"].includes(req.user.role)) {
-    //   return res.status(403).json({ message: "Permission denied" });
-    // }
+    const event = req.targetEvent;
 
-    const event = await Event.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        organizationId: req.user.organization,
-        isDeleted: false,
-      },
-      {
-        isArchived: false,
-        archivedAt: null,
-      },
-      { new: true },
-    );
+    event.isArchived = false;
+    event.archivedAt = null;
 
-    if (!event) {
-      return res.status(404).json({ message: "Event not found" });
-    }
+    await event.save();
 
     res.json({
       message: "Event restored successfully",
@@ -436,12 +388,9 @@ const restoreEvent = async (req, res) => {
 // Soft-delete event
 const deleteEvent = async (req, res) => {
   try {
-    // 🔒 Admin / Super Admin only
-    // if (!["admin", "super_admin"].includes(req.user.role)) {
-    //   return res.status(403).json({ message: "Delete permission denied" });
-    // }
+    const deletedEvent = req.targetEvent;
 
-    const eventId = req.params.id;
+    const eventId = deletedEvent._id;
     const organizationId = req.user.organization;
 
     // 🔹 fetch expenses FIRST (for receipts)
@@ -452,25 +401,14 @@ const deleteEvent = async (req, res) => {
     }).select("receiptUrl");
 
     // 🔹 SOFT DELETE event (never remove from DB)
-    const deletedEvent = await Event.findOneAndUpdate(
-      {
-        _id: eventId,
-        organizationId,
-        isDeleted: { $ne: true },
-      },
-      {
-        isDeleted: true,
-        isArchived: false, // delete always overrides archive
-        deletedAt: new Date(),
-        deletedBy: req.user._id,
-        updatedBy: req.user._id,
-      },
-      { new: true },
-    );
 
-    if (!deletedEvent) {
-      return res.status(404).json({ message: "Event not found" });
-    }
+    deletedEvent.isDeleted = true;
+    deletedEvent.isArchived = false;
+    deletedEvent.deletedAt = new Date();
+    deletedEvent.deletedBy = req.user._id;
+    deletedEvent.updatedBy = req.user._id;
+
+    await deletedEvent.save();
 
     // handle expense logs for deleted events
     const expensesToDelete = await Expense.find({
