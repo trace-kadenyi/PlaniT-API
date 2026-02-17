@@ -420,8 +420,6 @@ const deleteUser = async (req, res) => {
 // Get user update history
 const getUserUpdateHistory = async (req, res) => {
   try {
-    const targetUser = req.targetUser;
-
     const history = await UserUpdateHistory.find({
       userId: req.params.userId,
       organization: req.user.organization,
