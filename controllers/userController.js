@@ -59,11 +59,11 @@ const createUser = async (req, res) => {
     const { email, firstName, lastName, role, password } = req.body;
 
     // Check if current user has permission (admin or super admin)
-    if (!["super_admin", "admin"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Only organization admins can add users",
-      });
-    }
+    // if (!["super_admin", "admin"].includes(req.user.role)) {
+    //   return res.status(403).json({
+    //     message: "Only organization admins can add users",
+    //   });
+    // }
 
     // Validate password
     if (password) {
@@ -145,21 +145,21 @@ const updateUser = async (req, res) => {
     const isSelf = req.user._id.toString() === req.params.userId;
 
     // If editing someone else, check permissions
-    if (!isSelf) {
-      // Admins can't edit super admins
-      if (req.user.role === "admin" && targetUser.role === "super_admin") {
-        return res.status(403).json({
-          message: "Cannot edit super admins",
-        });
-      }
+    // if (!isSelf) {
+    //   // Admins can't edit super admins
+    //   if (req.user.role === "admin" && targetUser.role === "super_admin") {
+    //     return res.status(403).json({
+    //       message: "Cannot edit super admins",
+    //     });
+    //   }
 
-      // Check if user has permission to edit others
-      if (!["super_admin", "admin"].includes(req.user.role)) {
-        return res.status(403).json({
-          message: "Only admins can edit other users",
-        });
-      }
-    }
+    //   // Check if user has permission to edit others
+    //   if (!["super_admin", "admin"].includes(req.user.role)) {
+    //     return res.status(403).json({
+    //       message: "Only admins can edit other users",
+    //     });
+    //   }
+    // }
 
     // Track changes BEFORE modifying
     const changes = [];
@@ -223,11 +223,11 @@ const updateUser = async (req, res) => {
 
       // If admin changing someone else's password, no current password needed
       // but they must have permission
-      else if (!["super_admin", "admin"].includes(req.user.role)) {
-        return res.status(403).json({
-          message: "Only admins can change other users' passwords",
-        });
-      }
+      // else if (!["super_admin", "admin"].includes(req.user.role)) {
+      //   return res.status(403).json({
+      //     message: "Only admins can change other users' passwords",
+      //   });
+      // }
 
       // Validate new password
       if (!PASSWORD_REGEX.test(newPassword)) {
@@ -320,11 +320,11 @@ const updateUserRole = async (req, res) => {
     const { role } = req.body;
 
     // Permission check
-    if (!["super_admin", "admin"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Only organization admins can update user roles",
-      });
-    }
+    // if (!["super_admin", "admin"].includes(req.user.role)) {
+    //   return res.status(403).json({
+    //     message: "Only organization admins can update user roles",
+    //   });
+    // }
 
     const targetUser = await User.findOne({
       _id: req.params.userId,
@@ -342,11 +342,11 @@ const updateUserRole = async (req, res) => {
     }
 
     // Prevent changing super admins role (only super admins can do this)
-    if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
-      return res.status(403).json({
-        message: "Only super admins can change super admin roles",
-      });
-    }
+    // if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
+    //   return res.status(403).json({
+    //     message: "Only super admins can change super admin roles",
+    //   });
+    // }
 
     // Track role change
     const changes = [
@@ -392,11 +392,11 @@ const updateUserRole = async (req, res) => {
 const deleteUser = async (req, res) => {
   try {
     // Permission check
-    if (!["super_admin", "admin"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Only organization admins can remove users",
-      });
-    }
+    // if (!["super_admin", "admin"].includes(req.user.role)) {
+    //   return res.status(403).json({
+    //     message: "Only organization admins can remove users",
+    //   });
+    // }
 
     // Prevent users from removing themselves
     if (req.params.userId === req.user._id.toString()) {
@@ -415,11 +415,11 @@ const deleteUser = async (req, res) => {
     }
 
     // Prevent removing super admins
-    if (targetUser.role === "super_admin") {
-      return res.status(403).json({
-        message: "Cannot remove super admins",
-      });
-    }
+    // if (targetUser.role === "super_admin") {
+    //   return res.status(403).json({
+    //     message: "Cannot remove super admins",
+    //   });
+    // }
 
     // log deletions
     await UserUpdateHistory.create({
@@ -456,15 +456,15 @@ const deleteUser = async (req, res) => {
 const getUserUpdateHistory = async (req, res) => {
   try {
     // Check permissions
-    const isSelf = req.user._id.toString() === req.params.userId;
-    const isAdmin = ["super_admin", "admin"].includes(req.user.role);
+    // const isSelf = req.user._id.toString() === req.params.userId;
+    // const isAdmin = ["super_admin", "admin"].includes(req.user.role);
 
-    // If not self and not admin, deny access
-    if (!isSelf && !isAdmin) {
-      return res.status(403).json({
-        message: "You don't have permission to view this history",
-      });
-    }
+    // // If not self and not admin, deny access
+    // if (!isSelf && !isAdmin) {
+    //   return res.status(403).json({
+    //     message: "You don't have permission to view this history",
+    //   });
+    // }
 
     // Get the target user to check their role
     const targetUser = await User.findOne({
@@ -501,11 +501,11 @@ const getUserUpdateHistory = async (req, res) => {
 const reactivateUser = async (req, res) => {
   try {
     // Permission check
-    if (!["super_admin", "admin"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Only organization admins can reactivate users",
-      });
-    }
+    // if (!["super_admin", "admin"].includes(req.user.role)) {
+    //   return res.status(403).json({
+    //     message: "Only organization admins can reactivate users",
+    //   });
+    // }
 
     const targetUser = await User.findOne({
       _id: req.params.userId,
@@ -520,11 +520,11 @@ const reactivateUser = async (req, res) => {
     }
 
     // Prevent reactivating super admins unless super admin
-    if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
-      return res.status(403).json({
-        message: "Only super admins can reactivate super admins",
-      });
-    }
+    // if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
+    //   return res.status(403).json({
+    //     message: "Only super admins can reactivate super admins",
+    //   });
+    // }
 
     targetUser.isDeactivated = false;
     targetUser.isActive = true;
