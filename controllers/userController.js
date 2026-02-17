@@ -449,13 +449,6 @@ const reactivateUser = async (req, res) => {
       });
     }
 
-    // Prevent reactivating super admins unless super admin
-    // if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
-    //   return res.status(403).json({
-    //     message: "Only super admins can reactivate super admins",
-    //   });
-    // }
-
     targetUser.isDeactivated = false;
     targetUser.isActive = true;
 
