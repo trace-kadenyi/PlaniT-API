@@ -312,21 +312,7 @@ const updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
 
-    // Permission check
-    // if (!["super_admin", "admin"].includes(req.user.role)) {
-    //   return res.status(403).json({
-    //     message: "Only organization admins can update user roles",
-    //   });
-    // }
-
-    const targetUser = await User.findOne({
-      _id: req.params.userId,
-      organization: req.user.organization,
-    });
-
-    if (!targetUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    const targetUser = req.targetUser;
 
     if (targetUser.isDeactivated) {
       return res.status(400).json({
