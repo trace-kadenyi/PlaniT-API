@@ -384,21 +384,7 @@ const deleteUser = async (req, res) => {
       });
     }
 
-    const targetUser = await User.findOne({
-      _id: req.params.userId,
-      organization: req.user.organization,
-    });
-
-    if (!targetUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Prevent removing super admins
-    // if (targetUser.role === "super_admin") {
-    //   return res.status(403).json({
-    //     message: "Cannot remove super admins",
-    //   });
-    // }
+    const targetUser = req.targetUser;
 
     // log deletions
     await UserUpdateHistory.create({
