@@ -30,9 +30,12 @@ const authorize = (permission, resource) => {
       // ===============================
       // 2️⃣ Load target user if needed
       // ===============================
-      if (resource === RESOURCES.USER && req.params.id) {
+      if (
+        (resource === RESOURCES.USER || resource === RESOURCES.USER_HISTORY) &&
+        req.params.userId
+      ) {
         targetUser = await User.findOne({
-          _id: req.params.id,
+          _id: req.params.userId,
           organization: req.user.organization,
         });
 
