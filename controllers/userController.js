@@ -437,13 +437,6 @@ const getUserUpdateHistory = async (req, res) => {
 // reactivate user
 const reactivateUser = async (req, res) => {
   try {
-    // Permission check
-    // if (!["super_admin", "admin"].includes(req.user.role)) {
-    //   return res.status(403).json({
-    //     message: "Only organization admins can reactivate users",
-    //   });
-    // }
-
     const targetUser = await User.findOne({
       _id: req.params.userId,
       organization: req.user.organization,
