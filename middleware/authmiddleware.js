@@ -108,6 +108,12 @@ const authorize = (permission, resource) => {
         }
       }
 
+      // target user role
+      if (resource === RESOURCES.USER && req.method === "POST") {
+        // Create a minimal target with just the role
+        targetUser = { role: req.body.role };
+      }
+
       // ===============================
       // 5️⃣ General permission check
       // ===============================
