@@ -203,6 +203,7 @@ const checkPermission = (
       PERMISSIONS.MANAGE_USERS,
       PERMISSIONS.ARCHIVE,
       PERMISSIONS.DELETE_ALL,
+      PERMISSIONS.CREATE,
     ].includes(permission)
   ) {
     return canModifyUser(currentUser, targetUser, permission);
