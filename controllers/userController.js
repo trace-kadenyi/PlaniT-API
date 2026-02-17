@@ -57,13 +57,6 @@ const getUser = async (req, res) => {
 const createUser = async (req, res) => {
   try {
     const { email, firstName, lastName, role, password } = req.body;
-    
-    // Check if current user has permission (admin or super admin)
-    // if (!["super_admin", "admin"].includes(req.user.role)) {
-    //   return res.status(403).json({
-    //     message: "Only organization admins can add users",
-    //   });
-    // }
 
     // Validate password
     if (password) {
