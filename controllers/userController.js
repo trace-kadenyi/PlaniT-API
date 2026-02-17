@@ -422,13 +422,6 @@ const getUserUpdateHistory = async (req, res) => {
   try {
     const targetUser = req.targetUser;
 
-    // Prevent admins from viewing super admin history
-    if (req.user.role === "admin" && targetUser.role === "super_admin") {
-      return res.status(403).json({
-        message: "Admins cannot view super admin history",
-      });
-    }
-
     const history = await UserUpdateHistory.find({
       userId: req.params.userId,
       organization: req.user.organization,
