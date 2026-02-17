@@ -432,14 +432,7 @@ const getUserUpdateHistory = async (req, res) => {
     // }
 
     // Get the target user to check their role
-    const targetUser = await User.findOne({
-      _id: req.params.userId,
-      organization: req.user.organization,
-    });
-
-    if (!targetUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    const targetUser = req.targetUser;
 
     // Prevent admins from viewing super admin history
     if (req.user.role === "admin" && targetUser.role === "super_admin") {
