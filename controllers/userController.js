@@ -420,18 +420,6 @@ const deleteUser = async (req, res) => {
 // Get user update history
 const getUserUpdateHistory = async (req, res) => {
   try {
-    // Check permissions
-    // const isSelf = req.user._id.toString() === req.params.userId;
-    // const isAdmin = ["super_admin", "admin"].includes(req.user.role);
-
-    // // If not self and not admin, deny access
-    // if (!isSelf && !isAdmin) {
-    //   return res.status(403).json({
-    //     message: "You don't have permission to view this history",
-    //   });
-    // }
-
-    // Get the target user to check their role
     const targetUser = req.targetUser;
 
     // Prevent admins from viewing super admin history
