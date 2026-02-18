@@ -131,6 +131,11 @@ const updateClient = async (req, res) => {
       return res.status(404).json({ error: "Client not found" });
     }
 
+    if (client.isArchived)
+      return res.status(409).json({
+        message: "Cannot update an archived client. Unarchive it first.",
+      });
+
     res.json(client);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -157,6 +162,10 @@ const archiveClient = async (req, res) => {
       return res
         .status(404)
         .json({ error: "Client not found or already deleted" });
+    }
+
+    if (client.isArchived) {
+      return res.status(409).json({ message: "Client is already archived." });
     }
 
     res.json({
