@@ -76,6 +76,9 @@ const getBasePermissionsForRole = (role) => {
         PERMISSIONS.MANAGE_EVENT_STATUS,
       );
     });
+
+    // Planners can delete tasks
+    basePermissions[RESOURCES.TASK].push(PERMISSIONS.DELETE);
   }
 
   if (hierarchy >= ROLE_HIERARCHY[ROLES.ADMIN]) {
