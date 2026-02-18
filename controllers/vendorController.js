@@ -117,6 +117,7 @@ const updateVendor = async (req, res) => {
       return res.status(409).json({
         message: "Cannot update an archived vendor. Unarchive it first.",
       });
+
     res.json(updatedVendor);
   } catch (err) {
     if (err.name === "ValidationError") {
