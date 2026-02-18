@@ -145,18 +145,11 @@ const updateClient = async (req, res) => {
 // Archive a client (replace deleteClient)
 const archiveClient = async (req, res) => {
   try {
-    const client = await Client.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        organizationId: req.user.organization,
-        isDeleted: false,
-      },
-      {
-        isArchived: true,
-        archivedAt: new Date(),
-      },
-      { new: true },
-    );
+    const client = await Client.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+      isDeleted: false,
+    });
 
     if (!client) {
       return res
@@ -167,6 +160,10 @@ const archiveClient = async (req, res) => {
     if (client.isArchived) {
       return res.status(409).json({ message: "Client is already archived." });
     }
+
+    client.isArchived = true;
+    client.archivedAt = new Date();
+    await client.save();
 
     res.json({
       message: "Client archived successfully",
@@ -180,24 +177,25 @@ const archiveClient = async (req, res) => {
 // Unarchive archived clients
 const restoreClient = async (req, res) => {
   try {
-    const client = await Client.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        organizationId: req.user.organization,
-        isDeleted: false,
-      },
-      {
-        isArchived: false,
-        archivedAt: null,
-      },
-      { new: true },
-    );
+    const client = await Client.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+      isDeleted: false,
+    });
 
     if (!client) {
       return res
         .status(404)
         .json({ error: "Client not found or permanently deleted" });
     }
+
+    if (!client.isArchived) {
+      return res.status(409).json({ message: "Client is already active." });
+    }
+
+    client.isArchived = false;
+    client.archivedAt = null;
+    await client.save();
 
     res.json({
       message: "Client restored successfully",
