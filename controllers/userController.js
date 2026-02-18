@@ -386,6 +386,12 @@ const deleteUser = async (req, res) => {
 
     const targetUser = req.targetUser;
 
+    if (targetUser.isDeactivated) {
+      return res.status(400).json({
+        message: "User is already deactivated.",
+      });
+    }
+
     // log deletions
     await UserUpdateHistory.create({
       userId: targetUser._id,
@@ -445,7 +451,7 @@ const reactivateUser = async (req, res) => {
 
     if (!targetUser) {
       return res.status(404).json({
-        message: "Removed user not found",
+        message: "Deactivated user not found",
       });
     }
 
