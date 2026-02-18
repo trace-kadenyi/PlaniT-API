@@ -367,6 +367,15 @@ const updateEvent = async (req, res) => {
 const archiveEvent = async (req, res) => {
   try {
     const event = req.targetEvent;
+
+    if (event.isDeleted) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    if (event.isArchived) {
+      return res.status(409).json({ message: "Event is already archived." });
+    }
+
     event.isArchived = true;
     event.archivedAt = new Date();
     await event.save();
@@ -384,6 +393,14 @@ const archiveEvent = async (req, res) => {
 const restoreEvent = async (req, res) => {
   try {
     const event = req.targetEvent;
+
+    if (event.isDeleted) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    if (!event.isArchived) {
+      return res.status(409).json({ message: "Event is already active." });
+    }
 
     event.isArchived = false;
     event.archivedAt = null;
