@@ -152,19 +152,13 @@ const checkPermission = (
 ) => {
   if (!currentUser?.role || !resource) return false;
 
-  // PREVENT VIEWERS/PLANNERS FROM VIEWING DEACTIVATED USERS
+  // SPECIAL CASE 1: Self history view (bypasses base permissions)
   if (
-    resource === RESOURCES.USER &&
-    targetUser?.isDeactivated &&
-    (currentUser.role === ROLES.VIEWER || currentUser.role === ROLES.PLANNER)
+    resource === RESOURCES.USER_HISTORY &&
+    permission === PERMISSIONS.VIEW &&
+    targetUser?._id &&
+    targetUser._id.toString() === currentUser._id.toString()
   ) {
-    return false;
-  }
-
-  const userRole = currentUser.role;
-
-  // Special rule: Viewers can see DRAG_CARD UI but can't actually update
-  if (permission === PERMISSIONS.DRAG_CARD && userRole === ROLES.VIEWER) {
     return true;
   }
 
@@ -177,6 +171,21 @@ const checkPermission = (
     isSelf
   ) {
     return true; // Allow self-edits for everyone
+  }
+
+  const userRole = currentUser.role;
+  // Special rule: Viewers can see DRAG_CARD UI but can't actually update
+  if (permission === PERMISSIONS.DRAG_CARD && userRole === ROLES.VIEWER) {
+    return true;
+  }
+
+  // PREVENT VIEWERS/PLANNERS FROM VIEWING DEACTIVATED USERS
+  if (
+    resource === RESOURCES.USER &&
+    targetUser?.isDeactivated &&
+    (currentUser.role === ROLES.VIEWER || currentUser.role === ROLES.PLANNER)
+  ) {
+    return false;
   }
 
   // RULE 1: Get base permissions based on role
