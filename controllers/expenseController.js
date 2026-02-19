@@ -238,6 +238,19 @@ const updateExpense = async (req, res) => {
   try {
     const existingExpense = req.targetExpense;
 
+    // 🔒 Planners can only edit expenses they created
+    const isPlanner = req.user.role === "planner";
+    const isOwner =
+      existingExpense.createdBy.toString() === req.user._id.toString();
+
+    if (isPlanner && !isOwner) {
+      return res.status(403).json({
+        error: "Forbidden",
+        code: "INSUFFICIENT_PERMISSION",
+        message: "Planners can only edit expenses they created.",
+      });
+    }
+
     // cache event id
     const eventId = existingExpense.eventId;
 
