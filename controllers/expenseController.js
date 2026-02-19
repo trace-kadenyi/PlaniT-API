@@ -215,10 +215,17 @@ const getExpensesByEventId = async (req, res) => {
 // Get expense by ID
 const getExpenseById = async (req, res) => {
   try {
-    const expense = await req.targetExpense
+    const expense = await Expense.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+    })
       .populate("vendor", "name services isDeleted")
       .populate("createdBy", "firstName lastName email isActive")
       .populate("updatedBy", "firstName lastName email isActive");
+
+    if (!expense) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
 
     res.json(expense);
   } catch (err) {
