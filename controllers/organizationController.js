@@ -2,70 +2,8 @@ const Organization = require("../models/OrganizationSchema");
 const User = require("../models/UserSchema");
 const { PASSWORD_REGEX } = require("../constants/regex");
 
-// Add user to organization
-const addUserToOrganization = async (req, res) => {
-  try {
-    const { email, firstName, lastName, role, password } = req.body;
 
-    if (!email || !firstName || !lastName) {
-      return res.status(400).json({
-        message: "Email, first name and last name are required",
-      });
-    }
 
-    // validate password
-    if (password) {
-      if (!PASSWORD_REGEX.test(password)) {
-        return res.status(400).json({
-          message:
-            "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-        });
-      }
-    }
-
-    // Check if user already exists in this organization
-    const existingUser = await User.findOne({
-      email: email.toLowerCase(),
-      organization: req.user.organization,
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        message: "User already exists in this organization",
-      });
-    }
-
-    // Create the user directly
-    const newUser = new User({
-      firstName,
-      lastName,
-      email: email.toLowerCase(),
-      organization: req.user.organization,
-      role: role || "viewer",
-      password: password || "tempPassword123", // You might want to generate a random one (to be done)
-    });
-
-    await newUser.save();
-
-    res.status(201).json({
-      message: "User added to organization successfully",
-      user: {
-        id: newUser._id,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        email: newUser.email,
-        role: newUser.role,
-      },
-    });
-  } catch (err) {
-    if (err.code === 11000) {
-      return res.status(400).json({
-        message: "User already exists in this organization",
-      });
-    }
-    res.status(500).json({ message: err.message });
-  }
-};
 
 // Get all users in organization
 const getOrganizationUsers = async (req, res) => {
