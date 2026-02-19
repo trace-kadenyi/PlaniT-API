@@ -15,33 +15,33 @@ const { PERMISSIONS, RESOURCES } = require("../services/permissionService");
 // 🔐 Protect all routes
 router.use(authController.protect);
 
-// create new user
-router.post(
-  "/users",
-  authorize(PERMISSIONS.MANAGE_USERS, RESOURCES.USER),
-  addUserToOrganization,
-);
+// // create new user
+// router.post(
+//   "/users",
+//   authorize(PERMISSIONS.MANAGE_USERS, RESOURCES.USER),
+//   addUserToOrganization,
+// );
 
-// get all users within an org
-router.get(
-  "/users",
-  authorize(PERMISSIONS.VIEW, RESOURCES.USER),
-  getOrganizationUsers,
-);
+// // get all users within an org
+// router.get(
+//   "/users",
+//   authorize(PERMISSIONS.VIEW, RESOURCES.USER),
+//   getOrganizationUsers,
+// );
 
-// delete/remove a user from org
-router.delete(
-  "/users/:id",
-  authorize(PERMISSIONS.MANAGE_USERS, RESOURCES.USER),
-  removeUserFromOrganization,
-);
+// // delete/remove a user from org
+// router.delete(
+//   "/users/:id",
+//   authorize(PERMISSIONS.MANAGE_USERS, RESOURCES.USER),
+//   removeUserFromOrganization,
+// );
 
-// update the role of a user within org
-router.patch(
-  "/users/:id/role",
-  authorize(PERMISSIONS.MANAGE_USERS, RESOURCES.USER),
-  updateUserRole,
-);
+// // update the role of a user within org
+// router.patch(
+//   "/users/:id/role",
+//   authorize(PERMISSIONS.MANAGE_USERS, RESOURCES.USER),
+//   updateUserRole,
+// );
 
 // get org details
 router.get(
