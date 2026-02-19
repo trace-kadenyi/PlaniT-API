@@ -4,40 +4,6 @@ const { PASSWORD_REGEX } = require("../constants/regex");
 
 
 
-
-
-// Remove user from organization
-const removeUserFromOrganization = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Prevent users from removing themselves
-    if (id === req.user._id.toString()) {
-      return res.status(400).json({
-        message: "Cannot remove yourself from organization",
-      });
-    }
-
-    // identify user to be removed
-    const userToRemove = req.targetUser;
-
-    // Prevent removing organization super admin
-    if (userToRemove.role === "super_admin") {
-      return res.status(403).json({
-        message: "Cannot remove organization super admin",
-      });
-    }
-
-    await userToRemove.deleteOne();
-
-    res.json({
-      message: "User removed from organization successfully",
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
 // Update user role in organization
 const updateUserRole = async (req, res) => {
   try {
