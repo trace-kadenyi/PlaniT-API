@@ -1,7 +1,4 @@
 const Organization = require("../models/OrganizationSchema");
-const User = require("../models/UserSchema");
-const { PASSWORD_REGEX } = require("../constants/regex");
-
 
 // Get organization details
 const getOrganizationDetails = async (req, res) => {
@@ -26,9 +23,5 @@ const getOrganizationDetails = async (req, res) => {
 };
 
 module.exports = {
-  addUserToOrganization,
-  getOrganizationUsers,
-  removeUserFromOrganization,
-  updateUserRole,
   getOrganizationDetails,
 };
