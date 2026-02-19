@@ -41,7 +41,7 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  })
+  }),
 );
 
 // cookie-parser
@@ -160,6 +160,7 @@ app.get("/api/debug-cookies-check", (req, res) => {
 // use routes
 app.use("/", root);
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/organization", organizationRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/events", eventRoutes);
@@ -167,7 +168,6 @@ app.use("/api/budget", budgetRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/vendors", vendorRoutes);
-app.use("/api/users", userRoutes);
 
 // ERROR HANDLING MIDDLEWARE (important for auth)
 app.use((error, req, res, next) => {
