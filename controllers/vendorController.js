@@ -51,8 +51,16 @@ const getAllVendors = async (req, res) => {
     if (service) {
       filter.services = service;
     }
+    // Viewers cannot see archived vendors
+    if (req.user.role === "viewer") {
+      filter.isArchived = false;
+    }
+
     if (archived !== undefined) {
-      filter.isArchived = archived === "true";
+      // Only apply archived filter for non-viewers
+      if (req.user.role !== "viewer") {
+        filter.isArchived = archived === "true";
+      }
     }
 
     const vendors = await Vendor.find(filter).sort({ name: 1 });
