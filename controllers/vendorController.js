@@ -82,6 +82,13 @@ const getVendorById = async (req, res) => {
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
+
+    // Block viewers from accessing archived vendors directly
+    if (vendor.isArchived && req.user.role === "viewer") {
+      return res.status(403).json({
+        message: "You do not have permission to view archived vendors.",
+      });
+    }
     const vendorData = vendor.toObject();
     // if (vendor.isDeleted) {
     //   vendorData.name = `${vendor.name} (Deleted)`;
