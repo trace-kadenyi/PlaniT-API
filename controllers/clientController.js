@@ -53,11 +53,17 @@ const createClient = async (req, res) => {
 // Get all active clients
 const getAllClients = async (req, res) => {
   try {
-    const clients = await Client.find({
+    const filter = {
       organizationId: req.user.organization,
       isDeleted: false,
-    }).sort({ createdAt: -1 });
+    };
 
+    // Viewers cannot see archived clients
+    if (req.user.role === "viewer") {
+      filter.isArchived = false;
+    }
+
+    const clients = await Client.find(filter).sort({ createdAt: -1 });
     res.json(clients);
   } catch (err) {
     res.status(500).json({ error: err.message });
