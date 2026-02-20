@@ -82,6 +82,14 @@ const getClientWithEvents = async (req, res) => {
       return res.status(404).json({ error: "Client not found" });
     }
 
+    // Block viewers from accessing archived clients directly
+    if (client.isArchived && req.user.role === "viewer") {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You do not have permission to view archived clients.",
+      });
+    }
+
     const events = await Event.find({
       client: client._id,
       organizationId: req.user.organization,
