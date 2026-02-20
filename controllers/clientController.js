@@ -123,24 +123,25 @@ const updateClient = async (req, res) => {
       });
     }
 
-    const client = await Client.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        organizationId: req.user.organization,
-        isDeleted: false,
-      },
-      { $set: req.body },
-      { new: true, runValidators: true },
-    );
+    const client = await Client.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+      isDeleted: false,
+    });
 
     if (!client) {
       return res.status(404).json({ error: "Client not found" });
     }
 
-    if (client.isArchived)
+    if (client.isArchived) {
       return res.status(409).json({
         message: "Cannot update an archived client. Unarchive it first.",
       });
+    }
+
+    // Apply updates
+    Object.assign(client, req.body);
+    await client.save();
 
     res.json(client);
   } catch (err) {
