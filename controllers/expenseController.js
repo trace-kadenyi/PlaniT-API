@@ -247,7 +247,7 @@ const updateExpense = async (req, res) => {
       return res.status(403).json({
         error: "Forbidden",
         code: "INSUFFICIENT_PERMISSION",
-        message: "Planners can only edit expenses they created.",
+        message: "Planners can only edit expenses that they created.",
       });
     }
 
