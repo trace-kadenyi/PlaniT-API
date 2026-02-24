@@ -157,7 +157,7 @@ const updateClient = async (req, res) => {
   }
 };
 
-// Archive a client (replace deleteClient)
+// Archive a client
 const archiveClient = async (req, res) => {
   try {
     const client = await Client.findOne({
@@ -279,7 +279,7 @@ const deleteClient = async (req, res) => {
   }
 };
 
-// Delete all clients completely
+// Delete all clients
 const deleteAllClients = async (req, res) => {
   try {
     const clients = await Client.find({
