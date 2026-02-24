@@ -308,7 +308,6 @@ const deleteAllClients = async (req, res) => {
       }
     }
 
-    console.log(`softdeleted: ${softDeleted}, harddeleted: ${hardDeleted}`);
     const deleteCount = softDeleted + hardDeleted;
 
     res.json({
