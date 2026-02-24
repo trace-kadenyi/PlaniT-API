@@ -309,6 +309,7 @@ const deleteAllClients = async (req, res) => {
     }
 
     console.log(`softdeleted: ${softDeleted}, harddeleted: ${hardDeleted}`);
+    const deleteCount = softDeleted + hardDeleted;
 
     res.json({
       message: "All clients deleted for this organization",
@@ -316,6 +317,7 @@ const deleteAllClients = async (req, res) => {
         totalProcessed: clients.length,
         softDeleted,
         hardDeleted,
+        deleteCount,
       },
     });
   } catch (err) {
