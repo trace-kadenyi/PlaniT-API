@@ -90,9 +90,6 @@ const getVendorById = async (req, res) => {
       });
     }
     const vendorData = vendor.toObject();
-    // if (vendor.isDeleted) {
-    //   vendorData.name = `${vendor.name} (Deleted)`;
-    // }
 
     res.json(vendorData);
   } catch (err) {
