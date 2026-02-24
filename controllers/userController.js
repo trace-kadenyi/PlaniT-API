@@ -53,7 +53,7 @@ const getUser = async (req, res) => {
   }
 };
 
-// Add new user (same as addUserToOrganization but renamed)
+// Add new user
 const createUser = async (req, res) => {
   try {
     const { email, firstName, lastName, role, password } = req.body;
@@ -136,23 +136,6 @@ const updateUser = async (req, res) => {
     }
 
     const isSelf = req.user._id.toString() === req.params.userId;
-
-    // If editing someone else, check permissions
-    // if (!isSelf) {
-    //   // Admins can't edit super admins
-    //   if (req.user.role === "admin" && targetUser.role === "super_admin") {
-    //     return res.status(403).json({
-    //       message: "Cannot edit super admins",
-    //     });
-    //   }
-
-    //   // Check if user has permission to edit others
-    //   if (!["super_admin", "admin"].includes(req.user.role)) {
-    //     return res.status(403).json({
-    //       message: "Only admins can edit other users",
-    //     });
-    //   }
-    // }
 
     // Track changes BEFORE modifying
     const changes = [];
