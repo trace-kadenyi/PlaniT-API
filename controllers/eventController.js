@@ -37,11 +37,13 @@ const createEvent = async (req, res) => {
         _id: req.body.client,
         organizationId: req.user.organization,
         isDeleted: false,
+        isArchived: false,
       });
 
       if (!client) {
         return res.status(400).json({
-          message: "Cannot assign a deleted or non-existent client to an event",
+          message:
+            "Cannot assign a deleted, archived or non-existent client to an event",
         });
       }
     }
