@@ -137,6 +137,23 @@ const updateUser = async (req, res) => {
 
     const isSelf = req.user._id.toString() === req.params.userId;
 
+    // If editing someone else, check permissions
+    // if (!isSelf) {
+    //   // Admins can't edit super admins
+    //   if (req.user.role === "admin" && targetUser.role === "super_admin") {
+    //     return res.status(403).json({
+    //       message: "Cannot edit super admins",
+    //     });
+    //   }
+
+    //   // Check if user has permission to edit others
+    //   if (!["super_admin", "admin"].includes(req.user.role)) {
+    //     return res.status(403).json({
+    //       message: "Only admins can edit other users",
+    //     });
+    //   }
+    // }
+
     // Track changes BEFORE modifying
     const changes = [];
     let updateType = "profile_update";
@@ -353,13 +370,6 @@ const updateUserRole = async (req, res) => {
 // Delete user
 const deleteUser = async (req, res) => {
   try {
-    // Permission check
-    // if (!["super_admin", "admin"].includes(req.user.role)) {
-    //   return res.status(403).json({
-    //     message: "Only organization admins can remove users",
-    //   });
-    // }
-
     // Prevent users from removing themselves
     if (req.params.userId === req.user._id.toString()) {
       return res.status(400).json({
