@@ -89,7 +89,6 @@ const getBasePermissionsForRole = (role) => {
         PERMISSIONS.EDIT,
         PERMISSIONS.DELETE,
         PERMISSIONS.ARCHIVE,
-        PERMISSIONS.DELETE_ALL,
         PERMISSIONS.MANAGE_USERS,
       );
     });
@@ -97,6 +96,10 @@ const getBasePermissionsForRole = (role) => {
     // Audit log permission for Admins and Super Admins
     basePermissions[RESOURCES.AUDIT_LOG].push(PERMISSIONS.VIEW_AUDIT_LOGS);
     basePermissions[RESOURCES.USER_HISTORY].push(PERMISSIONS.VIEW);
+
+    // Delete all only applies to vendors and clients
+    basePermissions[RESOURCES.VENDOR].push(PERMISSIONS.DELETE_ALL);
+    basePermissions[RESOURCES.CLIENT].push(PERMISSIONS.DELETE_ALL);
   }
 
   // Only Super Admins can delete paid expenses
