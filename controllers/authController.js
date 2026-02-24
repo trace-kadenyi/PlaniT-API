@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 
 const User = require("../models/UserSchema");
 const Organization = require("../models/OrganizationSchema");
+const { getBasePermissionsForRole } = require("../services/permissionService");
 
 // Generate JWT tokens
 const signToken = (id) => {
@@ -29,38 +30,27 @@ const createSendToken = (user, statusCode, res) => {
     domain: "localhost", // Explicitly set domain for local development
   });
 
+  // Generate permissions based on role
+  const permissions = getBasePermissionsForRole(user.role);
   user.password = undefined;
 
   res.status(statusCode).json({
     status: "success",
     accessToken,
-    data: { user },
+    data: {
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        organization: user.organization,
+        permissions,
+      },
+    },
   });
 };
 
-// In refreshToken endpoint, add logging:
-exports.refreshToken = async (req, res) => {
-  try {
-    console.log("Refresh token endpoint hit - cookies:", req.cookies);
-    const refreshToken = req.cookies.refreshToken;
-
-    if (!refreshToken) {
-      console.log("No refresh token cookie found");
-      return res
-        .status(401)
-        .json({ status: "error", message: "No refresh token" });
-    }
-
-    console.log("Refresh token found, verifying...");
-    // ... rest of your code
-  } catch (err) {
-    console.log("Refresh token error:", err.message);
-    res.status(401).json({
-      status: "error",
-      message: "Invalid refresh token",
-    });
-  }
-};
 // Signup
 exports.signup = async (req, res) => {
   try {
@@ -215,6 +205,8 @@ exports.refreshToken = async (req, res) => {
     // If everything is ok, create new access token
     const accessToken = signToken(currentUser._id);
 
+    const permissions = getBasePermissionsForRole(currentUser.role);
+
     res.status(200).json({
       status: "success",
       accessToken,
@@ -225,6 +217,8 @@ exports.refreshToken = async (req, res) => {
           lastName: currentUser.lastName,
           email: currentUser.email,
           role: currentUser.role,
+          organization: currentUser.organization,
+          permissions,
         },
       },
     });

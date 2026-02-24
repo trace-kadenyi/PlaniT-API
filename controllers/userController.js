@@ -53,17 +53,10 @@ const getUser = async (req, res) => {
   }
 };
 
-// Add new user (same as addUserToOrganization but renamed)
+// Add new user
 const createUser = async (req, res) => {
   try {
     const { email, firstName, lastName, role, password } = req.body;
-
-    // Check if current user has permission (admin or super admin)
-    if (!["super_admin", "admin"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Only organization admins can add users",
-      });
-    }
 
     // Validate password
     if (password) {
@@ -144,23 +137,6 @@ const updateUser = async (req, res) => {
 
     const isSelf = req.user._id.toString() === req.params.userId;
 
-    // If editing someone else, check permissions
-    if (!isSelf) {
-      // Admins can't edit super admins
-      if (req.user.role === "admin" && targetUser.role === "super_admin") {
-        return res.status(403).json({
-          message: "Cannot edit super admins",
-        });
-      }
-
-      // Check if user has permission to edit others
-      if (!["super_admin", "admin"].includes(req.user.role)) {
-        return res.status(403).json({
-          message: "Only admins can edit other users",
-        });
-      }
-    }
-
     // Track changes BEFORE modifying
     const changes = [];
     let updateType = "profile_update";
@@ -223,11 +199,11 @@ const updateUser = async (req, res) => {
 
       // If admin changing someone else's password, no current password needed
       // but they must have permission
-      else if (!["super_admin", "admin"].includes(req.user.role)) {
-        return res.status(403).json({
-          message: "Only admins can change other users' passwords",
-        });
-      }
+      // else if (!["super_admin", "admin"].includes(req.user.role)) {
+      //   return res.status(403).json({
+      //     message: "Only admins can change other users' passwords",
+      //   });
+      // }
 
       // Validate new password
       if (!PASSWORD_REGEX.test(newPassword)) {
@@ -319,21 +295,7 @@ const updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
 
-    // Permission check
-    if (!["super_admin", "admin"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Only organization admins can update user roles",
-      });
-    }
-
-    const targetUser = await User.findOne({
-      _id: req.params.userId,
-      organization: req.user.organization,
-    });
-
-    if (!targetUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    const targetUser = req.targetUser;
 
     if (targetUser.isDeactivated) {
       return res.status(400).json({
@@ -342,11 +304,11 @@ const updateUserRole = async (req, res) => {
     }
 
     // Prevent changing super admins role (only super admins can do this)
-    if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
-      return res.status(403).json({
-        message: "Only super admins can change super admin roles",
-      });
-    }
+    // if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
+    //   return res.status(403).json({
+    //     message: "Only super admins can change super admin roles",
+    //   });
+    // }
 
     // Track role change
     const changes = [
@@ -391,13 +353,6 @@ const updateUserRole = async (req, res) => {
 // Delete user
 const deleteUser = async (req, res) => {
   try {
-    // Permission check
-    if (!["super_admin", "admin"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Only organization admins can remove users",
-      });
-    }
-
     // Prevent users from removing themselves
     if (req.params.userId === req.user._id.toString()) {
       return res.status(400).json({
@@ -405,19 +360,11 @@ const deleteUser = async (req, res) => {
       });
     }
 
-    const targetUser = await User.findOne({
-      _id: req.params.userId,
-      organization: req.user.organization,
-    });
+    const targetUser = req.targetUser;
 
-    if (!targetUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Prevent removing super admins
-    if (targetUser.role === "super_admin") {
-      return res.status(403).json({
-        message: "Cannot remove super admins",
+    if (targetUser.isDeactivated) {
+      return res.status(400).json({
+        message: "User is already deactivated.",
       });
     }
 
@@ -455,34 +402,6 @@ const deleteUser = async (req, res) => {
 // Get user update history
 const getUserUpdateHistory = async (req, res) => {
   try {
-    // Check permissions
-    const isSelf = req.user._id.toString() === req.params.userId;
-    const isAdmin = ["super_admin", "admin"].includes(req.user.role);
-
-    // If not self and not admin, deny access
-    if (!isSelf && !isAdmin) {
-      return res.status(403).json({
-        message: "You don't have permission to view this history",
-      });
-    }
-
-    // Get the target user to check their role
-    const targetUser = await User.findOne({
-      _id: req.params.userId,
-      organization: req.user.organization,
-    });
-
-    if (!targetUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Prevent admins from viewing super admin history
-    if (req.user.role === "admin" && targetUser.role === "super_admin") {
-      return res.status(403).json({
-        message: "Admins cannot view super admin history",
-      });
-    }
-
     const history = await UserUpdateHistory.find({
       userId: req.params.userId,
       organization: req.user.organization,
@@ -500,13 +419,6 @@ const getUserUpdateHistory = async (req, res) => {
 // reactivate user
 const reactivateUser = async (req, res) => {
   try {
-    // Permission check
-    if (!["super_admin", "admin"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Only organization admins can reactivate users",
-      });
-    }
-
     const targetUser = await User.findOne({
       _id: req.params.userId,
       organization: req.user.organization,
@@ -515,14 +427,7 @@ const reactivateUser = async (req, res) => {
 
     if (!targetUser) {
       return res.status(404).json({
-        message: "Removed user not found",
-      });
-    }
-
-    // Prevent reactivating super admins unless super admin
-    if (targetUser.role === "super_admin" && req.user.role !== "super_admin") {
-      return res.status(403).json({
-        message: "Only super admins can reactivate super admins",
+        message: "Deactivated user not found",
       });
     }
 

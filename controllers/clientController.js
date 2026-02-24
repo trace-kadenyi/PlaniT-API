@@ -53,11 +53,17 @@ const createClient = async (req, res) => {
 // Get all active clients
 const getAllClients = async (req, res) => {
   try {
-    const clients = await Client.find({
+    const filter = {
       organizationId: req.user.organization,
       isDeleted: false,
-    }).sort({ createdAt: -1 });
+    };
 
+    // Viewers cannot see archived clients
+    if (req.user.role === "viewer") {
+      filter.isArchived = false;
+    }
+
+    const clients = await Client.find(filter).sort({ createdAt: -1 });
     res.json(clients);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -74,6 +80,14 @@ const getClientWithEvents = async (req, res) => {
 
     if (!client) {
       return res.status(404).json({ error: "Client not found" });
+    }
+
+    // Block viewers from accessing archived clients directly
+    if (client.isArchived && req.user.role === "viewer") {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You do not have permission to view archived clients.",
+      });
     }
 
     const events = await Event.find({
@@ -117,19 +131,25 @@ const updateClient = async (req, res) => {
       });
     }
 
-    const client = await Client.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        organizationId: req.user.organization,
-        isDeleted: false,
-      },
-      { $set: req.body },
-      { new: true, runValidators: true },
-    );
+    const client = await Client.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+      isDeleted: false,
+    });
 
     if (!client) {
       return res.status(404).json({ error: "Client not found" });
     }
+
+    if (client.isArchived) {
+      return res.status(409).json({
+        message: "Cannot update an archived client. Unarchive it first.",
+      });
+    }
+
+    // Apply updates
+    Object.assign(client, req.body);
+    await client.save();
 
     res.json(client);
   } catch (err) {
@@ -137,27 +157,28 @@ const updateClient = async (req, res) => {
   }
 };
 
-// Archive a client (replace deleteClient)
+// Archive a client
 const archiveClient = async (req, res) => {
   try {
-    const client = await Client.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        organizationId: req.user.organization,
-        isDeleted: false,
-      },
-      {
-        isArchived: true,
-        archivedAt: new Date(),
-      },
-      { new: true },
-    );
+    const client = await Client.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+      isDeleted: false,
+    });
 
     if (!client) {
       return res
         .status(404)
         .json({ error: "Client not found or already deleted" });
     }
+
+    if (client.isArchived) {
+      return res.status(409).json({ message: "Client is already archived." });
+    }
+
+    client.isArchived = true;
+    client.archivedAt = new Date();
+    await client.save();
 
     res.json({
       message: "Client archived successfully",
@@ -171,24 +192,25 @@ const archiveClient = async (req, res) => {
 // Unarchive archived clients
 const restoreClient = async (req, res) => {
   try {
-    const client = await Client.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        organizationId: req.user.organization,
-        isDeleted: false,
-      },
-      {
-        isArchived: false,
-        archivedAt: null,
-      },
-      { new: true },
-    );
+    const client = await Client.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organization,
+      isDeleted: false,
+    });
 
     if (!client) {
       return res
         .status(404)
         .json({ error: "Client not found or permanently deleted" });
     }
+
+    if (!client.isArchived) {
+      return res.status(409).json({ message: "Client is already active." });
+    }
+
+    client.isArchived = false;
+    client.archivedAt = null;
+    await client.save();
 
     res.json({
       message: "Client restored successfully",
@@ -257,7 +279,7 @@ const deleteClient = async (req, res) => {
   }
 };
 
-// Delete all clients completely
+// Delete all clients
 const deleteAllClients = async (req, res) => {
   try {
     const clients = await Client.find({
@@ -286,7 +308,7 @@ const deleteAllClients = async (req, res) => {
       }
     }
 
-    console.log(`softdeleted: ${softDeleted}, harddeleted: ${hardDeleted}`);
+    const deleteCount = softDeleted + hardDeleted;
 
     res.json({
       message: "All clients deleted for this organization",
@@ -294,6 +316,7 @@ const deleteAllClients = async (req, res) => {
         totalProcessed: clients.length,
         softDeleted,
         hardDeleted,
+        deleteCount,
       },
     });
   } catch (err) {

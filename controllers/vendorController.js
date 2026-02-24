@@ -51,8 +51,16 @@ const getAllVendors = async (req, res) => {
     if (service) {
       filter.services = service;
     }
+    // Viewers cannot see archived vendors
+    if (req.user.role === "viewer") {
+      filter.isArchived = false;
+    }
+
     if (archived !== undefined) {
-      filter.isArchived = archived === "true";
+      // Only apply archived filter for non-viewers
+      if (req.user.role !== "viewer") {
+        filter.isArchived = archived === "true";
+      }
     }
 
     const vendors = await Vendor.find(filter).sort({ name: 1 });
@@ -74,10 +82,14 @@ const getVendorById = async (req, res) => {
     if (!vendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
+
+    // Block viewers from accessing archived vendors directly
+    if (vendor.isArchived && req.user.role === "viewer") {
+      return res.status(403).json({
+        message: "You do not have permission to view archived vendors.",
+      });
+    }
     const vendorData = vendor.toObject();
-    // if (vendor.isDeleted) {
-    //   vendorData.name = `${vendor.name} (Deleted)`;
-    // }
 
     res.json(vendorData);
   } catch (err) {
@@ -112,6 +124,11 @@ const updateVendor = async (req, res) => {
     if (!updatedVendor) {
       return res.status(404).json({ message: "Vendor not found" });
     }
+
+    if (updatedVendor.isArchived)
+      return res.status(409).json({
+        message: "Cannot update an archived vendor. Unarchive it first.",
+      });
 
     res.json(updatedVendor);
   } catch (err) {

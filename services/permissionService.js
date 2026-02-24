@@ -20,7 +20,10 @@ const RESOURCES = {
   CLIENT: "client",
   USER: "user",
   EXPENSE: "expense",
+  BUDGET: "budget",
   AUDIT_LOG: "audit_log",
+  ORGANIZATION: "organization",
+  USER_HISTORY: "user_history",
 };
 
 const ROLES = {
@@ -49,7 +52,10 @@ const getBasePermissionsForRole = (role) => {
     [RESOURCES.CLIENT]: [PERMISSIONS.VIEW],
     [RESOURCES.USER]: [PERMISSIONS.VIEW],
     [RESOURCES.EXPENSE]: [PERMISSIONS.VIEW],
+    [RESOURCES.BUDGET]: [PERMISSIONS.VIEW],
     [RESOURCES.AUDIT_LOG]: [],
+    [RESOURCES.ORGANIZATION]: [PERMISSIONS.VIEW],
+    [RESOURCES.USER_HISTORY]: [],
   };
 
   if (hierarchy >= ROLE_HIERARCHY[ROLES.PLANNER]) {
@@ -60,6 +66,7 @@ const getBasePermissionsForRole = (role) => {
       RESOURCES.TASK,
       RESOURCES.CLIENT,
       RESOURCES.EXPENSE,
+      RESOURCES.BUDGET,
     ].forEach((resource) => {
       basePermissions[resource].push(
         PERMISSIONS.CREATE,
@@ -69,6 +76,9 @@ const getBasePermissionsForRole = (role) => {
         PERMISSIONS.MANAGE_EVENT_STATUS,
       );
     });
+
+    // Planners can delete tasks
+    basePermissions[RESOURCES.TASK].push(PERMISSIONS.DELETE);
   }
 
   if (hierarchy >= ROLE_HIERARCHY[ROLES.ADMIN]) {
@@ -79,13 +89,17 @@ const getBasePermissionsForRole = (role) => {
         PERMISSIONS.EDIT,
         PERMISSIONS.DELETE,
         PERMISSIONS.ARCHIVE,
-        PERMISSIONS.DELETE_ALL,
         PERMISSIONS.MANAGE_USERS,
       );
     });
 
     // Audit log permission for Admins and Super Admins
     basePermissions[RESOURCES.AUDIT_LOG].push(PERMISSIONS.VIEW_AUDIT_LOGS);
+    basePermissions[RESOURCES.USER_HISTORY].push(PERMISSIONS.VIEW);
+
+    // Delete all only applies to vendors and clients
+    basePermissions[RESOURCES.VENDOR].push(PERMISSIONS.DELETE_ALL);
+    basePermissions[RESOURCES.CLIENT].push(PERMISSIONS.DELETE_ALL);
   }
 
   // Only Super Admins can delete paid expenses
@@ -144,19 +158,13 @@ const checkPermission = (
 ) => {
   if (!currentUser?.role || !resource) return false;
 
-  // PREVENT VIEWERS/PLANNERS FROM VIEWING DEACTIVATED USERS
+  // SPECIAL CASE 1: Self history view (bypasses base permissions)
   if (
-    resource === RESOURCES.USER &&
-    targetUser?.isDeactivated &&
-    (currentUser.role === ROLES.VIEWER || currentUser.role === ROLES.PLANNER)
+    resource === RESOURCES.USER_HISTORY &&
+    permission === PERMISSIONS.VIEW &&
+    targetUser?._id &&
+    targetUser._id.toString() === currentUser._id.toString()
   ) {
-    return false;
-  }
-
-  const userRole = currentUser.role;
-
-  // Special rule: Viewers can see DRAG_CARD UI but can't actually update
-  if (permission === PERMISSIONS.DRAG_CARD && userRole === ROLES.VIEWER) {
     return true;
   }
 
@@ -169,6 +177,21 @@ const checkPermission = (
     isSelf
   ) {
     return true; // Allow self-edits for everyone
+  }
+
+  const userRole = currentUser.role;
+  // Special rule: Viewers can see DRAG_CARD UI but can't actually update
+  if (permission === PERMISSIONS.DRAG_CARD && userRole === ROLES.VIEWER) {
+    return true;
+  }
+
+  // PREVENT VIEWERS/PLANNERS FROM VIEWING DEACTIVATED USERS
+  if (
+    resource === RESOURCES.USER &&
+    targetUser?.isDeactivated &&
+    (currentUser.role === ROLES.VIEWER || currentUser.role === ROLES.PLANNER)
+  ) {
+    return false;
   }
 
   // RULE 1: Get base permissions based on role
@@ -185,7 +208,19 @@ const checkPermission = (
   }
 
   // RULE 3: User management protection (Admins can't touch Super Admins)
-  if (resource === RESOURCES.USER && targetUser) {
+  // Only apply hierarchy protection for modification actions
+  if (
+    resource === RESOURCES.USER &&
+    targetUser &&
+    [
+      PERMISSIONS.EDIT,
+      PERMISSIONS.DELETE,
+      PERMISSIONS.MANAGE_USERS,
+      PERMISSIONS.ARCHIVE,
+      PERMISSIONS.DELETE_ALL,
+      PERMISSIONS.CREATE,
+    ].includes(permission)
+  ) {
     return canModifyUser(currentUser, targetUser, permission);
   }
 
@@ -206,6 +241,36 @@ const checkPermission = (
   // Special rule: Only super admins can view audit logs
   if (permission === PERMISSIONS.VIEW_AUDIT_LOGS) {
     return userRole === ROLES.ADMIN || userRole === ROLES.SUPER_ADMIN;
+  }
+
+  // USER HISTORY RULES
+  if (resource === RESOURCES.USER_HISTORY && permission === PERMISSIONS.VIEW) {
+    if (!targetUser) return false;
+
+    const isSelf =
+      targetUser._id &&
+      targetUser._id.toString() === currentUser._id.toString();
+
+    // Anyone can view their own history
+    if (isSelf) return true;
+
+    // Only Admins and Super Admins can view others' history
+    if (
+      currentUser.role !== ROLES.ADMIN &&
+      currentUser.role !== ROLES.SUPER_ADMIN
+    ) {
+      return false;
+    }
+
+    // Admins cannot view super admin history
+    if (
+      currentUser.role === ROLES.ADMIN &&
+      targetUser.role === ROLES.SUPER_ADMIN
+    ) {
+      return false;
+    }
+
+    return true;
   }
 
   // For ALL other cases: if user has base permission, they're good!

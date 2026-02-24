@@ -4,12 +4,9 @@ const Event = require("../models/EventSchema");
 const Expense = require("../models/ExpenseSchema");
 const Budget = require("../models/BudgetSchema");
 const ExpenseAuditLog = require("../models/ExpenseAuditLogSchema");
-const User = require("../models/UserSchema");
 const Vendor = require("../models/VendorSchema");
 const { getBudgetStatus } = require("../utils/budgetHelpers");
 const {
-  canPerformExpenseAction,
-  canViewAuditLogs,
   getChangedFields,
   determineActionType,
   logExpenseAction,
@@ -21,16 +18,6 @@ const MAX_NOTES = 200;
 // Create new expense
 const createExpense = async (req, res) => {
   try {
-    // Check if user can create expenses
-    if (!canPerformExpenseAction(req.user, null, "create")) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "You do not have permission to create expenses",
-        requiredRole: ["planner", "admin", "super_admin"],
-        userRole: req.user.role,
-      });
-    }
-
     const eventId = req.body.eventId;
 
     // 2️⃣ Fetch event + budget status IN PARALLEL
@@ -239,6 +226,7 @@ const getExpenseById = async (req, res) => {
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
+
     res.json(expense);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -248,15 +236,18 @@ const getExpenseById = async (req, res) => {
 // Update expense
 const updateExpense = async (req, res) => {
   try {
-    const existingExpense = await Expense.findOne({
-      _id: req.params.id,
-      organizationId: req.user.organization,
-    });
+    const existingExpense = req.targetExpense;
 
-    if (!existingExpense) {
-      return res.status(404).json({
-        error: "NotFound",
-        message: "Expense not found",
+    // 🔒 Planners can only edit expenses they created
+    const isPlanner = req.user.role === "planner";
+    const isOwner =
+      existingExpense.createdBy.toString() === req.user._id.toString();
+
+    if (isPlanner && !isOwner) {
+      return res.status(403).json({
+        error: "Forbidden",
+        code: "INSUFFICIENT_PERMISSION",
+        message: "Planners can only edit expenses that they created.",
       });
     }
 
@@ -297,26 +288,6 @@ const updateExpense = async (req, res) => {
         error: "CannotEditPaidExpense",
         message: "Paid expenses cannot be edited",
         resolution: "If changes are needed, delete and recreate the expense",
-      });
-    }
-
-    // Check if user can update this expense
-    if (!canPerformExpenseAction(req.user, existingExpense, "update")) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "You do not have permission to update expenses",
-        requiredRole: ["planner", "admin", "super_admin"],
-        userRole: req.user.role,
-      });
-    }
-
-    // If trying to mark as paid, verify permissions
-    if (req.body.paymentStatus === "paid" && req.user.role === "viewer") {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "Viewers cannot mark expenses as paid",
-        requiredRole: ["planner", "admin", "super_admin"],
-        userRole: req.user.role,
       });
     }
 
@@ -448,14 +419,7 @@ const updateExpense = async (req, res) => {
 // Delete expense
 const deleteExpense = async (req, res) => {
   try {
-    const expense = await Expense.findOne({
-      _id: req.params.id,
-      organizationId: req.user.organization,
-    });
-
-    if (!expense) {
-      return res.status(404).json({ message: "Expense not found" });
-    }
+    const expense = req.targetExpense;
 
     // 2️⃣ Fetch event + budget in parallel
     const [event, budget] = await Promise.all([
@@ -491,17 +455,6 @@ const deleteExpense = async (req, res) => {
 
     if (!budget) {
       return res.status(404).json({ message: "Associated budget not found" });
-    }
-
-    if (!canPerformExpenseAction(req.user, expense, "delete")) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message:
-          expense.paymentStatus === "paid"
-            ? "Only super administrators can delete paid expenses"
-            : "You do not have permission to delete expenses",
-        userRole: req.user.role,
-      });
     }
 
     // 4️⃣ Budget snapshot BEFORE mutation
@@ -636,15 +589,6 @@ const getBudgetStatusForAllEvents = async (req, res) => {
 // Get expense audit logs
 const getExpenseAuditLogs = async (req, res) => {
   try {
-    if (!canViewAuditLogs(req.user)) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "Only administrators can view audit logs",
-        requiredRole: ["admin", "super_admin"],
-        userRole: req.user.role,
-      });
-    }
-
     const {
       eventId,
       actionType,
@@ -788,13 +732,6 @@ const getExpenseAuditLogs = async (req, res) => {
 // 🔴 NEW ENDPOINT -专门 for deleted events
 const getDeletedEventExpenseLogs = async (req, res) => {
   try {
-    if (!canViewAuditLogs(req.user)) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "Only administrators can view audit logs",
-      });
-    }
-
     const { eventId } = req.query;
     let query = {
       organizationId: req.user.organization,
