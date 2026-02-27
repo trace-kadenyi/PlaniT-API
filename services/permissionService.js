@@ -102,10 +102,16 @@ const getBasePermissionsForRole = (role) => {
     basePermissions[RESOURCES.CLIENT].push(PERMISSIONS.DELETE_ALL);
   }
 
+  // strip EDIT from ORGANIZATION for Admins
+  basePermissions[RESOURCES.ORGANIZATION] = basePermissions[
+    RESOURCES.ORGANIZATION
+  ].filter((p) => p !== PERMISSIONS.EDIT);
+
   // Only Super Admins can delete paid expenses
   if (hierarchy >= ROLE_HIERARCHY[ROLES.SUPER_ADMIN]) {
     basePermissions[RESOURCES.EXPENSE].push(PERMISSIONS.DELETE_PAID_EXPENSE);
     basePermissions[RESOURCES.AUDIT_LOG].push(PERMISSIONS.VIEW_AUDIT_LOGS);
+    basePermissions[RESOURCES.ORGANIZATION].push(PERMISSIONS.EDIT);
   }
 
   return basePermissions;

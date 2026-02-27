@@ -2,11 +2,8 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  addUserToOrganization,
-  getOrganizationUsers,
-  removeUserFromOrganization,
-  updateUserRole,
   getOrganizationDetails,
+  updateOrganization,
 } = require("../controllers/organizationController");
 const authController = require("../controllers/authController");
 const { authorize } = require("../middleware/authmiddleware");
@@ -20,6 +17,13 @@ router.get(
   "/",
   authorize(PERMISSIONS.VIEW, RESOURCES.ORGANIZATION),
   getOrganizationDetails,
+);
+
+// PATCH route - Super Admin only
+router.patch(
+  "/",
+  authorize(PERMISSIONS.EDIT, RESOURCES.ORGANIZATION),
+  updateOrganization,
 );
 
 module.exports = router;
