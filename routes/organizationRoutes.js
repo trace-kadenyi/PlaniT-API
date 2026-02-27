@@ -2,10 +2,6 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  addUserToOrganization,
-  getOrganizationUsers,
-  removeUserFromOrganization,
-  updateUserRole,
   getOrganizationDetails,
 } = require("../controllers/organizationController");
 const authController = require("../controllers/authController");
