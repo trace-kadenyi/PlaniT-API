@@ -178,6 +178,7 @@ Create a `.env` file in the project root:
 ```env
 DATABASE_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret
+JWT_EXPIRES_IN=15m
 JWT_REFRESH_SECRET=your_jwt_refresh_secret
 JWT_REFRESH_EXPIRES_IN=7d
 SUPABASE_URL=your_supabase_url
