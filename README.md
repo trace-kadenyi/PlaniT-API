@@ -46,7 +46,7 @@ PlaniT is split into two independent repositories, enabling separate development
 | **Helmet** | HTTP security headers |
 | **express-rate-limit** | Rate limiting for sensitive auth routes |
 | **cookie-parser** | Secure httpOnly cookie handling |
-| **Supabase** | File/asset storage integration |
+| **Supabase** | Expense receipt storage |
 | **dotenv** | Environment configuration |
 
 ---
