@@ -1,58 +1,57 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green)](https://nodejs.org)
+[![Express](https://img.shields.io/badge/Express-4.x-lightgrey)](https://expressjs.com)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green)](https://mongodb.com)
 
-> 🎨 This repository contains the Backend application for PlaniT.  
-> For frontend implementation and app screenshots, see: https://github.com/trace-kadenyi/PlaniT
+> 🎨 This repository contains the Backend API for PlaniT.
+> For the frontend implementation and app screenshots, see: https://github.com/trace-kadenyi/PlaniT
 
-# PlaniT - Full Stack Event Management System
+# PlaniT — Full Stack Event Management System
 
-PlaniT is a SaaS event management platform built on the MERN stack.
-
-It enables organizations to manage events, vendors, budgets, tasks, and operational workflows within a secure, role-based architecture, while delivering scalable system design, financial integrity enforcement through audit logs, and granular access control across multi-organization environments.
-
----
-
-## 🌍 Live Architecture Overview
-
-PlaniT is split into two independent repositories:
-
-- **Frontend (React + Redux Toolkit)**
-- **Backend API (Node.js + Express + MongoDB)**
-
-The frontend and backend are maintained as separate repositories, enabling independent development, deployment, and scalability.
+PlaniT is a production-grade SaaS event management platform built on the MERN stack. It enables organizations to manage events, vendors, budgets, tasks, and operational workflows within a secure, role-based architecture — delivering scalable system design, financial integrity enforcement through audit logs, and granular access control across multi-organization environments.
 
 ---
 
-# 🚀 System Architecture Principles
+## 🌍 Architecture Overview
 
-PlaniT is engineered around production-grade architectural principles:
+PlaniT is split into two independent repositories, enabling separate development, deployment, and scaling:
 
-- Real-world relational data modeling in MongoDB
+| Repository | Stack |
+|---|---|
+| **Frontend** | React, Redux Toolkit, React Router |
+| **Backend API** (this repo) | Node.js, Express.js, MongoDB, Mongoose, JWT, Supabase |
+
+---
+
+## 🚀 System Design Principles
+
+- Real-world relational data modeling in MongoDB with Mongoose ODM
 - Secure JWT-based authentication with granular RBAC authorization
-- Financial constraint enforcement (budget vs expense validation)
-- Soft and hard deletion strategies for data integrity
+- Financial constraint enforcement — budget vs. expense validation at the service layer
+- Soft and hard deletion strategies with restoration support
 - Comprehensive audit logging for accountability and traceability
-- Modular frontend architecture with scalable state management
-- Clean, layered backend service architecture
-
-The platform is structured for maintainability, security, and long-term scalability.
+- Layered backend architecture: routes → controllers → services → models
 
 ---
 
-# 🧱 Tech Stack
+## 🧱 Tech Stack
 
-### Backend
-
-- Node.js
-- Express.js
-- MongoDB
-- Mongoose
-- JWT Authentication
-- Middleware-based RBAC
-- Supabase
+| Technology | Role |
+|---|---|
+| **Node.js** | Server runtime |
+| **Express.js** | Web framework and routing |
+| **MongoDB** | Primary database |
+| **Mongoose** | ODM for schema modeling and validation |
+| **JWT** | Authentication — access + refresh token strategy |
+| **Helmet** | HTTP security headers |
+| **express-rate-limit** | Rate limiting for sensitive auth routes |
+| **cookie-parser** | Secure httpOnly cookie handling |
+| **Supabase** | File/asset storage integration |
+| **dotenv** | Environment configuration |
 
 ---
 
-# 🗂 System Modules
+## 🗂 System Modules
 
 - Organizations
 - Users
@@ -67,251 +66,161 @@ The platform is structured for maintainability, security, and long-term scalabil
 
 ---
 
-# 🔐 Authentication & Authorization
+## 🔐 Security
 
 ### Authentication
 
-- JWT issued at login
-- Token-based API access
-- Secure middleware verification
+- JWT access tokens issued at login, stored as httpOnly cookies
+- Separate refresh tokens with a dedicated rate limiter (30 requests/minute)
+- Aggressive rate limiting on login and signup endpoints (10 requests per 15 min in production)
+- Helmet middleware sets secure HTTP headers on all responses
+- CORS restricted to the frontend origin with credential support
 
-### Authorization
+### Authorization — RBAC
 
-- Role-Based Access Control
-- Resource-level permission checks
-- Action-based enforcement (create, read, update, delete)
-- Defense-in-depth (validated both frontend & backend)
+All protected routes use a two-layer authorization model:
 
----
+1. **`authController.protect`** — verifies the JWT and attaches the user to the request
+2. **`authorize(PERMISSION, RESOURCE)`** — checks the user's role has the required permission on the target resource
 
-# 💰 Financial Logic Enforcement
-
-PlaniT enforces financial constraints server-side:
-
-- Expenses cannot exceed allocated event budget
-- Aggregation queries calculate total expenses
-- Remaining budget is derived dynamically
-- Validation occurs in service layer (not controller)
-
-This ensures financial data integrity.
+Permissions in use: `VIEW`, `CREATE`, `EDIT`, `DELETE`, `DELETE_ALL`, `ARCHIVE`, `MANAGE_USERS`, `VIEW_AUDIT_LOGS`
 
 ---
 
-# 🧾 Audit Logging
+## 💰 Financial Logic
 
-Every critical mutation logs:
+PlaniT enforces budget constraints at the service layer — not the controller — so validation cannot be bypassed:
 
-- User ID
-- Resource affected
-- Action performed
+- Expenses cannot be created or updated if they would exceed the event's allocated budget
+- Total expenses are computed via MongoDB aggregation queries
+- Remaining budget is derived dynamically at query time
+- Budget status across all events is available via a dedicated summary endpoint
+
+---
+
+## 🧾 Audit Logging
+
+Every critical mutation is recorded with:
+
+- User ID and organization context
+- Resource type and resource ID affected
+- Action performed (create, update, delete, etc.)
 - Timestamp
-- Optional metadata
+- Optional metadata (e.g. old vs. new values)
 
-This enables traceability and production-grade accountability.
+Dedicated audit log endpoints are available for expenses and soft-deleted event expense history, protected by the `VIEW_AUDIT_LOGS` permission.
 
 ---
 
-# 📡 API Overview
+## 📡 API Overview
 
-Base URL:
+**Base URL:**
 
-    /api
-
-The backend exposes a RESTful API for managing authentication, events, clients, vendors, tasks, and expenses.
+```
+/api
+```
 
 Most routes require authentication via a JWT access token.
 
-Authorization header:
+**Authorization header:**
 
-    Authorization: Bearer <token>
+```
+Authorization: Bearer <access_token>
+```
 
----
+| Resource | Base Path |
+|---|---|
+| Auth | `/api/auth` |
+| Users | `/api/users` |
+| Organization | `/api/organization` |
+| Events | `/api/events` |
+| Clients | `/api/clients` |
+| Vendors | `/api/vendors` |
+| Tasks | `/api/tasks` |
+| Budgets | `/api/budget` |
+| Expenses | `/api/expenses` |
 
-## 🔑 Authentication
-
-### POST /auth/login
-
-Authenticates a user and returns a JWT access token.
-
-Request:
-
-    {
-      "email": "user@example.com",
-      "password": "password"
-    }
-
-Response:
-
-    {
-      "token": "<jwt_token>"
-    }
+📄 For full endpoint details, request/response structure, and permission requirements, see `docs/API.md`.
 
 ---
 
-## 📅 Events
+## ⚡ Rate Limiting
 
-### POST /events
-
-Create a new event.
-
-### GET /events
-
-Retrieve all events accessible to the authenticated user.
-
-### GET /events/:id
-
-Retrieve a specific event.
-
-### PATCH /events/:id
-
-Update event details.
-
-### DELETE /events/:id
-
-Delete an event.  
-Supports soft deletion, with hard deletion restricted to elevated roles.
+| Route | Window | Max Requests | Notes |
+|---|---|---|---|
+| `/auth/refresh-token` | 1 minute | 30 | Permissive — supports silent token renewal |
+| `/auth/login` | 5 minutes | 10 (prod) | Currently 100 in development |
+| `/auth/signup` | 5 minutes | 10 (prod) | Currently 100 in development |
 
 ---
 
-## 👥 Clients
+## 🛠 Local Development
 
-### POST /clients
+### Prerequisites
 
-Create a client.
+- Node.js v18+
+- MongoDB (local instance or Atlas URI)
+- Supabase project (for file storage)
 
-### GET /clients
+### Setup
 
-Retrieve clients.
+```bash
+git clone https://github.com/trace-kadenyi/PlaniT-API.git
+cd PlaniT-API
+npm install
+npm start
+```
 
-### PATCH /clients/:id
+### Environment Variables
 
-Update a client.
+Create a `.env` file in the project root:
 
-### DELETE /clients/:id
-
-Delete a client.
-
----
-
-## 🏢 Vendors
-
-### POST /vendors
-
-Create a vendor.
-
-### GET /vendors
-
-Retrieve vendors.
-
-### PATCH /vendors/:id
-
-Update a vendor.
-
-### DELETE /vendors/:id
-
-Delete a vendor.
+```env
+DATABASE_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+JWT_REFRESH_SECRET=your_jwt_refresh_secret
+JWT_REFRESH_EXPIRES_IN=7d
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_key
+```
 
 ---
 
-## 💵 Expenses
+## 🧪 Roadmap
 
-### POST /expenses
-
-Create an expense and validate it against the event's allocated budget.
-
-### GET /expenses?eventId=
-
-Retrieve expenses associated with an event.
-
----
-
-## 📝 Tasks
-
-### POST /tasks
-
-Create a task.
-
-### GET /tasks?eventId=
-
-Retrieve tasks associated with an event.
-
-### PATCH /tasks/:id
-
-Update task status or details.
-
-### DELETE /tasks/:id
-
-Delete a task.
+- [ ] Docker containerization for consistent dev/prod parity
+- [ ] CI/CD pipeline (GitHub Actions)
+- [ ] Full test coverage — unit and integration tests
+- [ ] Swagger UI for interactive API documentation
+- [ ] Role hierarchy expansion for more granular permission sets
+- [ ] Real-time updates via WebSockets
 
 ---
 
-📄 Detailed API documentation can be found in `docs/API.md`.
+## 🧠 Engineering Philosophy
 
----
-
-# 🛠 Local Development
-
-## Clone Repository
-
-    git clone https://github.com/trace-kadenyi/PlaniT-API.git
-
----
-
-## Backend Setup
-
-    cd PlaniT-API
-    npm install
-    npm start
-
-Create `.env` file:
-
-    PORT=4000
-    DATABASE_URI=your_mongodb_connection_string
-    JWT_SECRET=your_jwt_secret
-    JWT_REFRESH_SECRET=your_jwt_refreh_secret
-    JWT_REFRESH_EXPIRES_IN=7d
-    SUPABASE_URL=your_supabase_url
-    SUPABASE_SERVICE_ROLE_KEY=your_key
-
----
-
-# 🧪 Future Improvements
-
-- Docker containerization
-- CI/CD pipeline
-- Full test coverage (unit + integration)
-- API documentation via Swagger UI
-- Role hierarchy expansion
-- Real-time updates via WebSockets
-
----
-
-# 🧠 Engineering Philosophy
-
-PlaniT is built around core engineering principles that support long-term system reliability and maintainability:
+PlaniT is built around core principles that support long-term reliability and maintainability:
 
 - Clear separation of concerns across services and modules
-- Maintainable, modular architecture
 - Defensive programming and strict validation
-- Scalable data modeling and service design
+- Financial integrity enforced at the service layer, not the controller
 - Operational traceability through audit logging
-
-The platform architecture prioritizes clarity, reliability, and extensibility, enabling the system to evolve as operational requirements grow.
+- Scalable data modeling designed to evolve with requirements
 
 ---
 
-# 📎 Repositories
+## 📎 Repositories
 
 - **Frontend:** [PlaniT](https://github.com/trace-kadenyi/PlaniT)
 - **Backend API:** [PlaniT-API](https://github.com/trace-kadenyi/PlaniT-API)
 
 ---
 
-# 👤 Author
+## 👤 Author
 
-## Tracey Kadenyi
+### Tracey Kadenyi
 
-📧 [Email](mailto:treykadenyi@gmail.com) • 💻 [GitHub](https://github.com/trace-kadenyi) • 🔗 [LinkedIn](https://www.linkedin.com/in/tracey-kadenyi/) • ✍🏽 [Medium](https://medium.com/@tracekadenyi) • 🌐 [Website](https://tracey-kadenyi.vercel.app/)
+📧 [treykadenyi@gmail.com](mailto:treykadenyi@gmail.com) &nbsp;•&nbsp; 💻 [GitHub](https://github.com/trace-kadenyi) &nbsp;•&nbsp; 🔗 [LinkedIn](https://www.linkedin.com/in/tracey-kadenyi/) &nbsp;•&nbsp; ✍🏽 [Medium](https://medium.com/@tracekadenyi) &nbsp;•&nbsp; 🌐 [Website](https://tracey-kadenyi.vercel.app/)
 
 ---
 
