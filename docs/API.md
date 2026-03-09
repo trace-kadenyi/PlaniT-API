@@ -38,12 +38,12 @@ Authorization: Bearer <access_token>
 
 No authentication required for these routes.
 
-| Method | Endpoint              | Description                                   | Permission |
-| ------ | --------------------- | --------------------------------------------- | ---------- |
-| `POST` | `/auth/signup`        | Register a new user account                   | Public     |
-| `POST` | `/auth/login`         | Login and receive access/refresh tokens       | Public     |
-| `POST` | `/auth/refresh-token` | Obtain a new access token using refresh token | Public     |
-| `POST` | `/auth/logout`        | Invalidate the current session                | Public     |
+| Method | Endpoint              | Description                                   | Permission             |
+| ------ | --------------------- | --------------------------------------------- | ---------------------- |
+| `POST` | `/auth/signup`        | Register a new user account                   | Public                 |
+| `POST` | `/auth/login`         | Login and receive access/refresh tokens       | Public                 |
+| `POST` | `/auth/refresh-token` | Obtain a new access token using refresh token | Refresh Token Required |
+| `POST` | `/auth/logout`        | Invalidate the current session                | Public                 |
 
 ---
 
