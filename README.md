@@ -140,7 +140,7 @@ Authorization: Bearer <access_token>
 | Budgets | `/api/budget` |
 | Expenses | `/api/expenses` |
 
-📄 For full endpoint details, request/response structure, and permission requirements, see `docs/API.md`.
+📄 For full endpoint details, request/response structure, and permission requirements, see [docs/API.md](docs/API.md).
 
 ---
 
