@@ -15,32 +15,36 @@ const {
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
 
+const validateFieldLengths = (body) => {
+  if (body.description && body.description.length > MAX_DESCRIPTION) {
+    return {
+      error: "ValidationError",
+      message: `Description cannot exceed ${MAX_DESCRIPTION} characters`,
+      field: "description",
+      maxLength: MAX_DESCRIPTION,
+      currentLength: body.description.length,
+    };
+  }
+  if (body.notes && body.notes.length > MAX_NOTES) {
+    return {
+      error: "ValidationError",
+      message: `Notes cannot exceed ${MAX_NOTES} characters`,
+      field: "notes",
+      maxLength: MAX_NOTES,
+      currentLength: body.notes.length,
+    };
+  }
+  return null;
+};
+
 // Create new expense
 const createExpense = async (req, res) => {
   try {
     const eventId = req.body.eventId;
 
-    // Check description length if provided
-    if (req.body.description && req.body.description.length > MAX_DESCRIPTION) {
-      return res.status(400).json({
-        error: "ValidationError",
-        message: `Expense description cannot exceed ${MAX_DESCRIPTION} characters`,
-        field: "description",
-        maxLength: MAX_DESCRIPTION,
-        currentLength: req.body.description.length,
-      });
-    }
-
-    // Check notes length if provided
-    if (req.body.notes && req.body.notes.length > MAX_NOTES) {
-      return res.status(400).json({
-        error: "ValidationError",
-        message: `Expense notes cannot exceed ${MAX_NOTES} characters`,
-        field: "notes",
-        maxLength: MAX_NOTES,
-        currentLength: req.body.notes.length,
-      });
-    }
+    // Check description and notes length if provided
+    const validationError = validateFieldLengths(req.body);
+    if (validationError) return res.status(400).json(validationError);
 
     // Fetch event, budget status, and vendor all in parallel
     const [event, budgetStatus, vendorCheck] = await Promise.all([
@@ -249,11 +253,16 @@ const updateExpense = async (req, res) => {
     // cache event id
     const eventId = existingExpense.eventId;
 
-    // validate event
-    const event = await Event.findOne({
-      _id: eventId,
-      organizationId: req.user.organization,
-    });
+    // Check description and notes length if provided in update
+    const validationError = validateFieldLengths(req.body);
+    if (validationError) return res.status(400).json(validationError);
+
+    // Fetch event, budget, and budget status all in parallel
+    const [event, budget, budgetStatusBefore] = await Promise.all([
+      Event.findOne({ _id: eventId, organizationId: req.user.organization }),
+      Budget.findOne({ eventId, organizationId: req.user.organization }),
+      getBudgetStatus(eventId, req.user.organization),
+    ]);
 
     if (!event) {
       return res.status(404).json({
@@ -268,14 +277,6 @@ const updateExpense = async (req, res) => {
           "Cannot update expenses for archived events. Please restore the event first.",
       });
     }
-
-    const [budget, budgetStatusBefore] = await Promise.all([
-      Budget.findOne({
-        eventId,
-        organizationId: req.user.organization,
-      }), // may be null
-      getBudgetStatus(eventId, req.user.organization),
-    ]);
 
     // PREVENT EDITING OF PAID EXPENSES
     if (existingExpense.paymentStatus === "paid") {
@@ -300,28 +301,6 @@ const updateExpense = async (req, res) => {
           remainingBudget: budget.remainingBudget,
         });
       }
-    }
-
-    // Check description length if provided in update
-    if (req.body.description && req.body.description.length > MAX_DESCRIPTION) {
-      return res.status(400).json({
-        error: "ValidationError",
-        message: `Description cannot exceed ${MAX_DESCRIPTION} characters`,
-        field: "description",
-        maxLength: MAX_DESCRIPTION,
-        currentLength: req.body.description.length,
-      });
-    }
-
-    // Check notes length if provided in update
-    if (req.body.notes && req.body.notes.length > MAX_NOTES) {
-      return res.status(400).json({
-        error: "ValidationError",
-        message: `Notes cannot exceed ${MAX_NOTES} characters`,
-        field: "notes",
-        maxLength: MAX_NOTES,
-        currentLength: req.body.notes.length,
-      });
     }
 
     // Prevent assigning deleted vendors on update
