@@ -13,6 +13,21 @@ const maxChars = 300;
 const maxNameChars = 70;
 const maxSummaryChars = 200;
 
+const validateEventFieldLengths = (data) => {
+  if ((data.name || "").length > maxNameChars) {
+    return { message: `Event name cannot exceed ${maxNameChars} characters.` };
+  }
+  if ((data.description || "").length > maxChars) {
+    return { message: `Description cannot exceed ${maxChars} characters.` };
+  }
+  if ((data.summary || "").length > maxSummaryChars) {
+    return {
+      message: `Event summary cannot exceed ${maxSummaryChars} characters.`,
+    };
+  }
+  return null;
+};
+
 // Date normalization middleware
 const normalizeEventDate = (date) => {
   if (!date) return null;
@@ -65,29 +80,9 @@ const createEvent = async (req, res) => {
       createdBy: req.user._id,
     };
 
-    // name word limit
-    const eventName = eventData.name || "";
-    if (eventName.length > maxNameChars) {
-      return res.status(400).json({
-        message: `Event name cannot exceed ${maxNameChars} characters.`,
-      });
-    }
-
-    // description word limit
-    const description = eventData.description || "";
-    if (description.length > maxChars) {
-      return res
-        .status(400)
-        .json({ message: `Description cannot exceed ${maxChars} characters.` });
-    }
-
-    // Summary word limit
-    const summary = eventData.summary || "";
-    if (summary.length > maxSummaryChars) {
-      return res.status(400).json({
-        message: `Event summary cannot exceed ${maxSummaryChars} characters.`,
-      });
-    }
+    // field lengths
+    const validationError = validateEventFieldLengths(eventData);
+    if (validationError) return res.status(400).json(validationError);
 
     const event = new Event(eventData); // Use normalized data
     const savedEvent = await event.save();
@@ -314,29 +309,9 @@ const updateEvent = async (req, res) => {
       updateData.client = null; // Convert empty string to null
     }
 
-    // name word limit
-    const eventName = updateData.name || "";
-    if (eventName.length > maxNameChars) {
-      return res.status(400).json({
-        message: `Event name cannot exceed ${maxNameChars} characters.`,
-      });
-    }
-
-    // description word limit
-    const description = updateData.description || "";
-    if (description.length > maxChars) {
-      return res
-        .status(400)
-        .json({ message: `Description cannot exceed ${maxChars} characters.` });
-    }
-
-    // Summary word limit
-    const summary = updateData.summary || "";
-    if (summary.length > maxSummaryChars) {
-      return res.status(400).json({
-        message: `Event summary cannot exceed ${maxSummaryChars} characters.`,
-      });
-    }
+    // field lengths validation
+    const validationError = validateEventFieldLengths(updateData);
+    if (validationError) return res.status(400).json(validationError);
 
     const event = req.targetEvent;
 
