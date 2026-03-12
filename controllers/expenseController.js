@@ -15,20 +15,49 @@ const {
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
 
+const validateFieldLengths = (body) => {
+  if (body.description && body.description.length > MAX_DESCRIPTION) {
+    return {
+      error: "ValidationError",
+      message: `Description cannot exceed ${MAX_DESCRIPTION} characters`,
+      field: "description",
+      maxLength: MAX_DESCRIPTION,
+      currentLength: body.description.length,
+    };
+  }
+  if (body.notes && body.notes.length > MAX_NOTES) {
+    return {
+      error: "ValidationError",
+      message: `Notes cannot exceed ${MAX_NOTES} characters`,
+      field: "notes",
+      maxLength: MAX_NOTES,
+      currentLength: body.notes.length,
+    };
+  }
+  return null;
+};
+
 // Create new expense
 const createExpense = async (req, res) => {
   try {
     const eventId = req.body.eventId;
 
-    // 2️⃣ Fetch event + budget status IN PARALLEL
-    const [event, budgetStatus] = await Promise.all([
-      Event.findOne({
-        _id: eventId,
-        organizationId: req.user.organization,
-      }),
-      getBudgetStatus(eventId, req.user.organization),
-    ]);
+    // Check description and notes length if provided
+    const validationError = validateFieldLengths(req.body);
+    if (validationError) return res.status(400).json(validationError);
 
+    // Fetch event, budget status, and vendor all in parallel
+    const [event, budgetStatus, vendorCheck] = await Promise.all([
+      Event.findOne({ _id: eventId, organizationId: req.user.organization }),
+      getBudgetStatus(eventId, req.user.organization),
+      req.body.vendor
+        ? Vendor.findOne({
+            _id: req.body.vendor,
+            organizationId: req.user.organization,
+            isDeleted: false,
+          })
+        : Promise.resolve(true), // no vendor supplied — skip check
+    ]);
     // 3️⃣ Event validation
     if (!event) {
       return res.status(404).json({
@@ -45,7 +74,7 @@ const createExpense = async (req, res) => {
       });
     }
 
-    // Enhanced validation
+    // budget validation
     if (budgetStatus.totalBudget === 0) {
       return res.status(404).json({
         error: "BudgetNotFound",
@@ -53,42 +82,12 @@ const createExpense = async (req, res) => {
       });
     }
 
-    // Check description length if provided
-    if (req.body.description && req.body.description.length > MAX_DESCRIPTION) {
+    // Vendor validation
+    if (req.body.vendor && !vendorCheck) {
       return res.status(400).json({
-        error: "ValidationError",
-        message: `Expense description cannot exceed ${MAX_DESCRIPTION} characters`,
-        field: "description",
-        maxLength: MAX_DESCRIPTION,
-        currentLength: req.body.description.length,
+        error: "InvalidVendor",
+        message: "Selected vendor does not exist or has been removed",
       });
-    }
-
-    // Check notes length if provided
-    if (req.body.notes && req.body.notes.length > MAX_NOTES) {
-      return res.status(400).json({
-        error: "ValidationError",
-        message: `Expense notes cannot exceed ${MAX_NOTES} characters`,
-        field: "notes",
-        maxLength: MAX_NOTES,
-        currentLength: req.body.notes.length,
-      });
-    }
-
-    // don't add deleted vendors
-    if (req.body.vendor) {
-      const vendor = await Vendor.findOne({
-        _id: req.body.vendor,
-        organizationId: req.user.organization,
-        isDeleted: false,
-      });
-
-      if (!vendor) {
-        return res.status(400).json({
-          error: "InvalidVendor",
-          message: "Selected vendor does not exist or has been removed",
-        });
-      }
     }
 
     // control: expense must be less than remaining budget
@@ -120,13 +119,11 @@ const createExpense = async (req, res) => {
     };
 
     const expense = new Expense(expenseData);
-    await expense.save();
-
-    // mutate budget
-    const budget = await Budget.findOne({
-      eventId: expense.eventId,
-      organizationId: expense.organizationId,
-    });
+    // Save expense and fetch budget in parallel
+    const [, budget] = await Promise.all([
+      expense.save(),
+      Budget.findOne({ eventId, organizationId: expense.organizationId }),
+    ]);
 
     if (!budget) {
       throw new Error("Budget missing after validation");
@@ -138,11 +135,13 @@ const createExpense = async (req, res) => {
       budget.reservedAmount += expense.amount;
     }
 
-    await budget.save();
-
-    const populatedExpense = await Expense.findById(expense._id)
-      .populate("vendor", "name services")
-      .populate("createdBy", "firstName lastName email");
+    // Save budget and populate expense in parallel
+    const [populatedExpense] = await Promise.all([
+      Expense.findById(expense._id)
+        .populate("vendor", "name services")
+        .populate("createdBy", "firstName lastName email"),
+      budget.save(),
+    ]);
 
     res.status(201).json({
       expense: populatedExpense,
@@ -254,11 +253,16 @@ const updateExpense = async (req, res) => {
     // cache event id
     const eventId = existingExpense.eventId;
 
-    // validate event
-    const event = await Event.findOne({
-      _id: eventId,
-      organizationId: req.user.organization,
-    });
+    // Check description and notes length if provided in update
+    const validationError = validateFieldLengths(req.body);
+    if (validationError) return res.status(400).json(validationError);
+
+    // Fetch event, budget, and budget status all in parallel
+    const [event, budget, budgetStatusBefore] = await Promise.all([
+      Event.findOne({ _id: eventId, organizationId: req.user.organization }),
+      Budget.findOne({ eventId, organizationId: req.user.organization }),
+      getBudgetStatus(eventId, req.user.organization),
+    ]);
 
     if (!event) {
       return res.status(404).json({
@@ -273,14 +277,6 @@ const updateExpense = async (req, res) => {
           "Cannot update expenses for archived events. Please restore the event first.",
       });
     }
-
-    const [budget, budgetStatusBefore] = await Promise.all([
-      Budget.findOne({
-        eventId,
-        organizationId: req.user.organization,
-      }), // may be null
-      getBudgetStatus(eventId, req.user.organization),
-    ]);
 
     // PREVENT EDITING OF PAID EXPENSES
     if (existingExpense.paymentStatus === "paid") {
@@ -305,28 +301,6 @@ const updateExpense = async (req, res) => {
           remainingBudget: budget.remainingBudget,
         });
       }
-    }
-
-    // Check description length if provided in update
-    if (req.body.description && req.body.description.length > MAX_DESCRIPTION) {
-      return res.status(400).json({
-        error: "ValidationError",
-        message: `Description cannot exceed ${MAX_DESCRIPTION} characters`,
-        field: "description",
-        maxLength: MAX_DESCRIPTION,
-        currentLength: req.body.description.length,
-      });
-    }
-
-    // Check notes length if provided in update
-    if (req.body.notes && req.body.notes.length > MAX_NOTES) {
-      return res.status(400).json({
-        error: "ValidationError",
-        message: `Notes cannot exceed ${MAX_NOTES} characters`,
-        field: "notes",
-        maxLength: MAX_NOTES,
-        currentLength: req.body.notes.length,
-      });
     }
 
     // Prevent assigning deleted vendors on update
