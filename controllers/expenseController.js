@@ -15,6 +15,7 @@ const {
 const MAX_DESCRIPTION = 150;
 const MAX_NOTES = 200;
 
+//  validate field lengths
 const validateFieldLengths = (body) => {
   if (body.description && body.description.length > MAX_DESCRIPTION) {
     return {
@@ -703,7 +704,7 @@ const getExpenseAuditLogs = async (req, res) => {
   }
 };
 
-// 🔴 NEW ENDPOINT -专门 for deleted events
+// 🔴 deleted events expense logs
 const getDeletedEventExpenseLogs = async (req, res) => {
   try {
     const { eventId } = req.query;
