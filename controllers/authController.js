@@ -21,13 +21,13 @@ const createSendToken = (user, statusCode, res) => {
     { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN },
   );
 
-  // Cookie settings for local development
+  const isProduction = process.env.NODE_ENV === "production";
+
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: false, // Set to false for local development (HTTP)
-    sameSite: "lax", // Change from 'strict' to 'lax' for cross-origin
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    domain: "localhost", // Explicitly set domain for local development
+    secure: isProduction, // true in prod (HTTPS only)
+    sameSite: isProduction ? "none" : "lax", // "none" required for cross-subdomain
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
   // Generate permissions based on role
@@ -368,10 +368,12 @@ exports.restrictTo = (...roles) => {
 
 // Logout - clear the refresh token cookie
 exports.logout = (req, res) => {
+  const isProduction = process.env.NODE_ENV === "production";
+
   res.cookie("refreshToken", "loggedout", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 1, // 1ms - effectively expires immediately
   });
 
