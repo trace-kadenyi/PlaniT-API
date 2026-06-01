@@ -34,11 +34,21 @@ mongoose.connect(process.env.DATABASE_URI);
 
 require("dotenv").config();
 
+const allowedOrigins = [
+  "https://planit.traceykadenyi.com",
+  ...(process.env.NODE_ENV !== "production" ? ["http://localhost:5173"] : []),
+];
+
 // cors
 app.use(
   cors({
-    // origin: "http://localhost:5173",
-    origin: "https://planit.traceykadenyi.com",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS blocked: ${origin}`));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
