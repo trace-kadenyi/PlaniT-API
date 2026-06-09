@@ -30,7 +30,9 @@ const organizationRoutes = require("./routes/organizationRoutes");
 const userRoutes = require("./routes/userRoutes");
 
 // connect to MongoDB
-mongoose.connect(process.env.DATABASE_URI);
+mongoose.connect(process.env.DATABASE_URI, {
+  maxPoolSize: 10,
+});
 
 require("dotenv").config();
 
