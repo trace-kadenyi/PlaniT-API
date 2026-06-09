@@ -1,5 +1,9 @@
 const express = require("express");
+const { createServer } = require("http");
+const { Server } = require("socket.io");
+const jwt = require("jsonwebtoken");
 const app = express();
+const httpServer = createServer(app);
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
@@ -32,8 +36,6 @@ const userRoutes = require("./routes/userRoutes");
 // connect to MongoDB
 mongoose.connect(process.env.DATABASE_URI);
 
-require("dotenv").config();
-
 const allowedOrigins = [
   "https://planit.traceykadenyi.com",
   ...(process.env.NODE_ENV !== "production" ? ["http://localhost:5173"] : []),
@@ -60,6 +62,52 @@ app.use(cookieParser());
 
 // Security headers
 app.use(helmet());
+
+// ========== SOCKET.IO SETUP ==========
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS blocked: ${origin}`));
+      }
+    },
+    credentials: true,
+  },
+});
+
+// Make io accessible in controllers
+app.set("io", io);
+
+// Socket.IO auth middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) return next(new Error("No token provided"));
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.id;
+    next();
+  } catch {
+    next(new Error("Invalid token"));
+  }
+});
+
+// Socket.IO connection
+io.on("connection", (socket) => {
+  console.log(`User connected: ${socket.userId}`);
+
+  // Each user joins their own private room
+  socket.join(`user:${socket.userId}`);
+
+  socket.on("disconnect", () => {
+    console.log(`User disconnected: ${socket.userId}`);
+  });
+});
+
+// ========== END SOCKET.IO SETUP ==========
 
 // ========== RATE LIMITING SETUP ==========
 
@@ -89,52 +137,6 @@ const authLimiter = rateLimit({
     });
   },
 });
-
-// Add this before your routes
-// let requestCounts = {};
-
-// app.use((req, res, next) => {
-//   const path = req.path;
-//   const ip = req.ip;
-
-//   if (!requestCounts[ip]) {
-//     requestCounts[ip] = {};
-//   }
-
-//   if (!requestCounts[ip][path]) {
-//     requestCounts[ip][path] = 0;
-//   }
-
-//   requestCounts[ip][path]++;
-
-//   // Log refresh token requests
-//   if (path.includes('refresh-token')) {
-//     console.log(`Refresh token request #${requestCounts[ip][path]} from ${ip} at ${new Date().toISOString()}`);
-//   }
-
-//   next();
-// });
-
-// Add a debug endpoint to see counts
-app.get("/api/debug/rate-limit-status", (req, res) => {
-  res.json({
-    requestCounts,
-    totalRefreshTokens: Object.values(requestCounts).reduce((acc, ipData) => {
-      return acc + (ipData["/api/auth/refresh-token"] || 0);
-    }, 0),
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// General rate limiting for all other API routes
-// const generalLimiter = rateLimit({
-//   windowMs: 15 * 60 * 1000, // 15 minutes
-//   max: 100, // limit each IP to 100 requests per windowMs
-//   message: "Too many requests from this IP, please try again later.",
-//   // Skip refresh-token since we have a separate limiter for it
-//   skip: (req) => req.originalUrl === "/api/auth/refresh-token",
-// });
-// app.use("/api/", generalLimiter);
 
 // Apply refresh token limiter specifically to refresh-token endpoint
 app.use("/api/auth/refresh-token", refreshTokenLimiter);
@@ -200,7 +202,7 @@ app.all(/.*/, (req, res) => {
 // start server
 mongoose.connection.once("open", () => {
   console.log("connected to MongoDB");
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
     console.log(`server listening on port ${PORT}`);
   });
 });
