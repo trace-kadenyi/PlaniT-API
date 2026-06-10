@@ -1,9 +1,6 @@
 const express = require("express");
-const { createServer } = require("http");
-const { Server } = require("socket.io");
-const jwt = require("jsonwebtoken");
 const app = express();
-const httpServer = createServer(app);
+const Pusher = require("pusher");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
@@ -34,7 +31,10 @@ const organizationRoutes = require("./routes/organizationRoutes");
 const userRoutes = require("./routes/userRoutes");
 
 // connect to MongoDB
-mongoose.connect(process.env.DATABASE_URI);
+// mongoose.connect(process.env.DATABASE_URI);
+mongoose.connect(process.env.DATABASE_URI, {
+  maxPoolSize: 10,
+});
 
 const allowedOrigins = [
   "https://planit.traceykadenyi.com",
@@ -63,51 +63,19 @@ app.use(cookieParser());
 // Security headers
 app.use(helmet());
 
-// ========== SOCKET.IO SETUP ==========
+// ========== PUSHER SETUP ==========
 
-const io = new Server(httpServer, {
-  cors: {
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS blocked: ${origin}`));
-      }
-    },
-    credentials: true,
-  },
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS: true,
 });
 
-// Make io accessible in controllers
-app.set("io", io);
+app.set("pusher", pusher);
 
-// Socket.IO auth middleware
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (!token) return next(new Error("No token provided"));
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.userId = decoded.id;
-    next();
-  } catch {
-    next(new Error("Invalid token"));
-  }
-});
-
-// Socket.IO connection
-io.on("connection", (socket) => {
-  console.log(`User connected: ${socket.userId}`);
-
-  // Each user joins their own private room
-  socket.join(`user:${socket.userId}`);
-
-  socket.on("disconnect", () => {
-    console.log(`User disconnected: ${socket.userId}`);
-  });
-});
-
-// ========== END SOCKET.IO SETUP ==========
+// ========== END PUSHER SETUP ==========
 
 // ========== RATE LIMITING SETUP ==========
 
@@ -202,7 +170,7 @@ app.all(/.*/, (req, res) => {
 // start server
 mongoose.connection.once("open", () => {
   console.log("connected to MongoDB");
-  httpServer.listen(PORT, () => {
+  app.listen(PORT, () => {
     console.log(`server listening on port ${PORT}`);
   });
 });
