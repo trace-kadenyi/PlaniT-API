@@ -148,7 +148,7 @@ const createTask = async (req, res) => {
         const assignedUserId = populatedTask.assignedTo._id.toString();
         pusher.trigger(`user-${assignedUserId}`, "notification", {
           type: "task:assigned",
-          message: `You've been assigned a new task: "${populatedTask.title}"`,
+          message: `You've been assigned a new task:`,
           task: {
             _id: populatedTask._id,
             title: populatedTask.title,
@@ -198,6 +198,9 @@ const updateTask = async (req, res) => {
         message: "Task not found or access denied",
       });
     }
+
+    // save former assignee
+    const previousAssignee = existingTask.assignedTo;
 
     // 🚫 CHECK IF ASSOCIATED EVENT IS ARCHIVED
     if (existingTask.eventId) {
@@ -300,11 +303,26 @@ const updateTask = async (req, res) => {
         const pusher = req.app.get("pusher");
         const assignedUserId = updatedTask.assignedTo._id.toString();
         const updatedById = req.user._id.toString();
+        const previousAssigneeId = previousAssignee
+          ? previousAssignee.toString()
+          : null;
 
         if (assignedUserId !== updatedById) {
+          let notificationType;
+          let notificationMessage;
+
+          // Check if assignee changed
+          if (previousAssigneeId !== assignedUserId) {
+            notificationType = "task:assigned";
+            notificationMessage = `You've been assigned a task:`;
+          } else {
+            notificationType = "task:updated";
+            notificationMessage = `Your task has been updated:`;
+          }
+
           pusher.trigger(`user-${assignedUserId}`, "notification", {
-            type: "task:assigned",
-            message: `You've been assigned a task: "${updatedTask.title}"`,
+            type: notificationType,
+            message: notificationMessage,
             task: {
               _id: updatedTask._id,
               title: updatedTask.title,
