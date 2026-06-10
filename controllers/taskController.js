@@ -142,22 +142,25 @@ const createTask = async (req, res) => {
       .populate("createdBy", "firstName lastName email");
 
     // Notify assigned user if task has an assignee
-    if (populatedTask.assignedTo) {
-      const io = req.app.get("io");
-      const assignedUserId = populatedTask.assignedTo._id.toString();
-
-      io.to(`user:${assignedUserId}`).emit("notification", {
-        type: "task:assigned",
-        message: `You've been assigned a new task: "${populatedTask.title}"`,
-        task: {
-          _id: populatedTask._id,
-          title: populatedTask.title,
-          deadline: populatedTask.deadline,
-        },
-        createdBy: {
-          name: `${populatedTask.createdBy.firstName} ${populatedTask.createdBy.lastName}`,
-        },
-      });
+    try {
+      if (populatedTask.assignedTo) {
+        const pusher = req.app.get("pusher");
+        const assignedUserId = populatedTask.assignedTo._id.toString();
+        pusher.trigger(`user-${assignedUserId}`, "notification", {
+          type: "task:assigned",
+          message: `You've been assigned a new task: "${populatedTask.title}"`,
+          task: {
+            _id: populatedTask._id,
+            title: populatedTask.title,
+            deadline: populatedTask.deadline,
+          },
+          createdBy: {
+            name: `${populatedTask.createdBy.firstName} ${populatedTask.createdBy.lastName}`,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn("Pusher notification failed (non-critical):", err.message);
     }
 
     res.status(201).json(populatedTask);
@@ -292,26 +295,29 @@ const updateTask = async (req, res) => {
     }
 
     // Notify if assignee changed
-    if (req.body.assignedTo && updatedTask.assignedTo) {
-      const io = req.app.get("io");
-      const assignedUserId = updatedTask.assignedTo._id.toString();
-      const updatedById = req.user._id.toString();
+    try {
+      if (req.body.assignedTo && updatedTask.assignedTo) {
+        const pusher = req.app.get("pusher");
+        const assignedUserId = updatedTask.assignedTo._id.toString();
+        const updatedById = req.user._id.toString();
 
-      // Don't notify if user assigned it to themselves
-      if (assignedUserId !== updatedById) {
-        io.to(`user:${assignedUserId}`).emit("notification", {
-          type: "task:assigned",
-          message: `You've been assigned a task: "${updatedTask.title}"`,
-          task: {
-            _id: updatedTask._id,
-            title: updatedTask.title,
-            deadline: updatedTask.deadline,
-          },
-          createdBy: {
-            name: `${req.user.firstName} ${req.user.lastName}`,
-          },
-        });
+        if (assignedUserId !== updatedById) {
+          pusher.trigger(`user-${assignedUserId}`, "notification", {
+            type: "task:assigned",
+            message: `You've been assigned a task: "${updatedTask.title}"`,
+            task: {
+              _id: updatedTask._id,
+              title: updatedTask.title,
+              deadline: updatedTask.deadline,
+            },
+            createdBy: {
+              name: `${req.user.firstName} ${req.user.lastName}`,
+            },
+          });
+        }
       }
+    } catch (err) {
+      console.warn("Pusher notification failed (non-critical):", err.message);
     }
 
     res.json(updatedTask);
