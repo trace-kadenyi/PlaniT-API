@@ -1,6 +1,7 @@
 const Task = require("../models/TaskSchema");
 const Event = require("../models/EventSchema");
 const User = require("../models/UserSchema");
+const Notification = require("../models/NotificationSchema");
 
 const maxChars = 150;
 const maxNameChars = 50;
@@ -144,23 +145,33 @@ const createTask = async (req, res) => {
     // Notify assigned user if task has an assignee
     try {
       if (populatedTask.assignedTo) {
-        const pusher = req.app.get("pusher");
-        const assignedUserId = populatedTask.assignedTo._id.toString();
-        pusher.trigger(`user-${assignedUserId}`, "notification", {
+        const assignedUserId = populatedTask.assignedTo._id;
+
+        const notification = await Notification.create({
+          recipient: assignedUserId,
+          organization: req.user.organization,
           type: "task:assigned",
-          message: `You've been assigned a new task:`,
-          task: {
-            _id: populatedTask._id,
-            title: populatedTask.title,
-            deadline: populatedTask.deadline,
+          message: `You've been assigned a new task: "${populatedTask.title}"`,
+          metadata: {
+            taskId: populatedTask._id,
+            taskTitle: populatedTask.title,
+            taskDeadline: populatedTask.deadline,
+            assignedBy: `${req.user.firstName} ${req.user.lastName}`,
           },
-          createdBy: {
-            name: `${populatedTask.createdBy.firstName} ${populatedTask.createdBy.lastName}`,
-          },
+        });
+
+        const pusher = req.app.get("pusher");
+        pusher.trigger(`user-${assignedUserId.toString()}`, "notification", {
+          _id: notification._id,
+          type: notification.type,
+          message: notification.message,
+          metadata: notification.metadata,
+          read: false,
+          createdAt: notification.createdAt,
         });
       }
     } catch (err) {
-      console.warn("Pusher notification failed (non-critical):", err.message);
+      console.warn("Notification failed (non-critical):", err.message);
     }
 
     res.status(201).json(populatedTask);
@@ -300,42 +311,44 @@ const updateTask = async (req, res) => {
     // Notify if assignee changed
     try {
       if (req.body.assignedTo && updatedTask.assignedTo) {
-        const pusher = req.app.get("pusher");
-        const assignedUserId = updatedTask.assignedTo._id.toString();
+        const assignedUserId = updatedTask.assignedTo._id;
         const updatedById = req.user._id.toString();
         const previousAssigneeId = previousAssignee
           ? previousAssignee.toString()
           : null;
 
-        if (assignedUserId !== updatedById) {
-          let notificationType;
-          let notificationMessage;
+        if (assignedUserId.toString() !== updatedById) {
+          const isNewAssignee =
+            previousAssigneeId !== assignedUserId.toString();
 
-          // Check if assignee changed
-          if (previousAssigneeId !== assignedUserId) {
-            notificationType = "task:assigned";
-            notificationMessage = `You've been assigned a task:`;
-          } else {
-            notificationType = "task:updated";
-            notificationMessage = `Your task has been updated:`;
-          }
+          const notification = await Notification.create({
+            recipient: assignedUserId,
+            organization: req.user.organization,
+            type: isNewAssignee ? "task:assigned" : "task:updated",
+            message: isNewAssignee
+              ? `You've been assigned a task: "${updatedTask.title}"`
+              : `Your task has been updated: "${updatedTask.title}"`,
+            metadata: {
+              taskId: updatedTask._id,
+              taskTitle: updatedTask.title,
+              taskDeadline: updatedTask.deadline,
+              assignedBy: `${req.user.firstName} ${req.user.lastName}`,
+            },
+          });
 
-          pusher.trigger(`user-${assignedUserId}`, "notification", {
-            type: notificationType,
-            message: notificationMessage,
-            task: {
-              _id: updatedTask._id,
-              title: updatedTask.title,
-              deadline: updatedTask.deadline,
-            },
-            createdBy: {
-              name: `${req.user.firstName} ${req.user.lastName}`,
-            },
+          const pusher = req.app.get("pusher");
+          pusher.trigger(`user-${assignedUserId.toString()}`, "notification", {
+            _id: notification._id,
+            type: notification.type,
+            message: notification.message,
+            metadata: notification.metadata,
+            read: false,
+            createdAt: notification.createdAt,
           });
         }
       }
     } catch (err) {
-      console.warn("Pusher notification failed (non-critical):", err.message);
+      console.warn("Notification failed (non-critical):", err.message);
     }
 
     res.json(updatedTask);
